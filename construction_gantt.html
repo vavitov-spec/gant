@@ -87,7 +87,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cat-row .ti{color:#185FA5;}
 .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#6B92B8!important;}
 
-.add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;margin-left:auto;flex-shrink:0;}
+.add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;flex-shrink:0;}
 .add-work-btn-inline:hover{background:rgba(24,95,165,0.14);border-color:#185FA5;}
 
 .th-mini-btn{border:0.5px solid var(--border2);background:var(--bg);cursor:pointer;color:var(--text3);width:19px;height:19px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;}
@@ -545,7 +545,7 @@ function renderGantt(){
           <i class="ti ${t.icon}" style="font-size:15px;"></i>
           <span class="cat-row-label">${t.name}</span>
           <button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
-            <i class="ti ti-plus" style="font-size:11px;"></i> Добавить работу
+            <i class="ti ti-plus" style="font-size:11px;"></i> Работы
           </button>
         </span></td>`;
       body.appendChild(tr);
@@ -577,8 +577,12 @@ function renderGantt(){
     const collapseToggleHtml = showCollapseToggle
       ? `<i class="ti ti-chevron-${currentParentCollapsed?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
       : `<span style="width:13px;flex-shrink:0;"></span>`;
+    const isEditingName = editingTaskId===t.id;
+    const nameHtml = isEditingName
+      ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
+      : t.name;
     tr.innerHTML=`
-      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${level===0?collapseToggleHtml:''}<span class="task-indent">${level>0?'∟':'└'}</span>${t.name}</div></td>
+      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${level===0?collapseToggleHtml:''}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}</div></td>
       <td><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td style="color:var(--text3)">${t.unit}</td>
       <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
@@ -673,7 +677,7 @@ function renderActualForm(){
     }
   });
   if(!tasks.filter(t=>!t.cat).length){
-    html = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">В этом графике пока нет видов работ. Добавьте их кнопкой «Добавить работу» рядом с названием раздела на вкладке «График», либо через структуру графика.</div>`;
+    html = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">В этом графике пока нет видов работ. Добавьте их кнопкой «Работы» рядом с названием раздела на вкладке «График», либо через структуру графика.</div>`;
   } else if(!anyRow){
     html = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">Нет работ, которые уже должны были начаться к текущему отчётному периоду.</div>`;
   }
@@ -894,30 +898,41 @@ function renderSChart(){
 }
 
 // ─── add task ─────────────────────────────────────────────────────────────────
+let editingTaskId = null;
+
 function showAddTask(catId){
-  const name=prompt('Название работы:'); if(!name) return;
-  const contractor=prompt('Подрядчик:')||'Не указан';
-  const unit=prompt('Единица измерения (м², м³, т, шт ...):')||'шт';
-  const volume=parseInt(prompt('Плановый объём:'))||0;
-  const start=parseInt(prompt('Месяц начала (1=Январь ... 12=Декабрь):'))-1||0;
-  const dur=parseInt(prompt('Продолжительность (месяцев):'))||1;
   const newId=Math.max(0,...tasks.map(t=>t.id))+1;
-  const newTask={id:newId,name,contractor,unit,volume,start,dur,factPct:0,factVol:0};
+  const newTask={id:newId,name:'',contractor:'Не указан',unit:'шт',volume:0,start:CURRENT,dur:1,factPct:0,factVol:0};
 
   if(catId!==undefined){
-    // находим индекс раздела и индекс последней работы внутри него — вставляем сразу после
+    // вставляем сразу после раздела — первой строкой в этом разделе
     const catIdx = tasks.findIndex(t=>t.cat && t.id===catId);
     if(catIdx===-1){
       tasks.push(newTask);
     } else {
-      let insertAt = catIdx+1;
-      while(insertAt<tasks.length && !tasks[insertAt].cat){ insertAt++; }
-      tasks.splice(insertAt, 0, newTask);
+      tasks.splice(catIdx+1, 0, newTask);
     }
   } else {
     tasks.push(newTask);
   }
 
+  editingTaskId = newId;
+  renderGantt();
+  const input = document.getElementById('taskNameInput-'+newId);
+  if(input){ input.focus(); }
+}
+
+function commitTaskName(id, value){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  const name = (value||'').trim();
+  editingTaskId = null;
+  if(!name){
+    // пустое название — отменяем добавление строки
+    tasks = tasks.filter(x=>x.id!==id);
+  } else {
+    t.name = name;
+  }
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
   saveState();
