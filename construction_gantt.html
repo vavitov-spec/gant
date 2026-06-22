@@ -99,9 +99,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-table td{padding-top:4px;padding-bottom:4px;}
 .task-row.selected td{background:var(--bg-info)!important;}
 .task-row{cursor:pointer;}
-.task-row.level-1 .task-indent{opacity:0.55;}
-.task-row.level-1 .task-indent-wrap{color:var(--text3);}
-.task-row.level-0.has-children td{font-weight:500;}
+.task-row.level-1 .task-indent,.task-row.level-2 .task-indent,.task-row.level-3 .task-indent,.task-row.level-4 .task-indent{opacity:0.55;}
+.task-row.level-1 .task-indent-wrap,.task-row.level-2 .task-indent-wrap,.task-row.level-3 .task-indent-wrap,.task-row.level-4 .task-indent-wrap{color:var(--text3);}
+.task-row.has-children td{font-weight:500;}
 .task-indent{color:var(--text3);}
 .cbadge{font-size:10px;padding:1px 6px;border-radius:3px;white-space:nowrap;}
 .bar-cell{min-width:420px;padding:4px 10px;}
@@ -300,10 +300,10 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
                 <button class="th-mini-btn" id="btnCollapseAll" onclick="toggleAllSections()" title="Свернуть/развернуть все разделы">
                   <i class="ti ti-arrows-vertical" style="font-size:12px;"></i>
                 </button>
-                <button class="th-mini-btn" onclick="indentSelectedTask(1)" title="Сделать подвидом работ (вправо)">
+                <button class="th-mini-btn" onclick="indentSelectedTask(1)" title="Понизить уровень (до 5 уровней)">
                   <i class="ti ti-arrow-right" style="font-size:12px;"></i>
                 </button>
-                <button class="th-mini-btn" onclick="indentSelectedTask(-1)" title="Вернуть в виды работ (влево)">
+                <button class="th-mini-btn" onclick="indentSelectedTask(-1)" title="Повысить уровень">
                   <i class="ti ti-arrow-left" style="font-size:12px;"></i>
                 </button>
               </span>
@@ -319,6 +319,9 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
         </tr></thead>
         <tbody id="ganttBody"></tbody>
       </table>
+    </div>
+    <div style="padding:10px 16px;border-top:0.5px solid var(--border);">
+      <button class="btn" onclick="addSection()"><i class="ti ti-folder-plus"></i> Добавить раздел работ</button>
     </div>
     <div style="display:flex;gap:16px;padding:8px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
       <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#B5D4F4;vertical-align:middle;margin-right:4px;"></span>План</span>
@@ -512,13 +515,6 @@ function toggleWorkSection(workId){
 }
 
 // есть ли у вида работ (level=0) с данным id хотя бы один подвид (level=1) сразу за ним
-function hasSubItems(taskId){
-  const idx = tasks.findIndex(t=>t.id===taskId);
-  if(idx===-1) return false;
-  const next = tasks[idx+1];
-  return !!(next && !next.cat && (next.level||0)===1);
-}
-
 function renderGantt(){
   renderStats();
   renderGanttMonthHeader();
@@ -526,27 +522,30 @@ function renderGantt(){
   body.innerHTML='';
   // todayPct вычисляется один раз, а не в каждой строке
   const todayPct = (CURRENT / TOTAL * 100).toFixed(2);
-  let currentCatId = null;
   let currentCollapsed = false;
-  let currentParentCollapsed = false; // свёрнут ли родительский вид работ (скрывает его подвиды)
+  // collapsedChain[L] = true, если ветка на уровне L свёрнута — это скрывает все более глубокие уровни
+  let collapsedChain = [];
 
   tasks.forEach((t,idx)=>{
     const tr = document.createElement('tr');
     if(t.cat){
-      currentCatId = t.id;
       currentCollapsed = !!ganttCollapsed[t.id];
-      currentParentCollapsed = false;
+      collapsedChain = [];
       tr.className='cat-row';
+      const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
-      tr.onclick=()=>toggleGanttSection(t.id);
+      tr.onclick = isEditingCat ? null : (()=>toggleGanttSection(t.id));
+      const catLabelHtml = isEditingCat
+        ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
+        : `<span class="cat-row-label">${t.name}</span>`;
       tr.innerHTML=`<td colspan="6">
         <span style="display:flex;align-items:center;gap:7px;">
           <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
           <i class="ti ${t.icon}" style="font-size:15px;"></i>
-          <span class="cat-row-label">${t.name}</span>
-          <button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
+          ${catLabelHtml}
+          ${isEditingCat?'':`<button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
             <i class="ti ti-plus" style="font-size:11px;"></i> Работы
-          </button>
+          </button>`}
         </span></td>`;
       body.appendChild(tr);
       return;
@@ -554,12 +553,18 @@ function renderGantt(){
     if(currentCollapsed){ return; } // скрываем строки свёрнутого раздела
 
     const level = t.level||0;
-    if(level===0){
-      // новый вид работ — сбрасываем состояние "родитель свёрнут"
-      currentParentCollapsed = !!workCollapsed[t.id];
-    } else if(currentParentCollapsed){
-      return; // скрываем подвид, если его родитель свёрнут
+    // скрыта ли эта строка из-за свёрнутого предка на каком-то уровне выше
+    const hiddenByAncestor = collapsedChain.slice(0, level).some(Boolean);
+    collapsedChain.length = level; // новая ветка — обрезаем устаревшие более глубокие состояния
+    if(hiddenByAncestor){
+      collapsedChain[level] = true;
+      return;
     }
+
+    const next = tasks[idx+1];
+    const showCollapseToggle = !!(next && !next.cat && (next.level||0) > level);
+    const isCollapsedNow = showCollapseToggle && !!workCollapsed[t.id];
+    collapsedChain[level] = isCollapsedNow;
 
     const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const pL = (t.start/TOTAL*100).toFixed(1);
@@ -570,12 +575,11 @@ function renderGantt(){
     const dW = (t.dur*(1-t.factPct/100)/TOTAL*100).toFixed(1);
     const cls = pctClass(t);
     const isSelected = selectedTaskId===t.id;
-    const showCollapseToggle = level===0 && hasSubItems(t.id);
     tr.className = `task-row level-${level}${showCollapseToggle?' has-children':''}${isSelected?' selected':''}`;
     tr.onclick = (e)=>{ e.stopPropagation(); selectTask(t.id); };
-    const indentPx = level===0 ? 0 : 42;
+    const indentPx = level*24;
     const collapseToggleHtml = showCollapseToggle
-      ? `<i class="ti ti-chevron-${currentParentCollapsed?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
+      ? `<i class="ti ti-chevron-${isCollapsedNow?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
       : `<span style="width:13px;flex-shrink:0;"></span>`;
     const isEditingName = editingTaskId===t.id;
     const nameHtml = isEditingName
@@ -585,7 +589,7 @@ function renderGantt(){
       ? `<button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
     tr.innerHTML=`
-      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${level===0?collapseToggleHtml:''}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
+      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td style="color:var(--text3)">${t.unit}</td>
       <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
@@ -611,6 +615,8 @@ function selectTask(id){
   renderGantt();
 }
 
+const MAX_TASK_LEVEL = 4; // максимум 5 уровней вложенности: 0..4
+
 function indentSelectedTask(direction){
   if(selectedTaskId===null){
     alert('Сначала выберите строку вида работ, кликнув по ней.');
@@ -620,27 +626,25 @@ function indentSelectedTask(direction){
   if(!t) return;
   const currentLevel = t.level||0;
   if(direction>0){
-    // вправо: максимум один уровень вложенности (вид → подвид)
-    if(currentLevel>=1){ return; }
-    // подвидом можно сделать работу только если выше в этом же разделе есть работа верхнего уровня,
-    // которая будет её объединять (иначе подвиду не к чему «прикрепиться»)
-    const idx = tasks.findIndex(x=>x.id===t.id);
-    let hasParent = false;
-    for(let i=idx-1; i>=0; i--){
-      const prev = tasks[i];
-      if(prev.cat) break; // дошли до начала раздела — родителя нет
-      if(!(prev.level>0)){ hasParent = true; break; } // нашли работу верхнего уровня
-    }
-    if(!hasParent){
-      alert('Чтобы сделать эту работу подразделом, выше в этом разделе должна быть работа верхнего уровня, которая будет её объединять.');
+    if(currentLevel>=MAX_TASK_LEVEL){
+      alert(`Достигнут максимальный уровень вложенности (${MAX_TASK_LEVEL+1}).`);
       return;
     }
-    t.level = 1;
+    // понизить уровень можно только на 1 шаг и только если прямо выше есть
+    // работа подходящего уровня, которая будет её объединять (материнская работа)
+    const idx = tasks.findIndex(x=>x.id===t.id);
+    const prev = idx>0 ? tasks[idx-1] : null;
+    const maxAllowed = (!prev || prev.cat) ? 0 : (prev.level||0)+1;
+    if(currentLevel+1 > maxAllowed){
+      alert('Чтобы понизить уровень этой работы, выше в разделе должна быть материнская работа подходящего уровня.');
+      return;
+    }
+    t.level = currentLevel+1;
     delete workCollapsed[t.id]; // больше не родитель — сбрасываем состояние сворачивания
   } else {
-    // влево: подвид → обратно в вид работ
+    // влево: повысить уровень на 1 шаг
     if(currentLevel<=0){ return; }
-    t.level = 0;
+    t.level = currentLevel-1;
   }
   renderGantt();
   saveState();
@@ -649,10 +653,11 @@ function indentSelectedTask(direction){
 function getChildIds(taskId){
   const idx = tasks.findIndex(t=>t.id===taskId);
   if(idx===-1) return [];
+  const baseLevel = tasks[idx].level||0;
   const ids = [];
   for(let i=idx+1;i<tasks.length;i++){
     const n = tasks[i];
-    if(n.cat || (n.level||0)!==1) break;
+    if(n.cat || (n.level||0)<=baseLevel) break;
     ids.push(n.id);
   }
   return ids;
@@ -978,6 +983,33 @@ function commitTaskName(id, value){
   editingTaskId = null;
   if(!name){
     // пустое название — отменяем добавление строки
+    tasks = tasks.filter(x=>x.id!==id);
+  } else {
+    t.name = name;
+  }
+  renderGantt();
+  if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+}
+
+// ─── add section ────────────────────────────────────────────────────────────
+let editingCatId = null;
+
+function addSection(){
+  const newId = Math.max(0,...tasks.map(t=>t.id))+1;
+  tasks.push({ id:newId, cat:true, name:'', icon:'ti-folder' });
+  editingCatId = newId;
+  renderGantt();
+  const input = document.getElementById('catNameInput-'+newId);
+  if(input){ input.focus(); }
+}
+
+function commitCatName(id, value){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  const name = (value||'').trim();
+  editingCatId = null;
+  if(!name){
     tasks = tasks.filter(x=>x.id!==id);
   } else {
     t.name = name;
