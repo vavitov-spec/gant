@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Генподрядный график — ЖК «Северная Звезда»</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#111;min-height:100vh;}
+:root{
+  --bg:#fff;--bg2:#f5f5f5;--bg-info:#E6F1FB;--bg-danger:#FCEBEB;--bg-warning:#FAEEDA;--bg-success:#EAF3DE;
+  --text:#111;--text2:#666;--text3:#aaa;--text-info:#185FA5;--text-danger:#A32D2D;--text-warning:#854F0B;--text-success:#3B6D11;
+  --border:rgba(0,0,0,0.11);--border2:rgba(0,0,0,0.2);
+  --rad:8px;--rad-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  body{background:#181818;}
+  :root{--bg:#242424;--bg2:#2e2e2e;--bg-info:#0C2A45;--bg-danger:#3D1010;--bg-warning:#3A200A;--bg-success:#1A2E08;
+    --text:#e8e8e8;--text2:#aaa;--text3:#666;--text-info:#85B7EB;--text-danger:#F09595;--text-warning:#FAC775;--text-success:#C0DD97;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);}
+  .cat-row td{background:#2A3A4A!important;}
+  .cat-row:hover td{background:#33465A!important;}
+  .cat-row .cat-row-label{color:#D8E6F5;}
+  .cat-row .ti{color:#85B7EB;}
+  .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
+}
+.layout{max-width:1400px;margin:20px auto;display:flex;gap:16px;align-items:stretch;padding:0 16px;}
+.sidebar{width:230px;flex-shrink:0;background:var(--bg);border-radius:var(--rad-lg);border:0.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column;position:sticky;top:20px;max-height:calc(100vh - 40px);}
+.sidebar-head{padding:14px 14px 10px;display:flex;align-items:center;justify-content:space-between;}
+.sidebar-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);display:flex;align-items:center;gap:6px;}
+.sidebar-title i{font-size:14px;color:var(--text2);}
+.sidebar-add{border:none;background:none;cursor:pointer;color:var(--text2);width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.sidebar-add:hover{background:var(--bg2);color:#185FA5;}
+.sidebar-list{padding:2px 8px 10px;flex:1;overflow-y:auto;}
+.sidebar-footer{padding:10px;border-top:0.5px solid var(--border);}
+.sidebar-footer-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:none;background:none;cursor:pointer;color:var(--text2);font-size:12.5px;font-family:inherit;border-radius:var(--rad);text-align:left;}
+.sidebar-footer-btn:hover{background:var(--bg2);color:var(--text);}
+.sidebar-footer-btn i{font-size:15px;color:var(--text3);}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rad);cursor:pointer;margin-bottom:2px;position:relative;}
+.sidebar-item:hover{background:var(--bg2);}
+.sidebar-item.active{background:var(--bg-info);}
+.sidebar-item-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;color:#fff;}
+.sidebar-item-body{flex:1;min-width:0;}
+.sidebar-item-name{font-size:12.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-item.active .sidebar-item-name{color:#185FA5;}
+.sidebar-item-meta{font-size:10.5px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-item-progress{font-size:10px;font-weight:600;color:var(--text3);flex-shrink:0;}
+.sidebar-item.active .sidebar-item-progress{color:#185FA5;}
+.sidebar-divider{height:0.5px;background:var(--border);margin:4px 14px;}
+.sidebar-empty{padding:16px 14px;font-size:11.5px;color:var(--text3);text-align:center;}
+.app{flex:1;min-width:0;background:var(--bg);border-radius:var(--rad-lg);border:0.5px solid var(--border);overflow:hidden;}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:0.5px solid var(--border);}
+.logo{width:28px;height:28px;background:#185FA5;border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.logo i{color:#fff;font-size:16px;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.app-title{font-size:15px;font-weight:500;color:var(--text);}
+.badge{font-size:11px;color:var(--text-info);background:var(--bg-info);padding:2px 8px;border-radius:var(--rad);}
+.header-actions{display:flex;gap:8px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg);color:var(--text);cursor:pointer;font-family:inherit;}
+.btn:hover{background:var(--bg2);}
+.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5;}
+.btn-primary:hover{background:#0C447C;}
+.tabs{display:flex;border-bottom:0.5px solid var(--border);padding:0 16px;}
+.tab{padding:10px 14px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-0.5px;display:flex;align-items:center;gap:5px;}
+.tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:500;}
+.tab:hover:not(.active){color:var(--text);}
+.panel{display:none;}.panel.active{display:block;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px;border-bottom:0.5px solid var(--border);}
+.stat-card{background:var(--bg2);border-radius:var(--rad);padding:10px 12px;}
+.stat-label{font-size:11px;color:var(--text2);margin-bottom:4px;}
+.stat-value{font-size:20px;font-weight:500;color:var(--text);}
+.stat-sub{font-size:11px;margin-top:2px;}
+.ok{color:var(--text-success);}.warn{color:var(--text-warning);}.danger{color:var(--text-danger);}
+
+/* Gantt */
+.gantt-wrap{overflow-x:auto;}
+.gantt-table{width:100%;border-collapse:collapse;min-width:900px;}
+.gantt-table th{font-size:11px;font-weight:500;color:var(--text2);padding:8px 10px;text-align:left;border-bottom:0.5px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:2;}
+.gantt-table td{padding:6px 10px;border-bottom:0.5px solid var(--border);font-size:12px;vertical-align:middle;}
+.gantt-table tr:hover td{background:var(--bg2);}
+.cat-row td{background:#EAF1F9!important;font-weight:600;border-left:3px solid #185FA5;padding:11px 10px 11px 9px!important;}
+.cat-row:hover td{background:#DCE9F6!important;}
+.cat-row .cat-row-label{color:#15324F;font-size:13px;letter-spacing:.01em;}
+.cat-row .ti{color:#185FA5;}
+.cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#6B92B8!important;}
+
+.add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;margin-left:auto;flex-shrink:0;}
+.add-work-btn-inline:hover{background:rgba(24,95,165,0.14);border-color:#185FA5;}
+
+.th-mini-btn{border:0.5px solid var(--border2);background:var(--bg);cursor:pointer;color:var(--text3);width:19px;height:19px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;}
+.th-mini-btn:hover{color:#185FA5;background:var(--bg-info);border-color:#185FA5;}
+.th-mini-btn.active{color:#185FA5;background:var(--bg-info);border-color:#185FA5;}
+
+/* более тонкие строки разделов / работ / подвидов */
+.cat-row td{padding-top:7px!important;padding-bottom:7px!important;}
+.gantt-table td{padding-top:4px;padding-bottom:4px;}
+.task-row.selected td{background:var(--bg-info)!important;}
+.task-row{cursor:pointer;}
+.task-row.level-1 .task-indent{opacity:0.55;}
+.task-row.level-1 .task-indent-wrap{color:var(--text3);}
+.task-row.level-0.has-children td{font-weight:500;}
+.task-indent{color:var(--text3);}
+.cbadge{font-size:10px;padding:1px 6px;border-radius:3px;white-space:nowrap;}
+.bar-cell{min-width:420px;padding:4px 10px;}
+.bar-wrap{position:relative;height:20px;width:100%;}
+.today-line{position:absolute;top:-2px;bottom:-2px;width:2px;background:#E24B4A;z-index:3;pointer-events:none;transform:translateX(-50%);}
+.today-line::before{content:'▼';position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:8px;color:#E24B4A;line-height:1;}
+.today-line::after{content:'сегодня';position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:600;color:#E24B4A;white-space:nowrap;background:var(--bg);padding:0 2px;border-radius:2px;}
+
+/* Actual form */
+.actual-form{padding:16px;}
+.form-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:center;padding:7px 10px;border-radius:var(--rad);border:0.5px solid var(--border);background:var(--bg);margin-bottom:4px;}
+.form-row:hover{background:var(--bg2);}
+.form-row input[type=number]{width:80px;padding:4px 6px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);text-align:right;font-family:inherit;}
+.form-row input[type=range]{width:90px;cursor:pointer;}
+.unit-lbl{font-size:11px;color:var(--text3);}
+
+/* AI panel */
+.ai-panel{padding:16px;}
+.ai-summary{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--rad-lg);margin-bottom:14px;border:0.5px solid;}
+.ai-card{border:0.5px solid var(--border);border-radius:var(--rad-lg);overflow:hidden;margin-bottom:12px;}
+.ai-card-head{padding:9px 14px;background:var(--bg2);display:flex;align-items:center;gap:8px;border-bottom:0.5px solid var(--border);font-size:13px;font-weight:500;}
+.ai-card-body{padding:10px 14px;}
+.ai-issue{display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);}
+.ai-issue:last-child{border-bottom:none;padding-bottom:0;}
+.ai-rec{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--border);}
+.ai-rec:last-child{border-bottom:none;padding-bottom:0;}
+.rec-num{width:20px;height:20px;border-radius:50%;background:#185FA5;color:#fff;font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.rec-text{font-size:12px;color:var(--text2);line-height:1.55;}
+.rec-text strong{color:var(--text);font-weight:500;}
+.issue-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px;}
+.issue-desc{font-size:12px;color:var(--text2);line-height:1.5;}
+
+/* ── Settings modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg);border-radius:var(--rad-lg);width:680px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:0.5px solid var(--border);}
+.modal-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;}
+.modal-title i{font-size:16px;color:var(--text2);}
+.modal-close{width:28px;height:28px;border:none;background:none;cursor:pointer;color:var(--text2);font-size:18px;display:flex;align-items:center;justify-content:center;border-radius:var(--rad);}
+.modal-close:hover{background:var(--bg2);}
+.modal-body{display:flex;flex:1;overflow:hidden;}
+.modal-sidebar{width:160px;border-right:0.5px solid var(--border);padding:10px 0;flex-shrink:0;}
+.modal-sidebar-item{padding:8px 16px;font-size:13px;cursor:pointer;color:var(--text2);border-left:2px solid transparent;display:flex;align-items:center;gap:7px;}
+.modal-sidebar-item.active{color:#185FA5;border-left-color:#185FA5;font-weight:500;background:var(--bg-info);}
+.modal-sidebar-item:hover:not(.active){background:var(--bg2);color:var(--text);}
+.modal-sidebar-item i{font-size:14px;}
+.modal-content{flex:1;overflow-y:auto;padding:16px 20px;}
+.modal-section{display:none;}.modal-section.active{display:block;}
+.settings-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px;}
+.dir-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.dir-title{font-size:13px;font-weight:500;color:var(--text);}
+.dir-count{font-size:11px;color:var(--text3);}
+.dir-list{border:0.5px solid var(--border);border-radius:var(--rad);overflow:hidden;margin-bottom:14px;}
+.dir-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid var(--border);font-size:12px;color:var(--text);}
+.dir-item:last-child{border-bottom:none;}
+.dir-item:hover{background:var(--bg2);}
+.dir-item-left{display:flex;align-items:center;gap:8px;}
+.dir-item-num{font-size:11px;color:var(--text3);min-width:18px;text-align:right;}
+.dir-item-actions{display:flex;gap:2px;opacity:0;transition:opacity .15s;}
+.dir-item:hover .dir-item-actions{opacity:1;}
+.dir-btn{border:none;background:none;cursor:pointer;padding:3px 6px;border-radius:4px;color:var(--text2);font-size:13px;display:flex;align-items:center;}
+.dir-btn:hover{background:var(--bg2);}
+.dir-btn.del:hover{background:var(--bg-danger);color:var(--text-danger);}
+.dir-add-row{display:flex;gap:8px;align-items:center;}
+.dir-add-row input{flex:1;padding:6px 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);font-family:inherit;}
+.dir-add-row input:focus{outline:none;border-color:#185FA5;background:var(--bg);}
+.dir-empty{padding:20px;text-align:center;font-size:12px;color:var(--text3);}
+
+.gt-tabs{display:flex;align-items:flex-end;gap:0;border-bottom:1.5px solid var(--border);margin-bottom:14px;overflow-x:auto;padding-bottom:0;}
+.gt-tab{display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;cursor:pointer;color:var(--text2);border:0.5px solid transparent;border-bottom:none;border-radius:var(--rad) var(--rad) 0 0;white-space:nowrap;margin-bottom:-1.5px;position:relative;}
+.gt-tab:hover{background:var(--bg2);color:var(--text);}
+.gt-tab.active{background:var(--bg);border-color:var(--border);color:#185FA5;font-weight:500;border-bottom-color:var(--bg);}
+.gt-tab .gt-tab-del{border:none;background:none;cursor:pointer;color:var(--text3);padding:0 0 0 4px;font-size:13px;display:flex;align-items:center;opacity:0;transition:opacity .15s;}
+.gt-tab:hover .gt-tab-del{opacity:1;}
+.gt-tab.active .gt-tab-del{opacity:0.5;}
+.gt-tab.active .gt-tab-del:hover{opacity:1;color:var(--text-danger);}
+.gt-tab-add{display:flex;align-items:center;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--text3);border:0.5px dashed var(--border);border-bottom:none;border-radius:var(--rad) var(--rad) 0 0;margin-bottom:-1.5px;}
+.gt-tab-add:hover{color:#185FA5;border-color:#185FA5;background:var(--bg-info);}
+.gt-tab-new-row{display:flex;gap:8px;margin-bottom:14px;padding:8px 12px;background:var(--bg2);border-radius:var(--rad);align-items:center;}
+.gt-tab-new-row input{flex:1;padding:6px 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg);color:var(--text);font-family:inherit;}
+.gt-tab-new-row input:focus{outline:none;border-color:#185FA5;}
+.dir-item-section{cursor:pointer;}
+.dir-item-section:hover{background:var(--bg2);}
+.dir-subcount{font-size:10px;color:var(--text3);background:var(--bg2);padding:1px 6px;border-radius:8px;margin-left:2px;}
+.dir-sub{background:var(--bg2);border-bottom:0.5px solid var(--border);}
+.dir-item-work{padding:7px 12px 7px 34px;font-size:12px;background:transparent;border-bottom:0.5px solid var(--border);}
+.dir-item-work:hover{background:rgba(0,0,0,0.03);}
+.dir-item-work:last-of-type{border-bottom:none;}
+.dir-add-row-sub{padding:7px 12px 9px 34px;border-bottom:none;}
+.dir-add-row-sub input{padding:5px 8px;font-size:11.5px;}
+.dir-add-row-sub .btn{padding:5px 9px;}
+
+/* ── New project modal ── */
+.np-field{margin-bottom:16px;}
+
+.np-type-list{display:flex;flex-direction:column;gap:6px;}
+.np-type-card{display:flex;align-items:center;gap:10px;padding:9px 12px;border:0.5px solid var(--border2);border-radius:var(--rad);cursor:pointer;background:var(--bg);}
+.np-type-card:hover{background:var(--bg2);}
+.np-type-card.selected{border-color:#185FA5;background:var(--bg-info);}
+.np-type-radio{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--border2);flex-shrink:0;position:relative;}
+.np-type-card.selected .np-type-radio{border-color:#185FA5;}
+.np-type-card.selected .np-type-radio::after{content:'';position:absolute;inset:2.5px;border-radius:50%;background:#185FA5;}
+.np-type-name{font-size:12.5px;font-weight:500;color:var(--text);}
+.np-type-meta{font-size:10.5px;color:var(--text3);margin-top:1px;}
+.np-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+.np-label i{font-size:13px;}
+.np-input{width:100%;padding:8px 11px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);font-family:inherit;}
+.np-input:focus{outline:none;border-color:#185FA5;background:var(--bg);}
+
+/* mini calendar - year nav + month grid */
+.cal-wrap{border:0.5px solid var(--border);border-radius:var(--rad);overflow:hidden;}
+.cal-yearnav{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg2);border-bottom:0.5px solid var(--border);}
+.cal-yearnav button{border:none;background:none;cursor:pointer;color:var(--text2);width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.cal-yearnav button:hover{background:var(--bg);color:#185FA5;}
+.cal-year-label{font-size:13px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;}
+.cal-months{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px;}
+
+/* two-year calendar grid */
+.cal-2yr{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:var(--rad);}
+.cal-year-block{border-right:0.5px solid var(--border);}
+.cal-year-block:last-child{border-right:none;}
+.cal-year-head{font-size:12px;font-weight:600;color:var(--text2);text-align:center;padding:8px;background:var(--bg2);border-bottom:0.5px solid var(--border);}
+.cal-2yr-months{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:8px;}
+
+select.np-input{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer;}
+.cal-month{padding:9px 4px;text-align:center;font-size:11.5px;border-radius:var(--rad);cursor:pointer;border:1px solid transparent;color:var(--text);user-select:none;}
+.cal-month:hover{background:var(--bg2);}
+.cal-month.in-range{background:var(--bg-info);color:#185FA5;}
+.cal-month.range-start,.cal-month.range-end{background:#185FA5;color:#fff;font-weight:600;}
+.cal-month.range-start.range-end{border-radius:var(--rad);}
+.np-period-summary{font-size:11.5px;color:var(--text2);margin-top:8px;padding:7px 10px;background:var(--bg2);border-radius:var(--rad);display:flex;align-items:center;gap:6px;}
+.np-period-summary i{color:#185FA5;font-size:14px;}
+
+/* checkbox tree for structure selection */
+.tree-wrap{border:0.5px solid var(--border);border-radius:var(--rad);max-height:280px;overflow-y:auto;}
+.tree-section{border-bottom:0.5px solid var(--border);}
+.tree-section:last-child{border-bottom:none;}
+.tree-section-row{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;background:var(--bg2);}
+.tree-section-row:hover{background:var(--bg3);}
+.tree-chevron{font-size:12px;color:var(--text3);width:14px;flex-shrink:0;}
+.tree-checkbox{width:15px;height:15px;flex-shrink:0;accent-color:#185FA5;cursor:pointer;}
+.tree-section-name{font-size:12.5px;font-weight:500;flex:1;}
+.tree-section-count{font-size:10px;color:var(--text3);}
+.tree-works{padding:2px 0;}
+.tree-work-row{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 36px;}
+.tree-work-row:hover{background:var(--bg2);}
+.tree-work-name{font-size:12px;color:var(--text2);}
+.tree-empty-note{font-size:11px;color:var(--text3);padding:6px 10px 6px 36px;font-style:italic;}
+.np-actions{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-top:0.5px solid var(--border);background:var(--bg2);}
+.np-select-toggle{font-size:11.5px;color:#185FA5;cursor:pointer;background:none;border:none;display:flex;align-items:center;gap:4px;}
+.np-select-toggle:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR: ГРАФИКИ -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-title"><i class="ti ti-layout-grid"></i> Графики</div>
+      <button class="sidebar-add" onclick="openNewProject()" title="Создать график"><i class="ti ti-plus"></i></button>
+    </div>
+    <div class="sidebar-list" id="projectsList"></div>
+    <div class="sidebar-footer">
+      <button class="sidebar-footer-btn" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
+    </div>
+  </aside>
+
+  <div class="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo"><i class="ti ti-building-skyscraper"></i></div>
+      <span class="app-title">Генподрядный график</span>
+      <span class="badge" id="projBadge">ЖК «Северная Звезда» · 14 мес.</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('gantt',this)"><i class="ti ti-layout-list"></i> График</div>
+    <div class="tab" onclick="switchTab('actual',this)"><i class="ti ti-edit"></i> Внести факт</div>
+    <div class="tab" onclick="switchTab('ai',this)"><i class="ti ti-chart-bar"></i> Анализ отклонений</div>
+    <div class="tab" onclick="switchTab('chart',this)"><i class="ti ti-chart-line"></i> S-кривая</div>
+  </div>
+
+  <!-- GANTT -->
+  <div id="panel-gantt" class="panel active">
+    <div class="stats-row" id="statsRow"></div>
+    <div class="gantt-wrap">
+      <table class="gantt-table">
+        <thead><tr>
+          <th style="min-width:200px">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span>Наименование работ</span>
+              <span style="display:flex;gap:2px;margin-left:auto;">
+                <button class="th-mini-btn" id="btnCollapseAll" onclick="toggleAllSections()" title="Свернуть/развернуть все разделы">
+                  <i class="ti ti-arrows-vertical" style="font-size:12px;"></i>
+                </button>
+                <button class="th-mini-btn" onclick="indentSelectedTask(1)" title="Сделать подвидом работ (вправо)">
+                  <i class="ti ti-arrow-right" style="font-size:12px;"></i>
+                </button>
+                <button class="th-mini-btn" onclick="indentSelectedTask(-1)" title="Вернуть в виды работ (влево)">
+                  <i class="ti ti-arrow-left" style="font-size:12px;"></i>
+                </button>
+              </span>
+            </div>
+          </th>
+          <th style="min-width:110px">Подрядчик</th>
+          <th style="min-width:50px">Ед.</th>
+          <th style="min-width:80px;text-align:right">Факт / План</th>
+          <th style="min-width:60px">%</th>
+          <th class="bar-cell" style="padding:0;">
+            <div style="display:flex;width:100%;padding:0 10px;box-sizing:border-box;" id="ganttMonthHeader"></div>
+          </th>
+        </tr></thead>
+        <tbody id="ganttBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:16px;padding:8px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
+      <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#B5D4F4;vertical-align:middle;margin-right:4px;"></span>План</span>
+      <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#1D9E75;opacity:0.8;vertical-align:middle;margin-right:4px;"></span>Факт</span>
+      <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#E24B4A;opacity:0.5;vertical-align:middle;margin-right:4px;"></span>Отставание</span>
+      <span style="margin-left:auto;"><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:3px;"></i>Текущий месяц: <strong id="curMonthLabel"></strong></span>
+    </div>
+  </div>
+
+  <!-- ACTUAL -->
+  <div id="panel-actual" class="panel">
+    <div class="actual-form">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <i class="ti ti-calendar-check" style="font-size:20px;color:#185FA5;"></i>
+        <div>
+          <div style="font-size:14px;font-weight:500;">Внесение фактических данных</div>
+          <div style="font-size:12px;color:var(--text2);" id="periodLabel"></div>
+        </div>
+      </div>
+      <div id="actualFormBody"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:16px;border-top:0.5px solid var(--border);">
+        <button class="btn" onclick="switchTab('gantt',document.querySelectorAll('.tab')[0])">Отмена</button>
+        <button class="btn btn-primary" onclick="saveActuals()"><i class="ti ti-check"></i> Сохранить и пересчитать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div id="panel-ai" class="panel">
+    <div class="ai-panel" id="aiContent"></div>
+  </div>
+
+  <!-- CHART -->
+  <div id="panel-chart" class="panel">
+    <div style="padding:16px;">
+      <div style="font-size:13px;font-weight:500;margin-bottom:4px;">S-кривая освоения объёмов</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Нарастающий итог: план vs факт, %</div>
+      <div style="position:relative;width:100%;height:300px;"><canvas id="sChart"></canvas></div>
+      <div style="display:flex;gap:20px;margin-top:10px;font-size:12px;color:var(--text2);" id="chartLegend"></div>
+    </div>
+  </div>
+</div><!-- /.app -->
+
+</div><!-- /.layout -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_SHORT = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+let TOTAL = 12;
+let CURRENT = 6; // текущий месяц (0-based от начала периода проекта)
+
+const CONTRACTORS = {
+  'МонолитСтрой':   {color:'#185FA5',bg:'#E6F1FB'},
+  'ГрандФундамент': {color:'#3B6D11',bg:'#EAF3DE'},
+  'ИнжСети-Про':    {color:'#533AB7',bg:'#EEEDFE'},
+  'ОтделкаМастер':  {color:'#854F0B',bg:'#FAEEDA'},
+  'ЗемРаботы LLC':  {color:'#993556',bg:'#FBEAF0'},
+  'АрмПро':         {color:'#0F6E56',bg:'#E1F5EE'},
+  'СтальМонтаж':    {color:'#71280B',bg:'#FAECE7'},
+};
+
+// ─── default project tasks (ЖК «Северная Звезда») ──────────────────────────────
+const DEFAULT_TASKS = [
+  {id:1,  cat:true, name:'Земляные работы', icon:'ti-shovel'},
+  {id:2,  name:'Разработка котлована',        contractor:'ЗемРаботы LLC', unit:'м³',  volume:12000, start:0, dur:2, factPct:100, factVol:12000},
+  {id:3,  name:'Водопонижение',               contractor:'ЗемРаботы LLC', unit:'мес', volume:3,     start:0, dur:3, factPct:100, factVol:3},
+  {id:4,  cat:true, name:'Фундаментные работы', icon:'ti-building'},
+  {id:5,  name:'Монолитный ростверк',         contractor:'МонолитСтрой',  unit:'м³',  volume:3200,  start:2, dur:3, factPct:85,  factVol:2720},
+  {id:6,  name:'Сваи буронабивные',           contractor:'ГрандФундамент',unit:'шт',  volume:480,   start:1, dur:2, factPct:100, factVol:480},
+  {id:7,  cat:true, name:'Каркас / надземная часть', icon:'ti-building-skyscraper'},
+  {id:8,  name:'Монолитные колонны и перекрытия', contractor:'МонолитСтрой', unit:'м³', volume:18400, start:4, dur:5, factPct:40, factVol:7360},
+  {id:9,  name:'Кирпичные стены / перегородки',   contractor:'АрмПро',       unit:'м²', volume:22000, start:5, dur:4, factPct:15, factVol:3300},
+  {id:10, name:'Металлоконструкции (покрытие)',    contractor:'СтальМонтаж',  unit:'т',  volume:340,   start:7, dur:2, factPct:0,  factVol:0},
+  {id:11, cat:true, name:'Инженерные сети', icon:'ti-circuit-switchboard'},
+  {id:12, name:'Электрика (кабельные трассы)', contractor:'ИнжСети-Про', unit:'м.п.', volume:14500, start:5, dur:4, factPct:20, factVol:2900},
+  {id:13, name:'Сантехника (трубопроводы)',    contractor:'ИнжСети-Про', unit:'м.п.', volume:8200,  start:5, dur:4, factPct:18, factVol:1476},
+  {id:14, name:'Вентиляция (воздуховоды)',     contractor:'ИнжСети-Про', unit:'м²',   volume:4100,  start:6, dur:3, factPct:0,  factVol:0},
+  {id:15, cat:true, name:'Кровля', icon:'ti-home'},
+  {id:16, name:'Пароизоляция и утепление',     contractor:'МонолитСтрой', unit:'м²', volume:3800, start:8, dur:2, factPct:0, factVol:0},
+  {id:17, name:'Мягкая кровля (ПВХ-мембрана)',contractor:'МонолитСтрой', unit:'м²', volume:3800, start:9, dur:1, factPct:0, factVol:0},
+  {id:18, cat:true, name:'Отделочные работы', icon:'ti-paint'},
+  {id:19, name:'Штукатурка стен',  contractor:'ОтделкаМастер', unit:'м²', volume:35000, start:8, dur:3, factPct:0, factVol:0},
+  {id:20, name:'Полы (стяжка)',    contractor:'ОтделкаМастер', unit:'м²', volume:18000, start:9, dur:2, factPct:0, factVol:0},
+  {id:21, cat:true, name:'Благоустройство', icon:'ti-trees'},
+  {id:22, name:'Асфальтирование и дорожки', contractor:'ЗемРаботы LLC', unit:'м²', volume:5200, start:10, dur:2, factPct:0, factVol:0},
+  {id:23, name:'Озеленение',                contractor:'ЗемРаботы LLC', unit:'м²', volume:3100, start:11, dur:1, factPct:0, factVol:0},
+];
+
+// ─── active project's working tasks (reassigned on project switch) ─────────────
+let tasks = DEFAULT_TASKS.map(t=>({...t}));
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+function activeProject(){ return projects.find(p=>p.id===activeProjectId); }
+
+// возвращает подпись месяца с учётом периода активного проекта: offset=0 → первый месяц периода
+function monthLabelAt(offset){
+  const p = activeProject();
+  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+  const totalIdx = ps.month + offset;
+  const year = ps.year + Math.floor(totalIdx/12);
+  const monthIdx = ((totalIdx%12)+12)%12;
+  return `${MONTHS[monthIdx]} ${year}`;
+}
+
+function workTasks(){ return tasks.filter(t=>!t.cat); }
+
+function overallFact(){
+  const w = workTasks();
+  const sumPlan = w.reduce((a,t)=>a+t.volume,0);
+  const sumFact = w.reduce((a,t)=>a+(t.factVol||0),0);
+  return sumPlan ? Math.round(sumFact/sumPlan*100) : 0;
+}
+
+function overallPlan(){
+  // weighted plan % up to CURRENT month
+  const w = workTasks();
+  let sumPlan=0, sumExpected=0;
+  w.forEach(t=>{
+    const elapsed = Math.min(Math.max(CURRENT-t.start,0), t.dur);
+    const expected = t.dur>0 ? elapsed/t.dur : 0;
+    sumPlan += t.volume;
+    sumExpected += t.volume * expected;
+  });
+  return sumPlan ? Math.round(sumExpected/sumPlan*100) : 0;
+}
+
+function pctClass(t){
+  if(t.factPct===undefined) return '';
+  // просрочено — задача должна была завершиться, но не завершена
+  if(t.start+t.dur<=CURRENT && t.factPct<100) return 'danger';
+  if(t.factPct>=80) return 'ok';
+  if(t.factPct>=50) return 'warn';
+  // в работе с низким % — warn, не danger (задача ещё не просрочена)
+  if(t.factPct>0) return 'warn';
+  return '';
+}
+
+function delayedTasks(){ return workTasks().filter(t=> t.start+t.dur<=CURRENT && t.factPct<100); }
+function riskTasks(){
+  return workTasks().filter(t=>{
+    // только задачи которые уже начались И ещё не завершены по плану
+    if(t.start>=CURRENT || t.start+t.dur<=CURRENT) return false;
+    const expected = (CURRENT-t.start)/t.dur*100;
+    return t.factPct < expected - 15;
+  });
+}
+
+// ─── render gantt ─────────────────────────────────────────────────────────────
+function renderGanttMonthHeader(){
+  const el = document.getElementById('ganttMonthHeader');
+  if(!el) return;
+  let html = '';
+  for(let i=0;i<TOTAL;i++){
+    const label = monthLabelAt(i).split(' ')[0].slice(0,3);
+    html += `<div style="flex:1;font-size:10px;color:var(--text2);text-align:center;">${label}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderStats(){
+  const fact = overallFact();
+  const plan = overallPlan();
+  const diff = fact - plan;
+  const delayed = delayedTasks().length;
+  const risk = riskTasks().length;
+  const wt = workTasks();
+  const onTime = wt.filter(t=>t.start<=CURRENT && !(t.start+t.dur<=CURRENT&&t.factPct<100)).length;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Готовность проекта</div><div class="stat-value">${fact}%</div><div class="stat-sub ${diff>=0?'ok':'warn'}">план ${plan}%</div></div>
+    <div class="stat-card"><div class="stat-label">Отставание от плана</div><div class="stat-value ${diff<0?'danger':'ok'}">${diff>=0?'+':''}${diff}%</div><div class="stat-sub ${diff<0?'danger':'ok'}">${diff<-5?'критическое':diff<0?'умеренное':'в норме'}</div></div>
+    <div class="stat-card"><div class="stat-label">Просрочено / под риском</div><div class="stat-value ${delayed>0?'danger':'ok'}">${delayed} / ${risk}</div><div class="stat-sub ${delayed>0?'danger':'ok'}">задач</div></div>
+    <div class="stat-card"><div class="stat-label">Активных работ</div><div class="stat-value">${onTime}</div><div class="stat-sub ok">в работе</div></div>`;
+  document.getElementById('curMonthLabel').textContent = monthLabelAt(CURRENT-1);
+}
+
+// ── состояние свёрнутых разделов графика (по индексу категории в tasks) ────────
+let ganttCollapsed = {};
+// ── состояние свёрнутых видов работ, у которых есть подвиды ─────────────────────
+let workCollapsed = {};
+
+function toggleGanttSection(catId){
+  ganttCollapsed[catId] = !ganttCollapsed[catId];
+  renderGantt();
+}
+
+function toggleWorkSection(workId){
+  workCollapsed[workId] = !workCollapsed[workId];
+  renderGantt();
+}
+
+// есть ли у вида работ (level=0) с данным id хотя бы один подвид (level=1) сразу за ним
+function hasSubItems(taskId){
+  const idx = tasks.findIndex(t=>t.id===taskId);
+  if(idx===-1) return false;
+  const next = tasks[idx+1];
+  return !!(next && !next.cat && (next.level||0)===1);
+}
+
+function renderGantt(){
+  renderStats();
+  renderGanttMonthHeader();
+  const body = document.getElementById('ganttBody');
+  body.innerHTML='';
+  // todayPct вычисляется один раз, а не в каждой строке
+  const todayPct = (CURRENT / TOTAL * 100).toFixed(2);
+  let currentCatId = null;
+  let currentCollapsed = false;
+  let currentParentCollapsed = false; // свёрнут ли родительский вид работ (скрывает его подвиды)
+
+  tasks.forEach((t,idx)=>{
+    const tr = document.createElement('tr');
+    if(t.cat){
+      currentCatId = t.id;
+      currentCollapsed = !!ganttCollapsed[t.id];
+      currentParentCollapsed = false;
+      tr.className='cat-row';
+      tr.style.cursor='pointer';
+      tr.onclick=()=>toggleGanttSection(t.id);
+      tr.innerHTML=`<td colspan="6">
+        <span style="display:flex;align-items:center;gap:7px;">
+          <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
+          <i class="ti ${t.icon}" style="font-size:15px;"></i>
+          <span class="cat-row-label">${t.name}</span>
+          <button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
+            <i class="ti ti-plus" style="font-size:11px;"></i> Добавить работу
+          </button>
+        </span></td>`;
+      body.appendChild(tr);
+      return;
+    }
+    if(currentCollapsed){ return; } // скрываем строки свёрнутого раздела
+
+    const level = t.level||0;
+    if(level===0){
+      // новый вид работ — сбрасываем состояние "родитель свёрнут"
+      currentParentCollapsed = !!workCollapsed[t.id];
+    } else if(currentParentCollapsed){
+      return; // скрываем подвид, если его родитель свёрнут
+    }
+
+    const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
+    const pL = (t.start/TOTAL*100).toFixed(1);
+    const pW = (t.dur/TOTAL*100).toFixed(1);
+    const fW = (t.factPct/100 * t.dur/TOTAL*100).toFixed(1);
+    const isLate = t.start+t.dur<=CURRENT && t.factPct<100;
+    const dL = ((t.start + t.dur*t.factPct/100)/TOTAL*100).toFixed(1);
+    const dW = (t.dur*(1-t.factPct/100)/TOTAL*100).toFixed(1);
+    const cls = pctClass(t);
+    const isSelected = selectedTaskId===t.id;
+    const showCollapseToggle = level===0 && hasSubItems(t.id);
+    tr.className = `task-row level-${level}${showCollapseToggle?' has-children':''}${isSelected?' selected':''}`;
+    tr.onclick = (e)=>{ e.stopPropagation(); selectTask(t.id); };
+    const indentPx = level===0 ? 0 : 42;
+    const collapseToggleHtml = showCollapseToggle
+      ? `<i class="ti ti-chevron-${currentParentCollapsed?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
+      : `<span style="width:13px;flex-shrink:0;"></span>`;
+    tr.innerHTML=`
+      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${level===0?collapseToggleHtml:''}<span class="task-indent">${level>0?'∟':'└'}</span>${t.name}</div></td>
+      <td><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
+      <td style="color:var(--text3)">${t.unit}</td>
+      <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
+      <td style="font-size:12px;font-weight:500;" class="${cls}">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
+      <td class="bar-cell" style="position:relative;"><div class="bar-wrap">
+        <div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${pW}%;background:#B5D4F4;"></div>
+        ${t.factPct>0?`<div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${fW}%;background:#1D9E75;opacity:0.85;"></div>`:''}
+        ${isLate?`<div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${dL}%;width:${dW}%;background:#E24B4A;opacity:0.45;"></div>`:''}
+      </div>
+      <div style="position:absolute;top:0;bottom:0;left:${todayPct}%;width:2px;background:#E24B4A;transform:translateX(-50%);z-index:4;pointer-events:none;"></div>
+      </td>`;
+    body.appendChild(tr);
+  });
+
+  updateCollapseAllBtnState();
+}
+
+// ── выбор строки и управление уровнем вложенности (вид работ ↔ подвид работ) ───
+let selectedTaskId = null;
+
+function selectTask(id){
+  selectedTaskId = (selectedTaskId===id) ? null : id;
+  renderGantt();
+}
+
+function indentSelectedTask(direction){
+  if(selectedTaskId===null){
+    alert('Сначала выберите строку вида работ, кликнув по ней.');
+    return;
+  }
+  const t = tasks.find(x=>x.id===selectedTaskId && !x.cat);
+  if(!t) return;
+  const currentLevel = t.level||0;
+  if(direction>0){
+    // вправо: максимум один уровень вложенности (вид → подвид)
+    if(currentLevel>=1){ return; }
+    t.level = 1;
+    delete workCollapsed[t.id]; // больше не родитель — сбрасываем состояние сворачивания
+  } else {
+    // влево: подвид → обратно в вид работ
+    if(currentLevel<=0){ return; }
+    t.level = 0;
+  }
+  renderGantt();
+  saveState();
+}
+
+function toggleAllSections(){
+  const catIds = tasks.filter(t=>t.cat).map(t=>t.id);
+  const anyExpanded = catIds.some(id=>!ganttCollapsed[id]);
+  catIds.forEach(id=>{ ganttCollapsed[id] = anyExpanded; });
+  renderGantt();
+}
+
+function updateCollapseAllBtnState(){
+  const btn = document.getElementById('btnCollapseAll');
+  if(!btn) return;
+  const catIds = tasks.filter(t=>t.cat).map(t=>t.id);
+  const allCollapsed = catIds.length>0 && catIds.every(id=>ganttCollapsed[id]);
+  btn.classList.toggle('active', allCollapsed);
+  const icon = btn.querySelector('i');
+  if(icon) icon.className = allCollapsed ? 'ti ti-arrows-maximize' : 'ti ti-arrows-vertical';
+  btn.title = allCollapsed ? 'Развернуть все разделы' : 'Свернуть все разделы';
+}
+
+// ─── actual form ──────────────────────────────────────────────────────────────
+function renderActualForm(){
+  document.getElementById('periodLabel').textContent = CURRENT>0
+    ? `Отчётный период: ${monthLabelAt(CURRENT-1)} (месяц ${CURRENT})`
+    : `Проект ещё не начался — внесение факта станет доступно с первого отчётного месяца`;
+  let html='';
+  let anyRow = false;
+  tasks.forEach(t=>{
+    if(t.cat){
+      html+=`<div style="font-size:11px;font-weight:500;color:var(--text2);margin:14px 0 5px;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:5px;"><i class="ti ${t.icon}"></i> ${t.name}</div>`;
+    } else if(t.start < CURRENT){
+      anyRow = true;
+      const cls=pctClass(t);
+      const statusText = t.start+t.dur<=CURRENT&&t.factPct<100 ? '⚠ просрочено' : t.factPct>=100 ? '✓ готово' : '▶ в работе';
+      html+=`<div class="form-row">
+        <div><div style="font-size:12px;color:var(--text);">${t.name}</div><div style="font-size:10px;color:var(--text3);">${t.contractor} · план ${(t.volume||0).toLocaleString('ru')} ${t.unit}</div></div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="number" min="0" max="${t.volume||0}" value="${t.factVol||0}" id="vol_${t.id}" oninput="syncPct(${t.id})">
+          <span class="unit-lbl">${t.unit}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="0" max="100" value="${t.factPct||0}" id="rng_${t.id}" oninput="syncFromRange(${t.id})">
+          <span id="rng_val_${t.id}" style="font-size:12px;font-weight:500;min-width:28px;">${t.factPct||0}%</span>
+        </div>
+        <span style="font-size:11px;" class="${cls}">${statusText}</span>
+      </div>`;
+    }
+  });
+  if(!tasks.filter(t=>!t.cat).length){
+    html = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">В этом графике пока нет видов работ. Добавьте их кнопкой «Добавить работу» рядом с названием раздела на вкладке «График», либо через структуру графика.</div>`;
+  } else if(!anyRow){
+    html = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">Нет работ, которые уже должны были начаться к текущему отчётному периоду.</div>`;
+  }
+  document.getElementById('actualFormBody').innerHTML = html;
+}
+
+function syncPct(id){
+  const t=tasks.find(x=>x.id===id); if(!t) return;
+  const vol=parseFloat(document.getElementById('vol_'+id).value)||0;
+  t.factVol=vol; t.factPct=Math.min(100,Math.round(vol/t.volume*100));
+  document.getElementById('rng_'+id).value=t.factPct;
+  document.getElementById('rng_val_'+id).textContent=t.factPct+'%';
+}
+function syncFromRange(id){
+  const t=tasks.find(x=>x.id===id); if(!t) return;
+  const pct=parseInt(document.getElementById('rng_'+id).value);
+  t.factPct=pct; t.factVol=Math.round(t.volume*pct/100);
+  document.getElementById('vol_'+id).value=t.factVol;
+  document.getElementById('rng_val_'+id).textContent=pct+'%';
+}
+function saveActuals(){
+  renderGantt();
+  if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+  switchTab('ai', document.querySelectorAll('.tab')[2]);
+}
+
+// ─── local analysis ───────────────────────────────────────────────────────────
+function buildAnalysis(){
+  const fact = overallFact();
+  const plan = overallPlan();
+  const diff = fact - plan;
+  const delayed = delayedTasks();
+  const risk = riskTasks();
+  const riskLevel = delayed.length>=3||diff<=-10 ? 'высокий' : delayed.length>=1||diff<=-5 ? 'средний' : 'низкий';
+  const riskColor = riskLevel==='высокий' ? 'danger' : riskLevel==='средний' ? 'warning' : 'success';
+  const estDelay = Math.abs(diff) * 4; // грубая оценка: 1% ≈ 4 дня
+
+  // Критические проблемы
+  const issues = [];
+  delayed.forEach(t=>{
+    issues.push({
+      icon:'ti-alert-triangle',
+      title:`${t.name}: просрочено (${t.factPct}% при плане 100%)`,
+      desc:`Подрядчик: ${t.contractor}. Работа должна была завершиться в месяц ${t.start+t.dur}. Фактический объём: ${(t.factVol||0).toLocaleString('ru')} из ${t.volume.toLocaleString('ru')} ${t.unit}.`,
+      severity:'danger'
+    });
+  });
+  risk.forEach(t=>{
+    const expected = Math.round((CURRENT-t.start)/t.dur*100);
+    issues.push({
+      icon:'ti-clock-exclamation',
+      title:`${t.name}: риск отставания (${t.factPct}% при ожидаемых ${expected}%)`,
+      desc:`Подрядчик: ${t.contractor}. Отставание ${expected-t.factPct}% от ожидаемого прогресса. Необходим контроль.`,
+      severity:'warning'
+    });
+  });
+  if(issues.length===0){
+    issues.push({icon:'ti-circle-check',title:'Критических отклонений не выявлено',desc:'Все активные задачи выполняются в плановом диапазоне.',severity:'success'});
+  }
+
+  // Рекомендации
+  const recs = [];
+  if(delayed.length>0){
+    const names = delayed.map(t=>t.name).join(', ');
+    recs.push(`<strong>Экстренное совещание с подрядчиками</strong> по просроченным работам: ${names}. Запросить план-график наверстывания с понедельной разбивкой.`);
+    recs.push(`<strong>Оценить возможность увеличения сменности</strong> на критических объектах. Просчитать стоимость дополнительных бригад vs штрафных санкций за срыв сроков.`);
+  }
+  if(risk.length>0){
+    recs.push(`<strong>Усилить мониторинг</strong> задач в зоне риска: ${risk.map(t=>t.name).join(', ')}. Перейти на еженедельную отчётность вместо ежемесячной.`);
+  }
+  if(diff < -5){
+    recs.push(`<strong>Пересмотреть сетевой график</strong>: при текущем темпе проект завершится с задержкой ~${estDelay} дней. Рассмотреть перераспределение ресурсов с некритических работ.`);
+  }
+  if(recs.length===0){
+    recs.push(`<strong>Поддерживать текущий темп</strong>. Провести контрольную точку в начале следующего месяца.`);
+    recs.push(`<strong>Подготовить ресурсы</strong> для предстоящих работ (${tasks.filter(t=>!t.cat&&t.start===CURRENT).map(t=>t.name).join(', ')||'по плану'}).`);
+  }
+
+  // contractor analysis
+  const contractorStats = {};
+  workTasks().filter(t=>t.start<CURRENT).forEach(t=>{
+    if(!contractorStats[t.contractor]) contractorStats[t.contractor]={planned:0,fact:0,late:0};
+    const expected = Math.min((CURRENT-t.start)/t.dur,1)*100;
+    contractorStats[t.contractor].planned += expected;
+    contractorStats[t.contractor].fact += t.factPct;
+    contractorStats[t.contractor].late += (t.start+t.dur<=CURRENT&&t.factPct<100)?1:0;
+  });
+
+  return {riskLevel, riskColor, fact, plan, diff, estDelay, issues, recs, contractorStats};
+}
+
+function renderAnalysis(){
+  const a = buildAnalysis();
+  const summaryText = a.diff<0
+    ? `Проект отстаёт от плана на ${Math.abs(a.diff)}%. Фактическая готовность ${a.fact}% при плановой ${a.plan}%. ${a.issues.filter(i=>i.severity==='danger').length} работ просрочено.`
+    : `Проект выполняется в плановом темпе. Фактическая готовность ${a.fact}% при плановой ${a.plan}%. Критических отставаний не выявлено.`;
+
+  let html = `
+  <div class="ai-summary" style="background:var(--bg-${a.riskColor});border-color:var(--text-${a.riskColor}33);">
+    <i class="ti ti-chart-bar" style="font-size:22px;color:var(--text-${a.riskColor});margin-top:1px;flex-shrink:0;"></i>
+    <div>
+      <div style="font-size:13px;font-weight:500;color:var(--text-${a.riskColor});margin-bottom:3px;">
+        Уровень риска: <strong>${a.riskLevel}</strong> &nbsp;·&nbsp; Прогноз задержки: ~${a.estDelay} дней
+      </div>
+      <div style="font-size:12px;color:var(--text2);">${summaryText}</div>
+    </div>
+  </div>`;
+
+  // Issues
+  html+=`<div class="ai-card"><div class="ai-card-head"><i class="ti ti-alert-triangle" style="color:var(--text-danger);"></i> Выявленные отклонения</div><div class="ai-card-body">`;
+  a.issues.forEach(i=>{
+    html+=`<div class="ai-issue">
+      <i class="ti ${i.icon}" style="font-size:16px;color:var(--text-${i.severity});flex-shrink:0;margin-top:1px;"></i>
+      <div><div class="issue-title">${i.title}</div><div class="issue-desc">${i.desc}</div></div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Recommendations
+  html+=`<div class="ai-card"><div class="ai-card-head"><i class="ti ti-bulb" style="color:#185FA5;"></i> Рекомендации по корректировке</div><div class="ai-card-body">`;
+  a.recs.forEach((r,i)=>{
+    html+=`<div class="ai-rec"><div class="rec-num">${i+1}</div><div class="rec-text">${r}</div></div>`;
+  });
+  html+=`</div></div>`;
+
+  // Contractor table
+  const entries = Object.entries(a.contractorStats);
+  if(entries.length>0){
+    html+=`<div class="ai-card"><div class="ai-card-head"><i class="ti ti-users" style="color:#185FA5;"></i> Рейтинг подрядчиков</div><div class="ai-card-body" style="padding:0;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead><tr style="background:var(--bg2);">
+      <th style="padding:7px 12px;text-align:left;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);">Подрядчик</th>
+      <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);">Ожидалось</th>
+      <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);">Факт</th>
+      <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);">Отклонение</th>
+      <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);">Просрочено</th>
+    </tr></thead><tbody>`;
+    entries.forEach(([name, s])=>{
+      const count = workTasks().filter(t=>t.contractor===name).length;
+      const avgPlan = Math.round(s.planned/count);
+      const avgFact = Math.round(s.fact/count);
+      const d = avgFact - avgPlan;
+      const cls = d>=0?'ok':d>=-10?'warn':'danger';
+      const c = CONTRACTORS[name]||{color:'#888',bg:'#eee'};
+      html+=`<tr><td style="padding:7px 12px;border-bottom:0.5px solid var(--border);">
+        <span class="cbadge" style="background:${c.bg};color:${c.color};">${name}</span>
+      </td>
+      <td style="padding:7px 12px;text-align:center;border-bottom:0.5px solid var(--border);">${avgPlan}%</td>
+      <td style="padding:7px 12px;text-align:center;border-bottom:0.5px solid var(--border);font-weight:500;">${avgFact}%</td>
+      <td style="padding:7px 12px;text-align:center;border-bottom:0.5px solid var(--border);" class="${cls}">${d>=0?'+':''}${d}%</td>
+      <td style="padding:7px 12px;text-align:center;border-bottom:0.5px solid var(--border);" class="${s.late>0?'danger':'ok'}">${s.late>0?s.late+' задач':'—'}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div></div>`;
+  }
+
+  document.getElementById('aiContent').innerHTML = html;
+}
+
+// ─── S-curve ──────────────────────────────────────────────────────────────────
+let sChart=null;
+function renderSChart(){
+  const w = workTasks();
+  const totalVol = w.reduce((a,t)=>a+(t.volume||0),0);
+  const planCurve=[], factCurve=[];
+  const labels = [];
+  for(let i=0;i<TOTAL;i++) labels.push(monthLabelAt(i).split(' ')[0].slice(0,3));
+
+  if(!w.length || !totalVol){
+    // пустой проект — структура без объёмов, графику нечего показывать
+    document.getElementById('chartLegend').innerHTML = `<span style="color:var(--text3);">Нет данных по объёмам — заполните плановые объёмы работ, чтобы увидеть S-кривую.</span>`;
+    if(sChart){ sChart.destroy(); sChart=null; }
+    const ctx0 = document.getElementById('sChart').getContext('2d');
+    sChart = new Chart(ctx0,{type:'line',data:{labels,datasets:[]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}}});
+    return;
+  }
+
+  // Считаем суммарный факт один раз (он не меняется по месяцам — это итог на текущую дату)
+  const totalFact = w.reduce((a,t)=>a+(t.factVol||0),0);
+  for(let m=1;m<=TOTAL;m++){
+    let sumPlan=0;
+    w.forEach(t=>{
+      const elapsed=Math.min(Math.max(m-t.start,0),t.dur);
+      sumPlan += t.volume*(t.dur>0?elapsed/t.dur:0);
+    });
+    planCurve.push(Math.round(sumPlan/totalVol*100));
+    if(CURRENT>0 && m<=CURRENT){
+      let planAtM=0;
+      w.forEach(t=>{ const e=Math.min(Math.max(m-t.start,0),t.dur); planAtM+=t.volume*(t.dur>0?e/t.dur:0); });
+      const planAtCurrent = planCurve[CURRENT-1] || 1;
+      factCurve.push(Math.round(totalFact/totalVol*100 * (planAtM/(planAtCurrent||1))));
+    } else {
+      factCurve.push(null);
+    }
+  }
+  // Последняя фактическая точка = реальный общий факт (только если есть отчётный период)
+  if(CURRENT>0){ factCurve[CURRENT-1] = Math.round(totalFact/totalVol*100); }
+  const diff = CURRENT>0 ? (factCurve[CURRENT-1]||0) - planCurve[CURRENT-1] : 0;
+  const curveLabel = CURRENT>0 ? labels[CURRENT-1] : '—';
+  document.getElementById('chartLegend').innerHTML=`
+    <span><span style="display:inline-block;width:12px;height:3px;background:#185FA5;vertical-align:middle;margin-right:4px;border-radius:2px;"></span>По плану</span>
+    <span><span style="display:inline-block;width:12px;height:3px;background:#1D9E75;vertical-align:middle;margin-right:4px;border-radius:2px;"></span>Фактически</span>
+    ${CURRENT>0?`<span style="margin-left:auto;color:${diff<0?'var(--text-danger)':'var(--text-success)'};font-weight:500;">Отклонение на ${curveLabel}: ${diff>=0?'+':''}${diff}%</span>`:'<span style="margin-left:auto;color:var(--text3);">Факт ещё не вносился</span>'}`;
+
+  if(sChart){ sChart.destroy(); sChart=null; }
+  const ctx=document.getElementById('sChart').getContext('2d');
+  sChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'По плану',data:planCurve,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',borderWidth:2,tension:0.35,fill:true,pointRadius:3},
+      {label:'Фактически',data:factCurve,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,tension:0.35,fill:true,pointRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
+              x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+// ─── add task ─────────────────────────────────────────────────────────────────
+function showAddTask(catId){
+  const name=prompt('Название работы:'); if(!name) return;
+  const contractor=prompt('Подрядчик:')||'Не указан';
+  const unit=prompt('Единица измерения (м², м³, т, шт ...):')||'шт';
+  const volume=parseInt(prompt('Плановый объём:'))||0;
+  const start=parseInt(prompt('Месяц начала (1=Январь ... 12=Декабрь):'))-1||0;
+  const dur=parseInt(prompt('Продолжительность (месяцев):'))||1;
+  const newId=Math.max(0,...tasks.map(t=>t.id))+1;
+  const newTask={id:newId,name,contractor,unit,volume,start,dur,factPct:0,factVol:0};
+
+  if(catId!==undefined){
+    // находим индекс раздела и индекс последней работы внутри него — вставляем сразу после
+    const catIdx = tasks.findIndex(t=>t.cat && t.id===catId);
+    if(catIdx===-1){
+      tasks.push(newTask);
+    } else {
+      let insertAt = catIdx+1;
+      while(insertAt<tasks.length && !tasks[insertAt].cat){ insertAt++; }
+      tasks.splice(insertAt, 0, newTask);
+    }
+  } else {
+    tasks.push(newTask);
+  }
+
+  renderGantt();
+  if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+}
+
+// ─── tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const panel=document.getElementById('panel-'+name);
+  if(panel) panel.classList.add('active');
+  if(name==='actual') renderActualForm();
+  if(name==='ai') renderAnalysis();
+  if(name==='chart'){ renderSChart(); }
+}
+
+// ─── init ─────────────────────────────────────────────────────────────────────
+
+// ─── persistence (localStorage) ─────────────────────────────────────────────
+const STORAGE_KEY = 'constructionGanttApp_v1';
+
+function saveState(){
+  try{
+    saveActiveProjectState(); // подтягиваем актуальные tasks/total/current активного проекта
+    const payload = {
+      projects, activeProjectId, graphTypes, activeGraphTypeId, contractorsList,
+      contractorColors: CONTRACTORS
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }catch(e){
+    console.warn('Не удалось сохранить состояние:', e);
+  }
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data || !Array.isArray(data.projects) || !data.projects.length) return false;
+
+    projects = data.projects;
+    activeProjectId = data.projects.some(p=>p.id===data.activeProjectId) ? data.activeProjectId : data.projects[0].id;
+    if(Array.isArray(data.graphTypes) && data.graphTypes.length){
+      graphTypes = data.graphTypes;
+      activeGraphTypeId = data.graphTypes.some(g=>g.id===data.activeGraphTypeId) ? data.activeGraphTypeId : data.graphTypes[0].id;
+    } else if(Array.isArray(data.smrList)){
+      // обратная совместимость со старым форматом (один плоский справочник)
+      graphTypes = [{id:1, name:'Типовое жилое строительство', sections:data.smrList}];
+      activeGraphTypeId = 1;
+    }
+    if(Array.isArray(data.contractorsList)) contractorsList = data.contractorsList;
+    if(data.contractorColors){
+      Object.keys(data.contractorColors).forEach(name=>{ CONTRACTORS[name] = data.contractorColors[name]; });
+    }
+    return true;
+  }catch(e){
+    console.warn('Не удалось загрузить сохранённое состояние:', e);
+    return false;
+  }
+}
+
+function resetAllData(){
+  if(!confirm('Удалить ВСЕ графики, справочники и сохранённые данные без возможности восстановления?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// ─── projects (графики) ─────────────────────────────────────────────────────
+let projects = [
+  {
+    id:1, name:'ЖК «Северная Звезда»',
+    icon:'ti-building-skyscraper', color:'#185FA5',
+    total:12, current:6,
+    periodStart:{year:2025,month:0}, periodEnd:{year:2025,month:11},
+    tasks: DEFAULT_TASKS.map(t=>({...t}))
+  },
+];
+let activeProjectId = 1;
+
+function projectMeta(p){
+  const w = p.tasks.filter(t=>!t.cat);
+  const contractorsCount = new Set(w.map(t=>t.contractor).filter(c=>c && c!=='Не назначен')).size;
+  return `${p.total} мес. · ${contractorsCount} подрядчик${contractorsCount===1?'':contractorsCount>=2&&contractorsCount<=4?'а':'ов'}`;
+}
+
+function projectFactPct(p){
+  const w = p.tasks.filter(t=>!t.cat);
+  if(!w.length) return 0;
+  const sp = w.reduce((a,t)=>a+(t.volume||0),0);
+  const sf = w.reduce((a,t)=>a+(t.factVol||0),0);
+  return sp ? Math.round(sf/sp*100) : 0;
+}
+
+function renderProjectsList(){
+  const el = document.getElementById('projectsList');
+  if(!projects.length){ el.innerHTML='<div class="sidebar-empty">Пока нет графиков</div>'; return; }
+  el.innerHTML = projects.map(p=>{
+    const fact = p.id===activeProjectId ? overallFact() : projectFactPct(p);
+    return `
+    <div class="sidebar-item ${p.id===activeProjectId?'active':''}" onclick="switchProject(${p.id})">
+      <div class="sidebar-item-icon" style="background:${p.color};"><i class="ti ${p.icon}"></i></div>
+      <div class="sidebar-item-body">
+        <div class="sidebar-item-name">${p.name}</div>
+        <div class="sidebar-item-meta">${projectMeta(p)}</div>
+      </div>
+      <div class="sidebar-item-progress">${fact}%</div>
+    </div>`;
+  }).join('');
+}
+
+function saveActiveProjectState(){
+  // сохраняем текущее состояние работающего проекта обратно в массив projects
+  const p = projects.find(x=>x.id===activeProjectId);
+  if(p){ p.tasks = tasks; p.total = TOTAL; p.current = CURRENT; }
+}
+
+function switchProject(id){
+  if(id===activeProjectId){ return; }
+  saveActiveProjectState();
+
+  const p = projects.find(x=>x.id===id);
+  if(!p) return;
+  activeProjectId = id;
+
+  // переключаем рабочее состояние на данные выбранного проекта
+  tasks = p.tasks;
+  TOTAL = p.total;
+  CURRENT = Math.min(p.current, p.total);
+
+  document.getElementById('projBadge').textContent = p.name.replace(/«|»/g,'') + ' · ' + projectMeta(p);
+
+  renderProjectsList();
+  renderGantt();
+  // обновляем открытую сейчас вкладку, если это не "график"
+  const activeTabIdx = [...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'));
+  const tabNames = ['gantt','actual','ai','chart'];
+  const name = tabNames[activeTabIdx] || 'gantt';
+  if(name==='actual') renderActualForm();
+  if(name==='ai') renderAnalysis();
+  if(name==='chart') renderSChart();
+  saveState();
+}
+
+
+const PROJECT_COLORS = ['#185FA5','#3B6D11','#533AB7','#854F0B','#993556','#0F6E56','#71280B','#1A6B6B'];
+
+// ── New Project modal state ──
+let npViewYear = new Date().getFullYear();
+let npRangeStart = null; // {year, month} month 0-11
+let npRangeEnd = null;
+let npSelection = {}; // { sectionIndex: { checked:bool, works:{workIndex:bool} } }
+let npGraphTypeId = null; // выбранный вид графика для нового проекта
+
+function npCurrentSections(){
+  const gt = graphTypes.find(g=>g.id===npGraphTypeId);
+  return gt ? gt.sections : [];
+}
+
+function npRebuildSelectionFromType(){
+  npSelection = {};
+  npCurrentSections().forEach((sec,i)=>{
+    npSelection[i] = { checked:true, works:{} };
+    sec.works.forEach((w,j)=>{ npSelection[i].works[j] = true; });
+  });
+}
+
+function renderNPTypeSelect(){
+  const sel = document.getElementById('npTypeSelect');
+  if(!sel) return;
+  sel.innerHTML = graphTypes.map(g=>`<option value="${g.id}" ${g.id===npGraphTypeId?'selected':''}>${g.name} (${g.sections.length} ${sectionWord(g.sections.length)})</option>`).join('');
+}
+
+function sectionWord(n){
+  const mod10=n%10, mod100=n%100;
+  if(mod10===1 && mod100!==11) return 'раздел';
+  if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return 'раздела';
+  return 'разделов';
+}
+
+function npPickGraphType(id){
+  npGraphTypeId = id;
+  npRebuildSelectionFromType();
+  npExpanded = {};
+  renderNPTree();
+  updateNPSummary();
+}
+
+function openNewProject(){
+  npRangeStart = null;
+  npRangeEnd = null;
+  npGraphTypeId = graphTypes.length ? graphTypes[0].id : null;
+  npRebuildSelectionFromType();
+  document.getElementById('npName').value = '';
+  renderNPTypeSelect();
+  renderNPCalendar();
+  renderNPTree();
+  updateNPSummary();
+  document.getElementById('newProjectOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('npName').focus(), 50);
+}
+function closeNewProject(){
+  document.getElementById('newProjectOverlay').classList.remove('open');
+}
+function overlayClickNP(e){
+  if(e.target===document.getElementById('newProjectOverlay')) closeNewProject();
+}
+
+// ── Two-year calendar (month range picker) ──────────────────────────────────────
+function renderNPCalendar(){
+  const grid = document.getElementById('npMonthsGrid');
+  if(!grid) return;
+  const thisYear = new Date().getFullYear();
+  const years = [thisYear, thisYear + 1];
+  grid.innerHTML = years.map(year=>`
+    <div class="cal-year-block">
+      <div class="cal-year-head">${year}</div>
+      <div class="cal-2yr-months">
+        ${MONTHS_SHORT.map((m,idx)=>{
+          const cellKey = {year, month:idx};
+          let cls = '';
+          if(npRangeStart && npRangeEnd){
+            if(npSameMonth(cellKey,npRangeStart) && npSameMonth(cellKey,npRangeEnd)) cls='range-start range-end';
+            else if(npSameMonth(cellKey,npRangeStart)) cls='range-start';
+            else if(npSameMonth(cellKey,npRangeEnd)) cls='range-end';
+            else if(npInRange(cellKey)) cls='in-range';
+          } else if(npRangeStart && npSameMonth(cellKey,npRangeStart)){
+            cls='range-start range-end';
+          }
+          return `<div class="cal-month ${cls}" onclick="npPickMonth(${year},${idx})">${m}</div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+function npSameMonth(a,b){ return a && b && a.year===b.year && a.month===b.month; }
+function npMonthValue(c){ return c.year*12 + c.month; }
+function npInRange(c){
+  if(!npRangeStart||!npRangeEnd) return false;
+  const v=npMonthValue(c), s=npMonthValue(npRangeStart), e=npMonthValue(npRangeEnd);
+  return v>=Math.min(s,e) && v<=Math.max(s,e);
+}
+function npPickMonth(year,month){
+  const picked = {year,month};
+  if(!npRangeStart || (npRangeStart && npRangeEnd)){
+    // start a fresh selection
+    npRangeStart = picked;
+    npRangeEnd = null;
+  } else {
+    // second click — set end (normalize order)
+    if(npMonthValue(picked) < npMonthValue(npRangeStart)){
+      npRangeEnd = npRangeStart;
+      npRangeStart = picked;
+    } else {
+      npRangeEnd = picked;
+    }
+  }
+  renderNPCalendar();
+  updateNPSummary();
+}
+function npMonthsCount(){
+  if(!npRangeStart) return 0;
+  const end = npRangeEnd || npRangeStart;
+  return npMonthValue(end) - npMonthValue(npRangeStart) + 1;
+}
+function npPeriodLabel(){
+  if(!npRangeStart) return null;
+  const end = npRangeEnd || npRangeStart;
+  return `${MONTHS_FULL_NP[npRangeStart.month]} ${npRangeStart.year} — ${MONTHS_FULL_NP[end.month]} ${end.year}`;
+}
+const MONTHS_FULL_NP=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+// ── Structure tree (checkbox selection) ──
+let npExpanded = {};
+function renderNPTree(){
+  const el = document.getElementById('npTree');
+  const sections = npCurrentSections();
+  if(!sections.length){ el.innerHTML='<div class="dir-empty">В выбранном виде графика пока нет разделов. Добавьте их в Настройках → Вид графика.</div>'; return; }
+  el.innerHTML = sections.map((sec,i)=>{
+    const sel = npSelection[i];
+    if(!sel) return '';
+    const isOpen = !!npExpanded[i];
+    const total = sec.works.length;
+    const checkedCount = total ? Object.values(sel.works).filter(Boolean).length : 0;
+    let html = `<div class="tree-section">
+      <div class="tree-section-row">
+        <i class="ti ti-chevron-${isOpen?'down':'right'} tree-chevron" onclick="npToggleExpand(${i})"></i>
+        <input type="checkbox" class="tree-checkbox" ${sel.checked?'checked':''} onchange="npToggleSection(${i},this.checked)">
+        <span class="tree-section-name" onclick="npToggleExpand(${i})">${sec.name}</span>
+        ${total?`<span class="tree-section-count">${checkedCount}/${total}</span>`:''}
+      </div>`;
+    if(isOpen){
+      html += `<div class="tree-works">`;
+      if(!total){
+        html += `<div class="tree-empty-note">В разделе нет видов работ</div>`;
+      } else {
+        sec.works.forEach((w,j)=>{
+          html += `<div class="tree-work-row">
+            <span style="width:14px;"></span>
+            <input type="checkbox" class="tree-checkbox" ${sel.works[j]?'checked':''} onchange="npToggleWork(${i},${j},this.checked)">
+            <span class="tree-work-name">${w}</span>
+          </div>`;
+        });
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+    return html;
+  }).join('');
+}
+function npToggleExpand(i){ npExpanded[i] = !npExpanded[i]; renderNPTree(); }
+
+function npToggleSection(i,checked){
+  npSelection[i].checked = checked;
+  Object.keys(npSelection[i].works).forEach(j=>{ npSelection[i].works[j] = checked; });
+  renderNPTree();
+  updateNPSummary();
+}
+function npToggleWork(i,j,checked){
+  npSelection[i].works[j] = checked;
+  const works = npSelection[i].works;
+  const anyChecked = Object.values(works).some(Boolean);
+  // раздел остаётся отмеченным, если хотя бы один вид работ отмечен (или если у раздела вообще нет видов работ — управляется только своим чекбоксом)
+  if(Object.keys(works).length>0){
+    npSelection[i].checked = anyChecked;
+  }
+  renderNPTree();
+  updateNPSummary();
+}
+function npToggleAll(){
+  const anyChecked = Object.values(npSelection).some(s=>s.checked);
+  const newState = !anyChecked;
+  Object.keys(npSelection).forEach(i=>{
+    npSelection[i].checked = newState;
+    Object.keys(npSelection[i].works).forEach(j=>{ npSelection[i].works[j]=newState; });
+  });
+  document.getElementById('npToggleAllBtn').textContent = newState ? 'Снять все галочки' : 'Отметить все';
+  renderNPTree();
+  updateNPSummary();
+}
+
+function updateNPSummary(){
+  const periodLabel = npPeriodLabel();
+  const summaryEl = document.getElementById('npPeriodSummary');
+  if(periodLabel){
+    summaryEl.innerHTML = `<i class="ti ti-calendar-check"></i> ${periodLabel} · ${npMonthsCount()} мес.`;
+  } else {
+    summaryEl.innerHTML = `<i class="ti ti-info-circle"></i> Выберите месяц начала и месяц окончания`;
+  }
+  const sectionsCount = Object.values(npSelection).filter(s=>s.checked).length;
+  const worksCount = Object.values(npSelection).reduce((a,s)=>a+Object.values(s.works).filter(Boolean).length,0);
+  document.getElementById('npSummaryText').textContent = `Выбрано разделов: ${sectionsCount} · видов работ: ${worksCount}`;
+}
+
+function createProject(){
+  const name = document.getElementById('npName').value.trim();
+  if(!name){ alert('Укажите название графика'); document.getElementById('npName').focus(); return; }
+  if(!npGraphTypeId){ alert('Выберите вид графика'); return; }
+  if(!npRangeStart){ alert('Выберите период графика (месяц начала)'); return; }
+  const sectionsSelected = Object.entries(npSelection).filter(([i,s])=>s.checked);
+  if(!sectionsSelected.length){
+    if(!confirm('Ни один раздел не выбран — будет создан пустой график без структуры. Продолжить?')) return;
+  }
+
+  const months = npMonthsCount();
+  const color = PROJECT_COLORS[projects.length % PROJECT_COLORS.length];
+  const newId = Math.max(0,...projects.map(p=>p.id)) + 1;
+  const sections = npCurrentSections();
+
+  // строим пустую структуру задач (категории + виды работ, без сроков/объёмов)
+  const newTasks = [];
+  let taskId = 1;
+  sectionsSelected.forEach(([secIdxStr, sel])=>{
+    const secIdx = parseInt(secIdxStr);
+    const sec = sections[secIdx];
+    if(!sec) return;
+    newTasks.push({ id:taskId++, cat:true, name:sec.name, icon:'ti-folder' });
+    sec.works.forEach((w,j)=>{
+      if(sel.works[j]){
+        newTasks.push({
+          id:taskId++, name:w, contractor:'Не назначен', unit:'—',
+          volume:0, start:0, dur:1, factPct:0, factVol:0
+        });
+      }
+    });
+  });
+
+  // сохраняем текущее состояние активного проекта перед переключением
+  saveActiveProjectState();
+
+  const newProject = {
+    id:newId, name,
+    icon:'ti-building', color,
+    total: months,
+    current: 0, // новый проект, факт ещё не вносился — "сегодня" в начале периода
+    periodStart:npRangeStart, periodEnd:npRangeEnd||npRangeStart,
+    tasks:newTasks
+  };
+  projects.push(newProject);
+
+  closeNewProject();
+
+  // сразу переключаемся на только что созданный график
+  activeProjectId = newId;
+  tasks = newProject.tasks;
+  TOTAL = newProject.total;
+  CURRENT = newProject.current;
+  document.getElementById('projBadge').textContent = newProject.name.replace(/«|»/g,'') + ' · ' + projectMeta(newProject);
+
+  renderProjectsList();
+  renderGantt();
+  switchTab('gantt', document.querySelectorAll('.tab')[0]);
+  saveState();
+}
+
+function addProject(){
+  openNewProject();
+}
+
+
+// ─── settings ─────────────────────────────────────────────────────────────────
+// ── Виды графика: каждый со своей структурой разделов СМР ──────────────────────
+let graphTypes = [
+  {
+    id: 1,
+    name: 'Типовое жилое строительство',
+    sections: [
+      {name:'Подготовительные работы', works:[]},
+      {name:'Котлован', works:[]},
+      {name:'КЖ', works:[]},
+      {name:'АР', works:[]},
+      {name:'ЭОМ', works:[]},
+      {name:'ВК', works:[]},
+      {name:'Отопление', works:[]},
+      {name:'Вентиляция', works:[]},
+      {name:'СС', works:[]},
+      {name:'Благоустройство', works:[]}
+    ]
+  }
+];
+let activeGraphTypeId = 1; // какой вид графика сейчас открыт/редактируется в Настройках
+let smrExpanded = {}; // {index: true/false} — состояние раскрытия разделов активного вида графика
+
+function activeGraphType(){ return graphTypes.find(g=>g.id===activeGraphTypeId) || graphTypes[0]; }
+
+let contractorsList = Object.keys(CONTRACTORS);
+
+function openSettings(){
+  if(!graphTypes.some(g=>g.id===activeGraphTypeId) && graphTypes.length) activeGraphTypeId = graphTypes[0].id;
+  renderGraphTypesList();
+  renderSMRList();
+  renderContractorsList();
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings(){
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+function overlayClick(e){
+  if(e.target===document.getElementById('settingsOverlay')) closeSettings();
+}
+function switchSettingsTab(name,el){
+  document.querySelectorAll('.modal-sidebar-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.modal-section').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('settings-'+name).classList.add('active');
+}
+
+// ── список видов графика (левая колонка внутри раздела "Вид графика") ──────────
+function renderGraphTypesList(){
+  const el = document.getElementById('graphTypesList');
+  if(!el) return;
+  let html = '<div class="gt-tabs">';
+  html += graphTypes.map(g=>`
+    <div class="gt-tab ${g.id===activeGraphTypeId?'active':''}" onclick="selectGraphType(${g.id})">
+      <span>${g.name}</span>
+      ${graphTypes.length>1?`<button class="gt-tab-del" onclick="event.stopPropagation();deleteGraphType(${g.id})" title="Удалить"><i class="ti ti-x" style="font-size:11px;"></i></button>`:''}
+    </div>`).join('');
+  html += `<div class="gt-tab-add" onclick="showAddGraphTypeRow()" title="Добавить вид графика"><i class="ti ti-plus"></i></div>`;
+  html += '</div>';
+  html += `<div id="gtNewRow" style="display:none;" class="gt-tab-new-row">
+    <input type="text" id="graphTypeInput" placeholder="Название нового вида графика..." onkeydown="if(event.key==='Enter')addGraphType()">
+    <button class="btn btn-primary" onclick="addGraphType()"><i class="ti ti-check"></i></button>
+    <button class="btn" onclick="hideAddGraphTypeRow()"><i class="ti ti-x"></i></button>
+  </div>`;
+  el.innerHTML = html;
+  const titleEl = document.getElementById('gt-active-name');
+  const gt = activeGraphType();
+  if(titleEl && gt) titleEl.textContent = gt.name;
+}
+
+function showAddGraphTypeRow(){
+  const row = document.getElementById('gtNewRow');
+  if(row){ row.style.display='flex'; document.getElementById('graphTypeInput').focus(); }
+}
+function hideAddGraphTypeRow(){
+  const row = document.getElementById('gtNewRow');
+  if(row){ row.style.display='none'; document.getElementById('graphTypeInput').value=''; }
+}
+
+function selectGraphType(id){
+  activeGraphTypeId = id;
+  smrExpanded = {};
+  renderGraphTypesList();
+  renderSMRList();
+}
+
+function addGraphType(){
+  const inp = document.getElementById('graphTypeInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  const newId = Math.max(0,...graphTypes.map(g=>g.id))+1;
+  graphTypes.push({id:newId, name:val, sections:[]});
+  inp.value='';
+  activeGraphTypeId = newId;
+  smrExpanded = {};
+  renderGraphTypesList();
+  renderSMRList();
+  saveState();
+}
+
+function deleteGraphType(id){
+  if(graphTypes.length<=1){ alert('Должен остаться хотя бы один вид графика.'); return; }
+  const g = graphTypes.find(x=>x.id===id);
+  if(!confirm(`Удалить вид графика «${g.name}» вместе со всей структурой разделов?`)) return;
+  graphTypes = graphTypes.filter(x=>x.id!==id);
+  if(activeGraphTypeId===id) activeGraphTypeId = graphTypes[0].id;
+  smrExpanded = {};
+  renderGraphTypesList();
+  renderSMRList();
+  saveState();
+}
+
+function renderSMRList(){
+  const gt = activeGraphType();
+  const smrList = gt ? gt.sections : [];
+  document.getElementById('smr-count').textContent = smrList.length + ' разделов';
+  const el = document.getElementById('smrList');
+  if(!smrList.length){ el.innerHTML='<div class="dir-empty">В этом виде графика пока нет разделов</div>'; return; }
+  el.innerHTML = smrList.map((sec,i)=>{
+    const isOpen = !!smrExpanded[i];
+    const workCount = sec.works.length;
+    let html = `
+    <div class="dir-item dir-item-section" onclick="toggleSMRExpand(${i})">
+      <div class="dir-item-left">
+        <i class="ti ti-chevron-${isOpen?'down':'right'}" style="font-size:13px;color:var(--text3);width:14px;"></i>
+        <span class="dir-item-num">${i+1}.</span>
+        <span>${sec.name}</span>
+        <span class="dir-subcount">${workCount ? workCount+' '+workWord(workCount) : ''}</span>
+      </div>
+      <div class="dir-item-actions">
+        <button class="dir-btn del" onclick="event.stopPropagation();deleteSMR(${i})" title="Удалить раздел"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+    if(isOpen){
+      html += `<div class="dir-sub">`;
+      if(workCount===0){
+        html += `<div class="dir-empty" style="padding:10px 12px;">Видов работ пока нет</div>`;
+      } else {
+        sec.works.forEach((w,j)=>{
+          html += `
+          <div class="dir-item dir-item-work">
+            <div class="dir-item-left">
+              <span class="dir-item-num">${i+1}.${j+1}</span>
+              <span>${w}</span>
+            </div>
+            <div class="dir-item-actions">
+              <button class="dir-btn del" onclick="deleteWork(${i},${j})" title="Удалить вид работ"><i class="ti ti-trash"></i></button>
+            </div>
+          </div>`;
+        });
+      }
+      html += `
+        <div class="dir-add-row dir-add-row-sub">
+          <input type="text" id="workInput_${i}" placeholder="Новый вид работ..." onkeydown="if(event.key==='Enter')addWork(${i})" onclick="event.stopPropagation()">
+          <button class="btn" onclick="addWork(${i})"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>`;
+    }
+    return html;
+  }).join('');
+}
+
+function workWord(n){
+  const mod10=n%10, mod100=n%100;
+  if(mod10===1 && mod100!==11) return 'вид';
+  if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return 'вида';
+  return 'видов';
+}
+
+function toggleSMRExpand(i){
+  smrExpanded[i] = !smrExpanded[i];
+  renderSMRList();
+}
+
+function addSMR(){
+  const inp = document.getElementById('smrInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  const gt = activeGraphType();
+  gt.sections.push({name:val, works:[]});
+  inp.value='';
+  renderSMRList();
+  renderGraphTypesList();
+  saveState();
+}
+function deleteSMR(i){
+  const gt = activeGraphType();
+  if(!confirm(`Удалить раздел «${gt.sections[i].name}» вместе со всеми видами работ (${gt.sections[i].works.length})?`)) return;
+  gt.sections.splice(i,1);
+  delete smrExpanded[i];
+  renderSMRList();
+  renderGraphTypesList();
+  saveState();
+}
+
+function addWork(i){
+  const inp = document.getElementById('workInput_'+i);
+  const val = inp.value.trim();
+  if(!val) return;
+  const gt = activeGraphType();
+  gt.sections[i].works.push(val);
+  smrExpanded[i] = true;
+  renderSMRList();
+  saveState();
+  // вернуть фокус в поле ввода после перерисовки
+  const newInp = document.getElementById('workInput_'+i);
+  if(newInp) newInp.focus();
+}
+function deleteWork(i,j){
+  const gt = activeGraphType();
+  if(!confirm(`Удалить вид работ «${gt.sections[i].works[j]}»?`)) return;
+  gt.sections[i].works.splice(j,1);
+  renderSMRList();
+  saveState();
+}
+
+function renderContractorsList(){
+  document.getElementById('contractors-count').textContent = contractorsList.length + ' записей';
+  const el = document.getElementById('contractorsList');
+  if(!contractorsList.length){ el.innerHTML='<div class="dir-empty">Список пуст</div>'; return; }
+  el.innerHTML = contractorsList.map((name,i)=>{
+    const c = CONTRACTORS[name]||{color:'#888',bg:'#eee'};
+    return `<div class="dir-item">
+      <div class="dir-item-left">
+        <span class="dir-item-num">${i+1}.</span>
+        <span class="cbadge" style="background:${c.bg};color:${c.color};">${name}</span>
+      </div>
+      <div class="dir-item-actions">
+        <button class="dir-btn del" onclick="deleteContractor(${i})" title="Удалить"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addContractor(){
+  const inp = document.getElementById('contractorInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(contractorsList.includes(val)){ alert('Подрядчик уже есть в списке'); return; }
+  contractorsList.push(val);
+  // добавляем в CONTRACTORS с автоцветом
+  const palette=[
+    {color:'#185FA5',bg:'#E6F1FB'},{color:'#3B6D11',bg:'#EAF3DE'},
+    {color:'#533AB7',bg:'#EEEDFE'},{color:'#854F0B',bg:'#FAEEDA'},
+    {color:'#993556',bg:'#FBEAF0'},{color:'#0F6E56',bg:'#E1F5EE'},
+    {color:'#71280B',bg:'#FAECE7'},{color:'#1A6B6B',bg:'#E0F5F5'},
+  ];
+  const idx = Object.keys(CONTRACTORS).length % palette.length;
+  CONTRACTORS[val] = palette[idx];
+  inp.value='';
+  renderContractorsList();
+  saveState();
+}
+
+function deleteContractor(i){
+  const name = contractorsList[i];
+  if(!confirm(`Удалить подрядчика «${name}»?`)) return;
+  contractorsList.splice(i,1);
+  renderContractorsList();
+  saveState();
+}
+
+// ─── загрузка сохранённого состояния (если есть) и первичный рендер ────────────
+(function(){
+  const restored = loadState();
+  if(restored){
+    const p = activeProject();
+    if(p){
+      tasks = p.tasks;
+      TOTAL = p.total;
+      CURRENT = Math.min(p.current, p.total);
+    }
+  }
+})();
+
+renderGantt();
+renderProjectsList();
+// синхронизируем бейдж шапки с реальными данными активного проекта при загрузке
+(function(){
+  const p = activeProject();
+  if(p) document.getElementById('projBadge').textContent = p.name.replace(/«|»/g,'') + ' · ' + projectMeta(p);
+})();
+</script>
+
+<!-- NEW PROJECT MODAL -->
+<div class="modal-overlay" id="newProjectOverlay" onclick="overlayClickNP(event)">
+  <div class="modal" style="width:560px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-building-skyscraper"></i> Новый график</div>
+      <button class="modal-close" onclick="closeNewProject()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-content" style="flex:1;overflow-y:auto;">
+
+      <!-- Name -->
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-pencil"></i> Название графика</div>
+        <input type="text" class="np-input" id="npName" placeholder="Например, ЖК «Восточный квартал»">
+      </div>
+
+      <!-- Graph type dropdown -->
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-sitemap"></i> Вид графика</div>
+        <select class="np-input" id="npTypeSelect" onchange="npPickGraphType(parseInt(this.value))"></select>
+      </div>
+
+      <!-- Period: two-year calendar -->
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-calendar"></i> Период графика</div>
+        <div class="cal-wrap">
+          <div class="cal-2yr" id="npMonthsGrid"></div>
+        </div>
+        <div class="np-period-summary" id="npPeriodSummary">
+          <i class="ti ti-info-circle"></i> Выберите месяц начала и месяц окончания
+        </div>
+      </div>
+
+      <!-- Structure -->
+      <div class="np-field">
+        <div class="np-label" style="justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:6px;"><i class="ti ti-list-tree"></i> Структура графика</span>
+          <button class="np-select-toggle" onclick="npToggleAll()" id="npToggleAllBtn">Снять все галочки</button>
+        </div>
+        <div class="tree-wrap" id="npTree"></div>
+      </div>
+
+    </div>
+    <div class="np-actions">
+      <span style="font-size:11.5px;color:var(--text3);" id="npSummaryText"></span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="closeNewProject()">Отмена</button>
+        <button class="btn btn-primary" onclick="createProject()"><i class="ti ti-check"></i> Создать график</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsOverlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-settings"></i> Настройки</div>
+      <button class="modal-close" onclick="closeSettings()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <nav class="modal-sidebar">
+        <div class="modal-sidebar-item active" onclick="switchSettingsTab('graphtypes',this)">
+          <i class="ti ti-sitemap"></i> Вид графика
+        </div>
+        <div class="modal-sidebar-item" onclick="switchSettingsTab('contractors',this)">
+          <i class="ti ti-users"></i> Подрядчики
+        </div>
+        <div class="modal-sidebar-item" onclick="switchSettingsTab('data',this)">
+          <i class="ti ti-database"></i> Данные
+        </div>
+      </nav>
+      <div class="modal-content">
+
+        <div id="settings-graphtypes" class="modal-section active">
+
+          <div id="graphTypesList"></div>
+
+          <div class="dir-header">
+            <div class="dir-title">Структура: <span id="gt-active-name" style="color:#185FA5;"></span></div>
+            <div class="dir-count" id="smr-count"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Нажмите на раздел, чтобы раскрыть и добавить виды работ</div>
+          <div class="dir-list" id="smrList"></div>
+          <div class="dir-add-row">
+            <input type="text" id="smrInput" placeholder="Название нового раздела..." onkeydown="if(event.key==='Enter')addSMR()">
+            <button class="btn btn-primary" onclick="addSMR()"><i class="ti ti-plus"></i> Добавить раздел</button>
+          </div>
+        </div>
+
+        <div id="settings-contractors" class="modal-section">
+          <div class="settings-section-title">Подрядчики</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Общий справочник подрядчиков, доступный во всех графиках независимо от вида.</div>
+          <div class="dir-header">
+            <div class="dir-title">Подрядчики</div>
+            <div class="dir-count" id="contractors-count"></div>
+          </div>
+          <div class="dir-list" id="contractorsList"></div>
+          <div class="dir-add-row">
+            <input type="text" id="contractorInput" placeholder="Название подрядчика..." onkeydown="if(event.key==='Enter')addContractor()">
+            <button class="btn btn-primary" onclick="addContractor()"><i class="ti ti-plus"></i> Добавить</button>
+          </div>
+        </div>
+
+        <div id="settings-data" class="modal-section">
+          <div class="settings-section-title">Данные</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px;padding:10px 12px;background:var(--bg2);border-radius:var(--rad);">
+            <i class="ti ti-info-circle" style="color:#185FA5;margin-right:5px;"></i>
+            Все графики, виды графика и фактические данные сохраняются автоматически в этом браузере. При обновлении страницы ничего не теряется.
+          </div>
+          <div style="border:0.5px solid var(--border-danger,rgba(200,40,40,0.3));border-radius:var(--rad);padding:14px;background:var(--bg-danger);">
+            <div style="font-size:12.5px;font-weight:500;color:var(--text-danger);margin-bottom:4px;">Сбросить все данные</div>
+            <div style="font-size:11.5px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Удалит все графики, виды графика и внесённые фактические объёмы без возможности восстановления.</div>
+            <button class="btn" style="border-color:var(--text-danger);color:var(--text-danger);" onclick="resetAllData()"><i class="ti ti-trash"></i> Удалить всё и начать заново</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
