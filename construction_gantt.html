@@ -625,6 +625,9 @@ function indentSelectedTask(direction){
   const t = tasks.find(x=>x.id===selectedTaskId && !x.cat);
   if(!t) return;
   const currentLevel = t.level||0;
+  // у этой работы могут быть свои вложенные работы — при изменении её уровня
+  // сдвигаем их на столько же, чтобы сохранить относительную вложенность
+  const childTasks = getChildIds(t.id).map(id=>tasks.find(x=>x.id===id));
   if(direction>0){
     if(currentLevel>=MAX_TASK_LEVEL){
       alert(`Достигнут максимальный уровень вложенности (${MAX_TASK_LEVEL+1}).`);
@@ -639,12 +642,19 @@ function indentSelectedTask(direction){
       alert('Чтобы понизить уровень этой работы, выше в разделе должна быть материнская работа подходящего уровня.');
       return;
     }
+    const maxChildLevel = childTasks.length ? Math.max(...childTasks.map(c=>c.level||0)) : currentLevel;
+    if(maxChildLevel+1 > MAX_TASK_LEVEL){
+      alert(`Нельзя понизить: у этой работы есть вложенные работы уже на максимальном уровне (${MAX_TASK_LEVEL+1}).`);
+      return;
+    }
     t.level = currentLevel+1;
+    childTasks.forEach(c=>{ c.level = (c.level||0)+1; }); // вложенные работы понижаются вместе с ней
     delete workCollapsed[t.id]; // больше не родитель — сбрасываем состояние сворачивания
   } else {
     // влево: повысить уровень на 1 шаг
     if(currentLevel<=0){ return; }
     t.level = currentLevel-1;
+    childTasks.forEach(c=>{ c.level = Math.max(0,(c.level||0)-1); }); // вложенные работы повышаются вместе с ней
   }
   renderGantt();
   saveState();
