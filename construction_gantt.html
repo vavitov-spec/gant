@@ -581,8 +581,11 @@ function renderGantt(){
     const nameHtml = isEditingName
       ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
       : t.name;
+    const deleteBtnHtml = (isSelected && !isEditingName)
+      ? `<button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
+      : '';
     tr.innerHTML=`
-      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${level===0?collapseToggleHtml:''}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}</div></td>
+      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${level===0?collapseToggleHtml:''}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td style="color:var(--text3)">${t.unit}</td>
       <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
@@ -619,6 +622,19 @@ function indentSelectedTask(direction){
   if(direction>0){
     // вправо: максимум один уровень вложенности (вид → подвид)
     if(currentLevel>=1){ return; }
+    // подвидом можно сделать работу только если выше в этом же разделе есть работа верхнего уровня,
+    // которая будет её объединять (иначе подвиду не к чему «прикрепиться»)
+    const idx = tasks.findIndex(x=>x.id===t.id);
+    let hasParent = false;
+    for(let i=idx-1; i>=0; i--){
+      const prev = tasks[i];
+      if(prev.cat) break; // дошли до начала раздела — родителя нет
+      if(!(prev.level>0)){ hasParent = true; break; } // нашли работу верхнего уровня
+    }
+    if(!hasParent){
+      alert('Чтобы сделать эту работу подразделом, выше в этом разделе должна быть работа верхнего уровня, которая будет её объединять.');
+      return;
+    }
     t.level = 1;
     delete workCollapsed[t.id]; // больше не родитель — сбрасываем состояние сворачивания
   } else {
@@ -627,6 +643,39 @@ function indentSelectedTask(direction){
     t.level = 0;
   }
   renderGantt();
+  saveState();
+}
+
+function getChildIds(taskId){
+  const idx = tasks.findIndex(t=>t.id===taskId);
+  if(idx===-1) return [];
+  const ids = [];
+  for(let i=idx+1;i<tasks.length;i++){
+    const n = tasks[i];
+    if(n.cat || (n.level||0)!==1) break;
+    ids.push(n.id);
+  }
+  return ids;
+}
+
+function confirmDeleteTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  const childIds = getChildIds(id);
+  const msg = childIds.length
+    ? `Удалить работу «${t.name}» и её ${childIds.length} подраздел(а/ов)?`
+    : `Удалить работу «${t.name}»?`;
+  if(!confirm(msg)) return;
+  deleteTask(id);
+}
+
+function deleteTask(id){
+  const childIds = getChildIds(id);
+  const idsToRemove = new Set([id, ...childIds]);
+  tasks = tasks.filter(t=>!idsToRemove.has(t.id));
+  if(selectedTaskId!==null && idsToRemove.has(selectedTaskId)) selectedTaskId = null;
+  renderGantt();
+  if(typeof renderProjectsList==='function') renderProjectsList();
   saveState();
 }
 
