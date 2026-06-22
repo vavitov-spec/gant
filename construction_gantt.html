@@ -1146,8 +1146,24 @@ function npRebuildSelectionFromType(){
   npSelection = {};
   npCurrentSections().forEach((sec,i)=>{
     npSelection[i] = { checked:true, works:{} };
-    sec.works.forEach((w,j)=>{ npSelection[i].works[j] = true; });
+    sec.works.forEach((w,j)=>{
+      if(w && w.sub){
+        const subSel = { checked:true, works:{} };
+        w.works.forEach((sw,k)=>{ subSel.works[k] = true; });
+        npSelection[i].works[j] = subSel;
+      } else {
+        npSelection[i].works[j] = true;
+      }
+    });
   });
+}
+
+// возвращает количество отмеченных видов работ внутри раздела (с учётом подразделов)
+function npCountCheckedWorks(sel){
+  return Object.values(sel.works).reduce((a,v)=>{
+    if(v && typeof v==='object') return a + Object.values(v.works).filter(Boolean).length;
+    return a + (v?1:0);
+  },0);
 }
 
 function renderNPTypeSelect(){
@@ -1264,8 +1280,8 @@ function renderNPTree(){
     const sel = npSelection[i];
     if(!sel) return '';
     const isOpen = !!npExpanded[i];
-    const total = sec.works.length;
-    const checkedCount = total ? Object.values(sel.works).filter(Boolean).length : 0;
+    const total = countSectionWorks(sec);
+    const checkedCount = total ? npCountCheckedWorks(sel) : 0;
     let html = `<div class="tree-section">
       <div class="tree-section-row">
         <i class="ti ti-chevron-${isOpen?'down':'right'} tree-chevron" onclick="npToggleExpand(${i})"></i>
@@ -1275,15 +1291,34 @@ function renderNPTree(){
       </div>`;
     if(isOpen){
       html += `<div class="tree-works">`;
-      if(!total){
+      if(!sec.works.length){
         html += `<div class="tree-empty-note">В разделе нет видов работ</div>`;
       } else {
         sec.works.forEach((w,j)=>{
-          html += `<div class="tree-work-row">
-            <span style="width:14px;"></span>
-            <input type="checkbox" class="tree-checkbox" ${sel.works[j]?'checked':''} onchange="npToggleWork(${i},${j},this.checked)">
-            <span class="tree-work-name">${w}</span>
-          </div>`;
+          if(w && w.sub){
+            const subSel = sel.works[j];
+            const subTotal = w.works.length;
+            const subChecked = subTotal ? Object.values(subSel.works).filter(Boolean).length : 0;
+            html += `<div class="tree-work-row">
+              <span style="width:14px;"></span>
+              <input type="checkbox" class="tree-checkbox" ${subSel.checked?'checked':''} onchange="npToggleSubsection(${i},${j},this.checked)">
+              <span class="tree-work-name" style="font-weight:500;">${w.name}</span>
+              ${subTotal?`<span class="tree-section-count">${subChecked}/${subTotal}</span>`:''}
+            </div>`;
+            w.works.forEach((sw,k)=>{
+              html += `<div class="tree-work-row" style="padding-left:22px;">
+                <span style="width:14px;"></span>
+                <input type="checkbox" class="tree-checkbox" ${subSel.works[k]?'checked':''} onchange="npToggleSubWork(${i},${j},${k},this.checked)">
+                <span class="tree-work-name">${sw}</span>
+              </div>`;
+            });
+          } else {
+            html += `<div class="tree-work-row">
+              <span style="width:14px;"></span>
+              <input type="checkbox" class="tree-checkbox" ${sel.works[j]?'checked':''} onchange="npToggleWork(${i},${j},this.checked)">
+              <span class="tree-work-name">${w}</span>
+            </div>`;
+          }
         });
       }
       html += `</div>`;
@@ -1296,18 +1331,44 @@ function npToggleExpand(i){ npExpanded[i] = !npExpanded[i]; renderNPTree(); }
 
 function npToggleSection(i,checked){
   npSelection[i].checked = checked;
-  Object.keys(npSelection[i].works).forEach(j=>{ npSelection[i].works[j] = checked; });
+  Object.keys(npSelection[i].works).forEach(j=>{
+    const v = npSelection[i].works[j];
+    if(v && typeof v==='object'){
+      v.checked = checked;
+      Object.keys(v.works).forEach(k=>{ v.works[k] = checked; });
+    } else {
+      npSelection[i].works[j] = checked;
+    }
+  });
   renderNPTree();
   updateNPSummary();
+}
+function npSectionHasAnyChecked(i){
+  return Object.values(npSelection[i].works).some(v => v===true || (v && typeof v==='object' && v.checked));
 }
 function npToggleWork(i,j,checked){
   npSelection[i].works[j] = checked;
   const works = npSelection[i].works;
-  const anyChecked = Object.values(works).some(Boolean);
   // раздел остаётся отмеченным, если хотя бы один вид работ отмечен (или если у раздела вообще нет видов работ — управляется только своим чекбоксом)
   if(Object.keys(works).length>0){
-    npSelection[i].checked = anyChecked;
+    npSelection[i].checked = npSectionHasAnyChecked(i);
   }
+  renderNPTree();
+  updateNPSummary();
+}
+function npToggleSubsection(i,j,checked){
+  const subSel = npSelection[i].works[j];
+  subSel.checked = checked;
+  Object.keys(subSel.works).forEach(k=>{ subSel.works[k] = checked; });
+  npSelection[i].checked = npSectionHasAnyChecked(i);
+  renderNPTree();
+  updateNPSummary();
+}
+function npToggleSubWork(i,j,k,checked){
+  const subSel = npSelection[i].works[j];
+  subSel.works[k] = checked;
+  subSel.checked = Object.values(subSel.works).some(Boolean);
+  npSelection[i].checked = npSectionHasAnyChecked(i);
   renderNPTree();
   updateNPSummary();
 }
@@ -1316,7 +1377,15 @@ function npToggleAll(){
   const newState = !anyChecked;
   Object.keys(npSelection).forEach(i=>{
     npSelection[i].checked = newState;
-    Object.keys(npSelection[i].works).forEach(j=>{ npSelection[i].works[j]=newState; });
+    Object.keys(npSelection[i].works).forEach(j=>{
+      const v = npSelection[i].works[j];
+      if(v && typeof v==='object'){
+        v.checked = newState;
+        Object.keys(v.works).forEach(k=>{ v.works[k]=newState; });
+      } else {
+        npSelection[i].works[j]=newState;
+      }
+    });
   });
   document.getElementById('npToggleAllBtn').textContent = newState ? 'Снять все галочки' : 'Отметить все';
   renderNPTree();
@@ -1332,7 +1401,7 @@ function updateNPSummary(){
     summaryEl.innerHTML = `<i class="ti ti-info-circle"></i> Выберите месяц начала и месяц окончания`;
   }
   const sectionsCount = Object.values(npSelection).filter(s=>s.checked).length;
-  const worksCount = Object.values(npSelection).reduce((a,s)=>a+Object.values(s.works).filter(Boolean).length,0);
+  const worksCount = Object.values(npSelection).reduce((a,s)=>a+npCountCheckedWorks(s),0);
   document.getElementById('npSummaryText').textContent = `Выбрано разделов: ${sectionsCount} · видов работ: ${worksCount}`;
 }
 
@@ -1360,7 +1429,23 @@ function createProject(){
     if(!sec) return;
     newTasks.push({ id:taskId++, cat:true, name:sec.name, icon:'ti-folder' });
     sec.works.forEach((w,j)=>{
-      if(sel.works[j]){
+      const wsel = sel.works[j];
+      if(w && w.sub){
+        if(!wsel) return;
+        const checkedSubWorks = w.works.filter((sw,k)=>wsel.works[k]);
+        if(!checkedSubWorks.length) return;
+        // подраздел становится работой верхнего уровня — «контейнером» для своих подработ
+        newTasks.push({
+          id:taskId++, name:w.name, contractor:'Не назначен', unit:'—',
+          volume:0, start:0, dur:1, factPct:0, factVol:0
+        });
+        checkedSubWorks.forEach(sw=>{
+          newTasks.push({
+            id:taskId++, name:sw, contractor:'Не назначен', unit:'—',
+            volume:0, start:0, dur:1, factPct:0, factVol:0, level:1
+          });
+        });
+      } else if(wsel){
         newTasks.push({
           id:taskId++, name:w, contractor:'Не назначен', unit:'—',
           volume:0, start:0, dur:1, factPct:0, factVol:0
@@ -1424,6 +1509,12 @@ let graphTypes = [
 ];
 let activeGraphTypeId = 1; // какой вид графика сейчас открыт/редактируется в Настройках
 let smrExpanded = {}; // {index: true/false} — состояние раскрытия разделов активного вида графика
+let smrSubExpanded = {}; // {"i_j": true/false} — состояние раскрытия подразделов работ
+
+// считает реальное количество видов работ в разделе (с учётом работ внутри подразделов)
+function countSectionWorks(sec){
+  return sec.works.reduce((sum,w)=> sum + (w && w.sub ? w.works.length : 1), 0);
+}
 
 function activeGraphType(){ return graphTypes.find(g=>g.id===activeGraphTypeId) || graphTypes[0]; }
 
@@ -1522,7 +1613,7 @@ function renderSMRList(){
   if(!smrList.length){ el.innerHTML='<div class="dir-empty">В этом виде графика пока нет разделов</div>'; return; }
   el.innerHTML = smrList.map((sec,i)=>{
     const isOpen = !!smrExpanded[i];
-    const workCount = sec.works.length;
+    const workCount = countSectionWorks(sec);
     let html = `
     <div class="dir-item dir-item-section" onclick="toggleSMRExpand(${i})">
       <div class="dir-item-left">
@@ -1537,26 +1628,69 @@ function renderSMRList(){
     </div>`;
     if(isOpen){
       html += `<div class="dir-sub">`;
-      if(workCount===0){
+      if(sec.works.length===0){
         html += `<div class="dir-empty" style="padding:10px 12px;">Видов работ пока нет</div>`;
       } else {
         sec.works.forEach((w,j)=>{
-          html += `
-          <div class="dir-item dir-item-work">
-            <div class="dir-item-left">
-              <span class="dir-item-num">${i+1}.${j+1}</span>
-              <span>${w}</span>
-            </div>
-            <div class="dir-item-actions">
-              <button class="dir-btn del" onclick="deleteWork(${i},${j})" title="Удалить вид работ"><i class="ti ti-trash"></i></button>
-            </div>
-          </div>`;
+          if(w && w.sub){
+            const subOpen = !!smrSubExpanded[i+'_'+j];
+            html += `
+            <div class="dir-item dir-item-work" style="cursor:pointer;" onclick="toggleSMRSubExpand(${i},${j})">
+              <div class="dir-item-left">
+                <i class="ti ti-chevron-${subOpen?'down':'right'}" style="font-size:12px;color:var(--text3);width:14px;"></i>
+                <span class="dir-item-num">${i+1}.${j+1}</span>
+                <span style="font-weight:500;">${w.name}</span>
+                <span class="dir-subcount">${w.works.length ? w.works.length+' '+workWord(w.works.length) : 'подраздел'}</span>
+              </div>
+              <div class="dir-item-actions">
+                <button class="dir-btn del" onclick="event.stopPropagation();deleteWork(${i},${j})" title="Удалить подраздел"><i class="ti ti-trash"></i></button>
+              </div>
+            </div>`;
+            if(subOpen){
+              if(!w.works.length){
+                html += `<div class="dir-empty" style="padding:8px 12px 8px 50px;font-size:11px;">Работ в подразделе пока нет</div>`;
+              } else {
+                w.works.forEach((sw,k)=>{
+                  html += `
+                  <div class="dir-item dir-item-work" style="padding-left:50px;">
+                    <div class="dir-item-left">
+                      <span class="dir-item-num">${i+1}.${j+1}.${k+1}</span>
+                      <span>${sw}</span>
+                    </div>
+                    <div class="dir-item-actions">
+                      <button class="dir-btn del" onclick="deleteSubWork(${i},${j},${k})" title="Удалить работу"><i class="ti ti-trash"></i></button>
+                    </div>
+                  </div>`;
+                });
+              }
+              html += `
+              <div class="dir-add-row dir-add-row-sub" style="padding-left:50px;">
+                <input type="text" id="subWorkInput_${i}_${j}" placeholder="Новая работа в подразделе..." onkeydown="if(event.key==='Enter')addSubWork(${i},${j})" onclick="event.stopPropagation()">
+                <button class="btn" onclick="addSubWork(${i},${j})"><i class="ti ti-plus"></i></button>
+              </div>`;
+            }
+          } else {
+            html += `
+            <div class="dir-item dir-item-work">
+              <div class="dir-item-left">
+                <span class="dir-item-num">${i+1}.${j+1}</span>
+                <span>${w}</span>
+              </div>
+              <div class="dir-item-actions">
+                <button class="dir-btn del" onclick="deleteWork(${i},${j})" title="Удалить вид работ"><i class="ti ti-trash"></i></button>
+              </div>
+            </div>`;
+          }
         });
       }
       html += `
         <div class="dir-add-row dir-add-row-sub">
           <input type="text" id="workInput_${i}" placeholder="Новый вид работ..." onkeydown="if(event.key==='Enter')addWork(${i})" onclick="event.stopPropagation()">
           <button class="btn" onclick="addWork(${i})"><i class="ti ti-plus"></i></button>
+        </div>
+        <div class="dir-add-row dir-add-row-sub">
+          <input type="text" id="subsectionInput_${i}" placeholder="Новый подраздел работ..." onkeydown="if(event.key==='Enter')addSubsection(${i})" onclick="event.stopPropagation()">
+          <button class="btn" onclick="addSubsection(${i})" title="Добавить подраздел работ"><i class="ti ti-folder-plus"></i></button>
         </div>
       </div>`;
     }
@@ -1589,7 +1723,7 @@ function addSMR(){
 }
 function deleteSMR(i){
   const gt = activeGraphType();
-  if(!confirm(`Удалить раздел «${gt.sections[i].name}» вместе со всеми видами работ (${gt.sections[i].works.length})?`)) return;
+  if(!confirm(`Удалить раздел «${gt.sections[i].name}» вместе со всеми видами работ (${countSectionWorks(gt.sections[i])})?`)) return;
   gt.sections.splice(i,1);
   delete smrExpanded[i];
   renderSMRList();
@@ -1612,8 +1746,56 @@ function addWork(i){
 }
 function deleteWork(i,j){
   const gt = activeGraphType();
-  if(!confirm(`Удалить вид работ «${gt.sections[i].works[j]}»?`)) return;
+  const item = gt.sections[i].works[j];
+  const isSub = !!(item && item.sub);
+  const label = isSub ? item.name : item;
+  const msg = (isSub && item.works.length)
+    ? `Удалить подраздел «${label}» вместе со всеми работами (${item.works.length})?`
+    : `Удалить ${isSub?'подраздел':'вид работ'} «${label}»?`;
+  if(!confirm(msg)) return;
   gt.sections[i].works.splice(j,1);
+  delete smrSubExpanded[i+'_'+j];
+  renderSMRList();
+  saveState();
+}
+
+function addSubsection(i){
+  const inp = document.getElementById('subsectionInput_'+i);
+  const val = inp.value.trim();
+  if(!val) return;
+  const gt = activeGraphType();
+  gt.sections[i].works.push({sub:true, name:val, works:[]});
+  smrExpanded[i] = true;
+  renderSMRList();
+  saveState();
+  const newInp = document.getElementById('subsectionInput_'+i);
+  if(newInp) newInp.focus();
+}
+
+function toggleSMRSubExpand(i,j){
+  const key = i+'_'+j;
+  smrSubExpanded[key] = !smrSubExpanded[key];
+  renderSMRList();
+}
+
+function addSubWork(i,j){
+  const inp = document.getElementById('subWorkInput_'+i+'_'+j);
+  const val = inp.value.trim();
+  if(!val) return;
+  const gt = activeGraphType();
+  gt.sections[i].works[j].works.push(val);
+  smrSubExpanded[i+'_'+j] = true;
+  renderSMRList();
+  saveState();
+  const newInp = document.getElementById('subWorkInput_'+i+'_'+j);
+  if(newInp) newInp.focus();
+}
+
+function deleteSubWork(i,j,k){
+  const gt = activeGraphType();
+  const sub = gt.sections[i].works[j];
+  if(!confirm(`Удалить работу «${sub.works[k]}»?`)) return;
+  sub.works.splice(k,1);
   renderSMRList();
   saveState();
 }
