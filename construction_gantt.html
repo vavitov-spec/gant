@@ -315,6 +315,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
           <th style="min-width:58px;line-height:1.2;">Дата<br>начала</th>
           <th style="min-width:48px;line-height:1.2;">Длит.</th>
           <th style="min-width:58px;line-height:1.2;">Дата<br>оконч.</th>
+          <th style="min-width:70px;text-align:right">Общ. объём</th>
           <th style="min-width:50px">Ед.</th>
           <th style="min-width:80px;text-align:right">Факт / План</th>
           <th style="min-width:60px">%</th>
@@ -574,7 +575,7 @@ function renderGantt(){
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label">${t.name}</span>`;
-      tr.innerHTML=`<td colspan="9">
+      tr.innerHTML=`<td colspan="10">
         <span style="display:flex;align-items:center;gap:7px;">
           <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
           <i class="ti ${t.icon}" style="font-size:15px;"></i>
@@ -630,6 +631,7 @@ function renderGantt(){
       <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthStartDate(t.start))}</td>
       <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${taskDurationDays(t)} дн.</td>
       <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthEndDate(t.start+t.dur-1))}</td>
+      <td style="text-align:right;font-size:12px;">${(t.volume||0).toLocaleString('ru')}</td>
       <td style="color:var(--text3)">${t.unit}</td>
       <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
       <td style="font-size:12px;font-weight:500;" class="${cls}">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
