@@ -430,6 +430,37 @@ function monthLabelAt(offset){
   return `${MONTHS[monthIdx]} ${year}`;
 }
 
+// первый день месяца, соответствующего смещению offset от начала периода проекта
+function monthStartDate(offset){
+  const p = activeProject();
+  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+  const totalIdx = ps.month + offset;
+  const year = ps.year + Math.floor(totalIdx/12);
+  const monthIdx = ((totalIdx%12)+12)%12;
+  return new Date(year, monthIdx, 1);
+}
+
+// последний день месяца, соответствующего смещению offset
+function monthEndDate(offset){
+  const d = monthStartDate(offset+1);
+  d.setDate(d.getDate()-1);
+  return d;
+}
+
+function formatDateDDMMYY(d){
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = String(d.getFullYear()%100).padStart(2,'0');
+  return `${dd}/${mm}/${yy}`;
+}
+
+// длительность задачи t в днях (от первого дня начального месяца до последнего дня конечного месяца)
+function taskDurationDays(t){
+  const start = monthStartDate(t.start);
+  const end = monthEndDate(t.start+t.dur-1);
+  return Math.round((end-start)/86400000)+1;
+}
+
 function workTasks(){ return tasks.filter(t=>!t.cat); }
 
 function overallFact(){
@@ -594,9 +625,9 @@ function renderGantt(){
     tr.innerHTML=`
       <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
-      <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${monthLabelAt(t.start)}</td>
-      <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${t.dur} мес.</td>
-      <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${monthLabelAt(t.start+t.dur-1)}</td>
+      <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthStartDate(t.start))}</td>
+      <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${taskDurationDays(t)} дн.</td>
+      <td style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthEndDate(t.start+t.dur-1))}</td>
       <td style="color:var(--text3)">${t.unit}</td>
       <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
       <td style="font-size:12px;font-weight:500;" class="${cls}">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
