@@ -451,7 +451,7 @@ function formatDateDDMMYY(d){
   const dd = String(d.getDate()).padStart(2,'0');
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const yy = String(d.getFullYear()%100).padStart(2,'0');
-  return `${dd}/${mm}/${yy}`;
+  return `${dd}.${mm}.${yy}`;
 }
 
 // длительность задачи t в днях (от первого дня начального месяца до последнего дня конечного месяца)
