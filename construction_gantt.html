@@ -100,7 +100,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* более тонкие строки разделов / работ / подвидов */
 .cat-row td{padding-top:7px!important;padding-bottom:7px!important;}
-.gantt-table td{padding-top:4px;padding-bottom:4px;}
+.gantt-table td{padding-top:2px;padding-bottom:2px;}
 .task-row.selected td{background:var(--bg-info)!important;}
 .task-row{cursor:pointer;}
 .task-row.level-1 .task-indent,.task-row.level-2 .task-indent,.task-row.level-3 .task-indent,.task-row.level-4 .task-indent{opacity:0.55;}
@@ -297,10 +297,17 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     <div class="gantt-wrap">
       <table class="gantt-table">
         <thead><tr>
-          <th style="width:200px">
+          <th style="width:230px">
             <div style="display:flex;align-items:center;gap:6px;">
               <span>Наименование работ</span>
-              <span style="display:flex;gap:2px;margin-left:auto;">
+              <span style="display:flex;align-items:center;gap:2px;margin-left:auto;">
+                <button class="th-mini-btn" onclick="" title="Настройка графика">
+                  <i class="ti ti-settings" style="font-size:12px;"></i>
+                </button>
+                <button class="th-mini-btn" onclick="" title="Фильтр">
+                  <i class="ti ti-filter" style="font-size:12px;"></i>
+                </button>
+                <span style="width:8px;flex-shrink:0;"></span>
                 <button class="th-mini-btn" id="btnCollapseAll" onclick="toggleAllSections()" title="Свернуть/развернуть все разделы">
                   <i class="ti ti-arrows-vertical" style="font-size:12px;"></i>
                 </button>
