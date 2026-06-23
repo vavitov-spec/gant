@@ -26,7 +26,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
 }
-.layout{max-width:none;height:100vh;margin:0 auto;display:flex;flex-direction:column;gap:3px;padding:0 5px;}
+.layout{max-width:none;height:100vh;margin:0 auto;display:flex;flex-direction:column;gap:3px;padding:0 8px;}
 .sidebar{width:100%;flex-shrink:0;background:var(--bg);border-radius:var(--rad-lg) var(--rad-lg) 0 0;border:0.5px solid var(--border);border-bottom:none;overflow:visible;display:flex;flex-direction:row;align-items:center;position:sticky;top:0;}
 .sidebar-head{padding:6px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;border-right:0.5px solid var(--border);}
 .sidebar-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);display:flex;align-items:center;gap:6px;}
@@ -303,7 +303,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
             <div style="display:flex;align-items:center;gap:6px;">
               <span>Наименование работ</span>
               <span style="display:flex;align-items:center;gap:2px;margin-left:auto;">
-                <button class="th-mini-btn" onclick="" title="Настройка графика">
+                <button class="th-mini-btn" onclick="openGraphSettings()" title="Настройка графика">
                   <i class="ti ti-settings" style="font-size:12px;"></i>
                 </button>
                 <button class="th-mini-btn" onclick="" title="Фильтр">
@@ -322,14 +322,14 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
               </span>
             </div>
           </th>
-          <th style="width:110px">Подрядчик</th>
-          <th class="tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>начала</th>
-          <th class="tight-col" style="width:calc(7ch + 8px);line-height:1.2;">Длит.</th>
-          <th class="tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>оконч.</th>
-          <th class="tight-col" style="width:46px;line-height:1.2;text-align:right">Общ.<br>объём</th>
-          <th style="width:50px">Ед.</th>
-          <th style="width:80px;text-align:right">Факт / План</th>
-          <th style="width:60px">%</th>
+          <th class="col-contractor" style="width:110px">Подрядчик</th>
+          <th class="col-start tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>начала</th>
+          <th class="col-dur tight-col" style="width:calc(7ch + 8px);line-height:1.2;">Длит.</th>
+          <th class="col-end tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>оконч.</th>
+          <th class="col-volume tight-col" style="width:46px;line-height:1.2;text-align:right">Общ.<br>объём</th>
+          <th class="col-unit" style="width:50px">Ед.</th>
+          <th class="col-factplan" style="width:80px;text-align:right">Факт / План</th>
+          <th class="col-pct" style="width:60px">%</th>
           <th class="bar-cell" style="padding:0;">
             <div style="display:flex;width:100%;padding:0 10px;box-sizing:border-box;" id="ganttMonthHeader"></div>
           </th>
@@ -571,14 +571,20 @@ function renderGantt(){
   // todayPct вычисляется один раз, а не в каждой строке
   const todayPct = (CURRENT / TOTAL * 100).toFixed(2);
   let currentCollapsed = false;
+  let currentSectionHidden = false;
   // collapsedChain[L] = true, если ветка на уровне L свёрнута — это скрывает все более глубокие уровни
   let collapsedChain = [];
+  // hiddenChain[L] = true, если ветка на уровне L выключена из отображения (настройки графика)
+  let hiddenChain = [];
 
   tasks.forEach((t,idx)=>{
     const tr = document.createElement('tr');
     if(t.cat){
       currentCollapsed = !!ganttCollapsed[t.id];
+      currentSectionHidden = !!t.hidden;
       collapsedChain = [];
+      hiddenChain = [];
+      if(currentSectionHidden){ return; } // раздел выключен из отображения в настройках графика
       tr.className='cat-row';
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
@@ -598,14 +604,18 @@ function renderGantt(){
       body.appendChild(tr);
       return;
     }
+    if(currentSectionHidden){ return; } // раздел выключен из отображения
     if(currentCollapsed){ return; } // скрываем строки свёрнутого раздела
 
     const level = t.level||0;
-    // скрыта ли эта строка из-за свёрнутого предка на каком-то уровне выше
+    // скрыта ли эта строка из-за свёрнутого или выключенного из отображения предка на каком-то уровне выше
     const hiddenByAncestor = collapsedChain.slice(0, level).some(Boolean);
+    const hiddenByAncestorSetting = hiddenChain.slice(0, level).some(Boolean);
     collapsedChain.length = level; // новая ветка — обрезаем устаревшие более глубокие состояния
-    if(hiddenByAncestor){
+    hiddenChain.length = level;
+    if(hiddenByAncestor || hiddenByAncestorSetting){
       collapsedChain[level] = true;
+      hiddenChain[level] = true;
       return;
     }
 
@@ -613,6 +623,8 @@ function renderGantt(){
     const showCollapseToggle = !!(next && !next.cat && (next.level||0) > level);
     const isCollapsedNow = showCollapseToggle && !!workCollapsed[t.id];
     collapsedChain[level] = isCollapsedNow;
+    hiddenChain[level] = !!t.hidden;
+    if(t.hidden){ return; } // подраздел/работа выключена из отображения в настройках графика
 
     const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const pL = (t.start/TOTAL*100).toFixed(1);
@@ -638,14 +650,14 @@ function renderGantt(){
       : '';
     tr.innerHTML=`
       <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
-      <td><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
-      <td class="tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthStartDate(t.start))}</td>
-      <td class="tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${taskDurationDays(t)} дн.</td>
-      <td class="tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthEndDate(t.start+t.dur-1))}</td>
-      <td class="tight-col" style="text-align:right;font-size:12px;">${(t.volume||0).toLocaleString('ru')}</td>
-      <td style="color:var(--text3)">${t.unit}</td>
-      <td style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
-      <td style="font-size:12px;font-weight:500;" class="${cls}">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
+      <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
+      <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthStartDate(t.start))}</td>
+      <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${taskDurationDays(t)} дн.</td>
+      <td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthEndDate(t.start+t.dur-1))}</td>
+      <td class="col-volume tight-col" style="text-align:right;font-size:12px;">${(t.volume||0).toLocaleString('ru')}</td>
+      <td class="col-unit" style="color:var(--text3)">${t.unit}</td>
+      <td class="col-factplan" style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
+      <td class="col-pct ${cls}" style="font-size:12px;font-weight:500;">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
       <td class="bar-cell" style="position:relative;"><div class="bar-wrap">
         <div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${pW}%;background:#B5D4F4;"></div>
         ${t.factPct>0?`<div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${fW}%;background:#1D9E75;opacity:0.85;"></div>`:''}
@@ -657,6 +669,7 @@ function renderGantt(){
   });
 
   updateCollapseAllBtnState();
+  applyColumnVisibility();
 }
 
 // ── выбор строки и управление уровнем вложенности (вид работ ↔ подвид работ) ───
@@ -1612,6 +1625,150 @@ function activeGraphType(){ return graphTypes.find(g=>g.id===activeGraphTypeId) 
 
 let contractorsList = Object.keys(CONTRACTORS);
 
+// ─── настройки конкретного графика (шестерёнка в шапке таблицы) ─────────────
+const GS_COLUMNS = [
+  {key:'contractor', label:'Подрядчик'},
+  {key:'start', label:'Дата начала'},
+  {key:'dur', label:'Длительность'},
+  {key:'end', label:'Дата окончания'},
+  {key:'volume', label:'Общ. объём'},
+  {key:'unit', label:'Ед.'},
+  {key:'factplan', label:'Факт / План'},
+  {key:'pct', label:'%'}
+];
+
+function projectColumns(p){
+  if(!p.columns) p.columns = {contractor:true,start:true,dur:true,end:true,volume:true,unit:true,factplan:true,pct:true};
+  return p.columns;
+}
+
+function applyColumnVisibility(){
+  const p = activeProject();
+  if(!p) return;
+  const cols = projectColumns(p);
+  GS_COLUMNS.forEach(c=>{
+    document.querySelectorAll('.col-'+c.key).forEach(el=>{ el.style.display = cols[c.key]===false ? 'none' : ''; });
+  });
+}
+
+function openGraphSettings(){
+  const p = activeProject();
+  if(!p) return;
+  document.getElementById('gsName').value = p.name;
+
+  const monthOpts = MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  document.getElementById('gsStartMonth').innerHTML = monthOpts;
+  document.getElementById('gsEndMonth').innerHTML = monthOpts;
+  const ps = p.periodStart || {year:2025, month:0};
+  const pe = p.periodEnd || {year: ps.year + Math.floor((ps.month + p.total - 1)/12), month: ((ps.month + p.total - 1)%12+12)%12};
+  document.getElementById('gsStartMonth').value = ps.month;
+  document.getElementById('gsStartYear').value = ps.year;
+  document.getElementById('gsEndMonth').value = pe.month;
+  document.getElementById('gsEndYear').value = pe.year;
+
+  const cols = projectColumns(p);
+  document.getElementById('gsColumns').innerHTML = GS_COLUMNS.map(c=>`
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+      <input type="checkbox" id="gscol_${c.key}" ${cols[c.key]!==false?'checked':''}>
+      ${c.label}
+    </label>`).join('');
+
+  renderGSSections();
+  document.getElementById('graphSettingsOverlay').classList.add('open');
+}
+
+function closeGraphSettings(){
+  document.getElementById('graphSettingsOverlay').classList.remove('open');
+}
+
+function overlayClickGS(e){
+  if(e.target===document.getElementById('graphSettingsOverlay')) closeGraphSettings();
+}
+
+function renderGSSections(){
+  const p = activeProject();
+  const el = document.getElementById('gsSections');
+  if(!p){ el.innerHTML=''; return; }
+  let html = '';
+  p.tasks.forEach((t,idx)=>{
+    if(t.cat){
+      html += `<div class="tree-section-row">
+        <button onclick="toggleTaskHidden(${t.id})" title="${t.hidden?'Показать раздел':'Скрыть раздел'}" style="border:none;background:none;cursor:pointer;color:${t.hidden?'var(--text3)':'#185FA5'};display:flex;align-items:center;flex-shrink:0;">
+          <i class="ti ti-eye${t.hidden?'-off':''}" style="font-size:15px;"></i>
+        </button>
+        <span style="flex:1;${t.hidden?'color:var(--text3);text-decoration:line-through;':''}">${t.name}</span>
+        <button onclick="deleteSectionConfirm(${t.id})" title="Удалить раздел" style="border:none;background:none;cursor:pointer;color:var(--text3);flex-shrink:0;"><i class="ti ti-trash" style="font-size:14px;"></i></button>
+      </div>`;
+      return;
+    }
+    const next = p.tasks[idx+1];
+    const level = t.level||0;
+    const hasChildren = !!(next && !next.cat && (next.level||0) > level);
+    if(!hasChildren) return; // в списке показываем только разделы и подразделы (группы), не отдельные работы
+    html += `<div class="tree-work-row" style="padding-left:${20+level*16}px;">
+      <button onclick="toggleTaskHidden(${t.id})" title="${t.hidden?'Показать подраздел':'Скрыть подраздел'}" style="border:none;background:none;cursor:pointer;color:${t.hidden?'var(--text3)':'#185FA5'};display:flex;align-items:center;flex-shrink:0;">
+        <i class="ti ti-eye${t.hidden?'-off':''}" style="font-size:14px;"></i>
+      </button>
+      <span style="flex:1;${t.hidden?'color:var(--text3);text-decoration:line-through;':''}">${t.name}</span>
+    </div>`;
+  });
+  el.innerHTML = html || '<div style="padding:14px;font-size:12px;color:var(--text3);text-align:center;">Нет разделов</div>';
+}
+
+function toggleTaskHidden(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.hidden = !t.hidden;
+  renderGSSections();
+  renderGantt();
+  saveState();
+}
+
+function deleteSectionConfirm(id){
+  if(!confirm('Удалить раздел и все работы внутри него? Это действие нельзя отменить.')) return;
+  deleteSection(id);
+}
+
+function deleteSection(id){
+  const idx = tasks.findIndex(t=>t.cat && t.id===id);
+  if(idx===-1) return;
+  let end = idx+1;
+  while(end<tasks.length && !tasks[end].cat) end++;
+  tasks.splice(idx, end-idx);
+  renderGSSections();
+  renderGantt();
+  saveState();
+}
+
+function saveGraphSettings(){
+  const p = activeProject();
+  if(!p) return;
+
+  const name = document.getElementById('gsName').value.trim();
+  if(name) p.name = name;
+
+  const sm = parseInt(document.getElementById('gsStartMonth').value);
+  const sy = parseInt(document.getElementById('gsStartYear').value);
+  const em = parseInt(document.getElementById('gsEndMonth').value);
+  const ey = parseInt(document.getElementById('gsEndYear').value);
+  const startVal = sy*12+sm, endVal = ey*12+em;
+  if(endVal < startVal){ alert('Дата окончания не может быть раньше даты начала'); return; }
+  p.periodStart = {year:sy, month:sm};
+  p.periodEnd = {year:ey, month:em};
+  p.total = endVal - startVal + 1;
+  TOTAL = p.total;
+  CURRENT = Math.min(CURRENT, TOTAL);
+
+  const cols = projectColumns(p);
+  GS_COLUMNS.forEach(c=>{ cols[c.key] = document.getElementById('gscol_'+c.key).checked; });
+
+  document.getElementById('projBadge').textContent = p.name.replace(/«|»/g,'') + ' · ' + projectMeta(p);
+  renderProjectsList();
+  renderGantt();
+  saveState();
+  closeGraphSettings();
+}
+
 function openSettings(){
   if(!graphTypes.some(g=>g.id===activeGraphTypeId) && graphTypes.length) activeGraphTypeId = graphTypes[0].id;
   renderGraphTypesList();
@@ -2076,6 +2233,52 @@ renderProjectsList();
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GRAPH SETTINGS MODAL (настройки конкретного графика) -->
+<div class="modal-overlay" id="graphSettingsOverlay" onclick="overlayClickGS(event)">
+  <div class="modal" style="width:620px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-settings"></i> Настройки графика</div>
+      <button class="modal-close" onclick="closeGraphSettings()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-content" style="flex:1;overflow-y:auto;">
+
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-pencil"></i> Название графика</div>
+        <input type="text" class="np-input" id="gsName">
+      </div>
+
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-calendar"></i> Период графика</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select class="np-input" id="gsStartMonth" style="flex:1;"></select>
+          <input type="number" class="np-input" id="gsStartYear" style="width:84px;flex-shrink:0;">
+          <span style="color:var(--text3);">—</span>
+          <select class="np-input" id="gsEndMonth" style="flex:1;"></select>
+          <input type="number" class="np-input" id="gsEndYear" style="width:84px;flex-shrink:0;">
+        </div>
+      </div>
+
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-columns"></i> Отображаемые столбцы</div>
+        <div id="gsColumns" style="display:flex;flex-wrap:wrap;gap:10px 18px;font-size:12.5px;color:var(--text);"></div>
+      </div>
+
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-list-tree"></i> Разделы и подразделы</div>
+        <div class="tree-wrap" id="gsSections"></div>
+      </div>
+
+    </div>
+    <div class="np-actions">
+      <span></span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="closeGraphSettings()">Закрыть</button>
+        <button class="btn btn-primary" onclick="saveGraphSettings()"><i class="ti ti-check"></i> Сохранить</button>
       </div>
     </div>
   </div>
