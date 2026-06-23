@@ -404,29 +404,32 @@ const CONTRACTORS = {
 // ─── default project tasks (ЖК «Северная Звезда») ──────────────────────────────
 const DEFAULT_TASKS = [
   {id:1,  cat:true, name:'Земляные работы', icon:'ti-shovel'},
-  {id:2,  name:'Разработка котлована',        contractor:'ЗемРаботы LLC', unit:'м³',  volume:12000, start:0, dur:2, factPct:100, factVol:12000},
-  {id:3,  name:'Водопонижение',               contractor:'ЗемРаботы LLC', unit:'мес', volume:3,     start:0, dur:3, factPct:100, factVol:3},
+  {id:2,  name:'Разработка котлована',        contractor:'ЗемРаботы LLC', unit:'м³',  volume:12000, start:0, dur:59, factPct:100, factVol:12000},
+  {id:3,  name:'Водопонижение',               contractor:'ЗемРаботы LLC', unit:'мес', volume:3,     start:0, dur:90, factPct:100, factVol:3},
   {id:4,  cat:true, name:'Фундаментные работы', icon:'ti-building'},
-  {id:5,  name:'Монолитный ростверк',         contractor:'МонолитСтрой',  unit:'м³',  volume:3200,  start:2, dur:3, factPct:85,  factVol:2720},
-  {id:6,  name:'Сваи буронабивные',           contractor:'ГрандФундамент',unit:'шт',  volume:480,   start:1, dur:2, factPct:100, factVol:480},
+  {id:5,  name:'Монолитный ростверк',         contractor:'МонолитСтрой',  unit:'м³',  volume:3200,  start:2, dur:92, factPct:85,  factVol:2720},
+  {id:6,  name:'Сваи буронабивные',           contractor:'ГрандФундамент',unit:'шт',  volume:480,   start:1, dur:59, factPct:100, factVol:480},
   {id:7,  cat:true, name:'Каркас / надземная часть', icon:'ti-building-skyscraper'},
-  {id:8,  name:'Монолитные колонны и перекрытия', contractor:'МонолитСтрой', unit:'м³', volume:18400, start:4, dur:5, factPct:40, factVol:7360},
-  {id:9,  name:'Кирпичные стены / перегородки',   contractor:'АрмПро',       unit:'м²', volume:22000, start:5, dur:4, factPct:15, factVol:3300},
-  {id:10, name:'Металлоконструкции (покрытие)',    contractor:'СтальМонтаж',  unit:'т',  volume:340,   start:7, dur:2, factPct:0,  factVol:0},
+  {id:8,  name:'Монолитные колонны и перекрытия', contractor:'МонолитСтрой', unit:'м³', volume:18400, start:4, dur:153, factPct:40, factVol:7360},
+  {id:9,  name:'Кирпичные стены / перегородки',   contractor:'АрмПро',       unit:'м²', volume:22000, start:5, dur:122, factPct:15, factVol:3300},
+  {id:10, name:'Металлоконструкции (покрытие)',    contractor:'СтальМонтаж',  unit:'т',  volume:340,   start:7, dur:61, factPct:0,  factVol:0},
   {id:11, cat:true, name:'Инженерные сети', icon:'ti-circuit-switchboard'},
-  {id:12, name:'Электрика (кабельные трассы)', contractor:'ИнжСети-Про', unit:'м.п.', volume:14500, start:5, dur:4, factPct:20, factVol:2900},
-  {id:13, name:'Сантехника (трубопроводы)',    contractor:'ИнжСети-Про', unit:'м.п.', volume:8200,  start:5, dur:4, factPct:18, factVol:1476},
-  {id:14, name:'Вентиляция (воздуховоды)',     contractor:'ИнжСети-Про', unit:'м²',   volume:4100,  start:6, dur:3, factPct:0,  factVol:0},
+  {id:12, name:'Электрика (кабельные трассы)', contractor:'ИнжСети-Про', unit:'м.п.', volume:14500, start:5, dur:122, factPct:20, factVol:2900},
+  {id:13, name:'Сантехника (трубопроводы)',    contractor:'ИнжСети-Про', unit:'м.п.', volume:8200,  start:5, dur:122, factPct:18, factVol:1476},
+  {id:14, name:'Вентиляция (воздуховоды)',     contractor:'ИнжСети-Про', unit:'м²',   volume:4100,  start:6, dur:92, factPct:0,  factVol:0},
   {id:15, cat:true, name:'Кровля', icon:'ti-home'},
-  {id:16, name:'Пароизоляция и утепление',     contractor:'МонолитСтрой', unit:'м²', volume:3800, start:8, dur:2, factPct:0, factVol:0},
-  {id:17, name:'Мягкая кровля (ПВХ-мембрана)',contractor:'МонолитСтрой', unit:'м²', volume:3800, start:9, dur:1, factPct:0, factVol:0},
+  {id:16, name:'Пароизоляция и утепление',     contractor:'МонолитСтрой', unit:'м²', volume:3800, start:8, dur:61, factPct:0, factVol:0},
+  {id:17, name:'Мягкая кровля (ПВХ-мембрана)',contractor:'МонолитСтрой', unit:'м²', volume:3800, start:9, dur:31, factPct:0, factVol:0},
   {id:18, cat:true, name:'Отделочные работы', icon:'ti-paint'},
-  {id:19, name:'Штукатурка стен',  contractor:'ОтделкаМастер', unit:'м²', volume:35000, start:8, dur:3, factPct:0, factVol:0},
-  {id:20, name:'Полы (стяжка)',    contractor:'ОтделкаМастер', unit:'м²', volume:18000, start:9, dur:2, factPct:0, factVol:0},
+  {id:19, name:'Штукатурка стен',  contractor:'ОтделкаМастер', unit:'м²', volume:35000, start:8, dur:91, factPct:0, factVol:0},
+  {id:20, name:'Полы (стяжка)',    contractor:'ОтделкаМастер', unit:'м²', volume:18000, start:9, dur:61, factPct:0, factVol:0},
   {id:21, cat:true, name:'Благоустройство', icon:'ti-trees'},
-  {id:22, name:'Асфальтирование и дорожки', contractor:'ЗемРаботы LLC', unit:'м²', volume:5200, start:10, dur:2, factPct:0, factVol:0},
-  {id:23, name:'Озеленение',                contractor:'ЗемРаботы LLC', unit:'м²', volume:3100, start:11, dur:1, factPct:0, factVol:0},
+  {id:22, name:'Асфальтирование и дорожки', contractor:'ЗемРаботы LLC', unit:'м²', volume:5200, start:10, dur:61, factPct:0, factVol:0},
+  {id:23, name:'Озеленение',                contractor:'ЗемРаботы LLC', unit:'м²', volume:3100, start:11, dur:31, factPct:0, factVol:0},
 ];
+// ВАЖНО: с этого момента t.dur у видов работ — длительность в днях (не в месяцах).
+// t.start остаётся смещением в месяцах от начала периода графика, но может быть
+// дробным — это позволяет дате начала попадать на любой день месяца (см. dateToOffset/offsetToDate).
 
 // ─── active project's working tasks (reassigned on project switch) ─────────────
 let tasks = DEFAULT_TASKS.map(t=>({...t}));
@@ -444,23 +447,6 @@ function monthLabelAt(offset){
   return `${MONTHS[monthIdx]} ${year}`;
 }
 
-// первый день месяца, соответствующего смещению offset от начала периода проекта
-function monthStartDate(offset){
-  const p = activeProject();
-  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
-  const totalIdx = ps.month + offset;
-  const year = ps.year + Math.floor(totalIdx/12);
-  const monthIdx = ((totalIdx%12)+12)%12;
-  return new Date(year, monthIdx, 1);
-}
-
-// последний день месяца, соответствующего смещению offset
-function monthEndDate(offset){
-  const d = monthStartDate(offset+1);
-  d.setDate(d.getDate()-1);
-  return d;
-}
-
 function formatDateDDMMYY(d){
   const dd = String(d.getDate()).padStart(2,'0');
   const mm = String(d.getMonth()+1).padStart(2,'0');
@@ -468,11 +454,47 @@ function formatDateDDMMYY(d){
   return `${dd}.${mm}.${yy}`;
 }
 
-// длительность задачи t в днях (от первого дня начального месяца до последнего дня конечного месяца)
-function taskDurationDays(t){
-  const start = monthStartDate(t.start);
-  const end = monthEndDate(t.start+t.dur-1);
-  return Math.round((end-start)/86400000)+1;
+function daysInMonth(year, month0){ return new Date(year, month0+1, 0).getDate(); }
+
+// точная календарная дата (с точностью до дня), соответствующая дробному смещению offset
+// (целая часть — номер месяца от начала периода, дробная — день внутри месяца)
+function offsetToDate(offset){
+  const p = activeProject();
+  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+  const monthOffset = Math.floor(offset+1e-9);
+  const frac = offset - monthOffset;
+  const totalIdx = ps.month + monthOffset;
+  const year = ps.year + Math.floor(totalIdx/12);
+  const monthIdx = ((totalIdx%12)+12)%12;
+  const dim = daysInMonth(year, monthIdx);
+  let day = Math.round(frac*dim) + 1;
+  if(day>dim) day = dim;
+  if(day<1) day = 1;
+  return new Date(year, monthIdx, day);
+}
+
+// обратное преобразование: точная дата → дробное смещение в месяцах от начала периода
+function dateToOffset(date){
+  const p = activeProject();
+  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+  const totalIdx = (date.getFullYear()-ps.year)*12 + (date.getMonth()-ps.month);
+  const dim = daysInMonth(date.getFullYear(), date.getMonth());
+  return totalIdx + (date.getDate()-1)/dim;
+}
+
+function addDays(date, n){
+  const d = new Date(date);
+  d.setDate(d.getDate()+n);
+  return d;
+}
+
+function taskStartDate(t){ return offsetToDate(t.start); }
+function taskEndDate(t){ return addDays(taskStartDate(t), t.dur-1); }
+
+// длительность работы t в "месячных" единицах (для позиционирования полосы на графике) —
+// вычисляется из точных календарных дат, поэтому корректно отражает дни, попавшие в разные месяцы
+function durMonthUnits(t){
+  return dateToOffset(addDays(taskEndDate(t), 1)) - t.start;
 }
 
 function workTasks(){ return tasks.filter(t=>!t.cat); }
@@ -489,8 +511,9 @@ function overallPlan(){
   const w = workTasks();
   let sumPlan=0, sumExpected=0;
   w.forEach(t=>{
-    const elapsed = Math.min(Math.max(CURRENT-t.start,0), t.dur);
-    const expected = t.dur>0 ? elapsed/t.dur : 0;
+    const dm = durMonthUnits(t);
+    const elapsed = Math.min(Math.max(CURRENT-t.start,0), dm);
+    const expected = dm>0 ? elapsed/dm : 0;
     sumPlan += t.volume;
     sumExpected += t.volume * expected;
   });
@@ -500,7 +523,7 @@ function overallPlan(){
 function pctClass(t){
   if(t.factPct===undefined) return '';
   // просрочено — задача должна была завершиться, но не завершена
-  if(t.start+t.dur<=CURRENT && t.factPct<100) return 'danger';
+  if(t.start+durMonthUnits(t)<=CURRENT && t.factPct<100) return 'danger';
   if(t.factPct>=80) return 'ok';
   if(t.factPct>=50) return 'warn';
   // в работе с низким % — warn, не danger (задача ещё не просрочена)
@@ -508,12 +531,13 @@ function pctClass(t){
   return '';
 }
 
-function delayedTasks(){ return workTasks().filter(t=> t.start+t.dur<=CURRENT && t.factPct<100); }
+function delayedTasks(){ return workTasks().filter(t=> t.start+durMonthUnits(t)<=CURRENT && t.factPct<100); }
 function riskTasks(){
   return workTasks().filter(t=>{
     // только задачи которые уже начались И ещё не завершены по плану
-    if(t.start>=CURRENT || t.start+t.dur<=CURRENT) return false;
-    const expected = (CURRENT-t.start)/t.dur*100;
+    const dm = durMonthUnits(t);
+    if(t.start>=CURRENT || t.start+dm<=CURRENT) return false;
+    const expected = (CURRENT-t.start)/dm*100;
     return t.factPct < expected - 15;
   });
 }
@@ -537,7 +561,7 @@ function renderStats(){
   const delayed = delayedTasks().length;
   const risk = riskTasks().length;
   const wt = workTasks();
-  const onTime = wt.filter(t=>t.start<=CURRENT && !(t.start+t.dur<=CURRENT&&t.factPct<100)).length;
+  const onTime = wt.filter(t=>t.start<=CURRENT && !(t.start+durMonthUnits(t)<=CURRENT&&t.factPct<100)).length;
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-card"><div class="stat-label">Готовность проекта</div><div class="stat-value">${fact}%</div><div class="stat-sub ${diff>=0?'ok':'warn'}">план ${plan}%</div></div>
@@ -627,12 +651,13 @@ function renderGantt(){
     if(t.hidden){ return; } // подраздел/работа выключена из отображения в настройках графика
 
     const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
+    const dm = durMonthUnits(t);
     const pL = (t.start/TOTAL*100).toFixed(1);
-    const pW = (t.dur/TOTAL*100).toFixed(1);
-    const fW = (t.factPct/100 * t.dur/TOTAL*100).toFixed(1);
-    const isLate = t.start+t.dur<=CURRENT && t.factPct<100;
-    const dL = ((t.start + t.dur*t.factPct/100)/TOTAL*100).toFixed(1);
-    const dW = (t.dur*(1-t.factPct/100)/TOTAL*100).toFixed(1);
+    const pW = (dm/TOTAL*100).toFixed(1);
+    const fW = (t.factPct/100 * dm/TOTAL*100).toFixed(1);
+    const isLate = t.start+dm<=CURRENT && t.factPct<100;
+    const dL = ((t.start + dm*t.factPct/100)/TOTAL*100).toFixed(1);
+    const dW = (dm*(1-t.factPct/100)/TOTAL*100).toFixed(1);
     const cls = pctClass(t);
     const isSelected = selectedTaskId===t.id;
     tr.className = `task-row level-${level}${showCollapseToggle?' has-children':''}${isSelected?' selected':''}`;
@@ -645,11 +670,11 @@ function renderGantt(){
     const isEditingDate = editingDateTaskId===t.id;
     const isEditingDur = editingDurTaskId===t.id;
     const dateHtml = isEditingDate
-      ? `<input id="taskDateInput-${t.id}" type="month" value="${monthInputValue(t.start)}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:100px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDate(${t.id}, this.value, this.dataset.cancel)">`
-      : `<span ondblclick="event.stopPropagation();startEditTaskDate(${t.id})" title="Двойной клик — изменить дату начала">${formatDateDDMMYY(monthStartDate(t.start))}</span>`;
+      ? `<input id="taskDateInput-${t.id}" type="text" inputmode="numeric" maxlength="8" placeholder="ДД.ММ.ГГ" value="${formatDateDDMMYY(taskStartDate(t))}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:72px;" onclick="event.stopPropagation();" oninput="maskDateInput(this)" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDate(${t.id}, this.value, this.dataset.cancel)">`
+      : `<span ondblclick="event.stopPropagation();startEditTaskDate(${t.id})" title="Двойной клик — изменить дату начала">${formatDateDDMMYY(taskStartDate(t))}</span>`;
     const durHtml = isEditingDur
-      ? `<input id="taskDurInput-${t.id}" type="number" min="1" value="${t.dur}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:48px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDur(${t.id}, this.value, this.dataset.cancel)"> мес.`
-      : `<span ondblclick="event.stopPropagation();startEditTaskDur(${t.id})" title="Двойной клик — изменить длительность">${taskDurationDays(t)} дн.</span>`;
+      ? `<input id="taskDurInput-${t.id}" type="text" inputmode="numeric" maxlength="3" value="${t.dur}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:40px;" onclick="event.stopPropagation();" onfocus="this.select();" oninput="maskDigitsInput(this,3)" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDur(${t.id}, this.value, this.dataset.cancel)"> дн.`
+      : `<span ondblclick="event.stopPropagation();startEditTaskDur(${t.id})" title="Двойной клик — изменить длительность">${t.dur} дн.</span>`;
     const nameHtml = isEditingName
       ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
       : t.name;
@@ -661,7 +686,7 @@ function renderGantt(){
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
-      <td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthEndDate(t.start+t.dur-1))}</td>
+      <td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(taskEndDate(t))}</td>
       <td class="col-volume tight-col" style="text-align:right;font-size:12px;">${(t.volume||0).toLocaleString('ru')}</td>
       <td class="col-unit" style="color:var(--text3)">${t.unit}</td>
       <td class="col-factplan" style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
@@ -798,7 +823,7 @@ function renderActualForm(){
     } else if(t.start < CURRENT){
       anyRow = true;
       const cls=pctClass(t);
-      const statusText = t.start+t.dur<=CURRENT&&t.factPct<100 ? '⚠ просрочено' : t.factPct>=100 ? '✓ готово' : '▶ в работе';
+      const statusText = t.start+durMonthUnits(t)<=CURRENT&&t.factPct<100 ? '⚠ просрочено' : t.factPct>=100 ? '✓ готово' : '▶ в работе';
       html+=`<div class="form-row">
         <div><div style="font-size:12px;color:var(--text);">${t.name}</div><div style="font-size:10px;color:var(--text3);">${t.contractor} · план ${(t.volume||0).toLocaleString('ru')} ${t.unit}</div></div>
         <div style="display:flex;align-items:center;gap:4px;">
@@ -859,12 +884,12 @@ function buildAnalysis(){
     issues.push({
       icon:'ti-alert-triangle',
       title:`${t.name}: просрочено (${t.factPct}% при плане 100%)`,
-      desc:`Подрядчик: ${t.contractor}. Работа должна была завершиться в месяц ${t.start+t.dur}. Фактический объём: ${(t.factVol||0).toLocaleString('ru')} из ${t.volume.toLocaleString('ru')} ${t.unit}.`,
+      desc:`Подрядчик: ${t.contractor}. Работа должна была завершиться ${formatDateDDMMYY(taskEndDate(t))}. Фактический объём: ${(t.factVol||0).toLocaleString('ru')} из ${t.volume.toLocaleString('ru')} ${t.unit}.`,
       severity:'danger'
     });
   });
   risk.forEach(t=>{
-    const expected = Math.round((CURRENT-t.start)/t.dur*100);
+    const expected = Math.round((CURRENT-t.start)/durMonthUnits(t)*100);
     issues.push({
       icon:'ti-clock-exclamation',
       title:`${t.name}: риск отставания (${t.factPct}% при ожидаемых ${expected}%)`,
@@ -891,17 +916,18 @@ function buildAnalysis(){
   }
   if(recs.length===0){
     recs.push(`<strong>Поддерживать текущий темп</strong>. Провести контрольную точку в начале следующего месяца.`);
-    recs.push(`<strong>Подготовить ресурсы</strong> для предстоящих работ (${tasks.filter(t=>!t.cat&&t.start===CURRENT).map(t=>t.name).join(', ')||'по плану'}).`);
+    recs.push(`<strong>Подготовить ресурсы</strong> для предстоящих работ (${tasks.filter(t=>!t.cat&&Math.floor(t.start)===CURRENT).map(t=>t.name).join(', ')||'по плану'}).`);
   }
 
   // contractor analysis
   const contractorStats = {};
   workTasks().filter(t=>t.start<CURRENT).forEach(t=>{
     if(!contractorStats[t.contractor]) contractorStats[t.contractor]={planned:0,fact:0,late:0};
-    const expected = Math.min((CURRENT-t.start)/t.dur,1)*100;
+    const dm = durMonthUnits(t);
+    const expected = Math.min((CURRENT-t.start)/dm,1)*100;
     contractorStats[t.contractor].planned += expected;
     contractorStats[t.contractor].fact += t.factPct;
-    contractorStats[t.contractor].late += (t.start+t.dur<=CURRENT&&t.factPct<100)?1:0;
+    contractorStats[t.contractor].late += (t.start+dm<=CURRENT&&t.factPct<100)?1:0;
   });
 
   return {riskLevel, riskColor, fact, plan, diff, estDelay, issues, recs, contractorStats};
@@ -995,16 +1021,17 @@ function renderSChart(){
 
   // Считаем суммарный факт один раз (он не меняется по месяцам — это итог на текущую дату)
   const totalFact = w.reduce((a,t)=>a+(t.factVol||0),0);
+  const wDm = w.map(t=>({t, dm:durMonthUnits(t)})); // длительность каждой работы в "месячных" единицах, посчитана один раз
   for(let m=1;m<=TOTAL;m++){
     let sumPlan=0;
-    w.forEach(t=>{
-      const elapsed=Math.min(Math.max(m-t.start,0),t.dur);
-      sumPlan += t.volume*(t.dur>0?elapsed/t.dur:0);
+    wDm.forEach(({t,dm})=>{
+      const elapsed=Math.min(Math.max(m-t.start,0),dm);
+      sumPlan += t.volume*(dm>0?elapsed/dm:0);
     });
     planCurve.push(Math.round(sumPlan/totalVol*100));
     if(CURRENT>0 && m<=CURRENT){
       let planAtM=0;
-      w.forEach(t=>{ const e=Math.min(Math.max(m-t.start,0),t.dur); planAtM+=t.volume*(t.dur>0?e/t.dur:0); });
+      wDm.forEach(({t,dm})=>{ const e=Math.min(Math.max(m-t.start,0),dm); planAtM+=t.volume*(dm>0?e/dm:0); });
       const planAtCurrent = planCurve[CURRENT-1] || 1;
       factCurve.push(Math.round(totalFact/totalVol*100 * (planAtM/(planAtCurrent||1))));
     } else {
@@ -1039,7 +1066,7 @@ let editingTaskId = null;
 
 function showAddTask(catId){
   const newId=Math.max(0,...tasks.map(t=>t.id))+1;
-  const newTask={id:newId,name:'',contractor:'Не указан',unit:'шт',volume:0,start:CURRENT,dur:1,factPct:0,factVol:0};
+  const newTask={id:newId,name:'',contractor:'Не указан',unit:'шт',volume:0,start:CURRENT,dur:30,factPct:0,factVol:0};
 
   if(catId!==undefined){
     // вставляем сразу после раздела — первой строкой в этом разделе
@@ -1079,32 +1106,43 @@ function commitTaskName(id, value){
 let editingDateTaskId = null;
 let editingDurTaskId = null;
 
-// представление месяца смещения offset в формате, понятном <input type="month">
-function monthInputValue(offset){
-  const d = monthStartDate(offset);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+// оставляет в поле только цифры, ограничивая их количество maxLen (для длительности)
+function maskDigitsInput(el, maxLen){
+  el.value = el.value.replace(/\D/g,'').slice(0, maxLen);
 }
 
-// смещение (в месяцах от начала периода проекта) для года/месяца, введённых пользователем
-function monthOffsetFromYM(year, month){
-  const p = activeProject();
-  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
-  return (year - ps.year)*12 + (month - ps.month);
+// маска даты: по мере набора цифр (с точками или без) сама расставляет точки-разделители ДД.ММ.ГГ
+function maskDateInput(el){
+  const digits = el.value.replace(/\D/g,'').slice(0,6);
+  let out = digits;
+  if(digits.length>4) out = digits.slice(0,2)+'.'+digits.slice(2,4)+'.'+digits.slice(4);
+  else if(digits.length>2) out = digits.slice(0,2)+'.'+digits.slice(2);
+  el.value = out;
 }
 
 function startEditTaskDate(id){
   editingDateTaskId = id;
   renderGantt();
   const input = document.getElementById('taskDateInput-'+id);
-  if(input){ input.focus(); }
+  if(input){ input.focus(); input.select(); }
 }
 
 function commitTaskDate(id, value, cancelled){
   editingDateTaskId = null;
   const t = tasks.find(x=>x.id===id);
-  if(t && value && !cancelled){
-    const [y,m] = value.split('-').map(Number);
-    t.start = monthOffsetFromYM(y, m-1);
+  if(t && !cancelled){
+    const digits = (value||'').replace(/\D/g,'');
+    if(digits.length===6){
+      const dd = parseInt(digits.slice(0,2),10);
+      const mm = parseInt(digits.slice(2,4),10);
+      const year = 2000 + parseInt(digits.slice(4,6),10);
+      const month0 = mm-1;
+      const d = new Date(year, month0, dd);
+      // отбрасываем некорректные даты (например, 31.02.26) — Date их "перекатывает" на другой месяц
+      if(d.getFullYear()===year && d.getMonth()===month0 && d.getDate()===dd){
+        t.start = dateToOffset(d);
+      }
+    }
   }
   renderGantt();
   saveState();
@@ -1114,7 +1152,7 @@ function startEditTaskDur(id){
   editingDurTaskId = id;
   renderGantt();
   const input = document.getElementById('taskDurInput-'+id);
-  if(input){ input.focus(); }
+  if(input){ input.focus(); input.select(); }
 }
 
 function commitTaskDur(id, value, cancelled){
@@ -1603,18 +1641,18 @@ function createProject(){
         // подраздел становится работой верхнего уровня — «контейнером» для своих подработ
         newTasks.push({
           id:taskId++, name:w.name, contractor:'Не назначен', unit:'—',
-          volume:0, start:0, dur:1, factPct:0, factVol:0
+          volume:0, start:0, dur:30, factPct:0, factVol:0
         });
         checkedSubWorks.forEach(sw=>{
           newTasks.push({
             id:taskId++, name:sw, contractor:'Не назначен', unit:'—',
-            volume:0, start:0, dur:1, factPct:0, factVol:0, level:1
+            volume:0, start:0, dur:30, factPct:0, factVol:0, level:1
           });
         });
       } else if(wsel){
         newTasks.push({
           id:taskId++, name:w, contractor:'Не назначен', unit:'—',
-          volume:0, start:0, dur:1, factPct:0, factVol:0
+          volume:0, start:0, dur:30, factPct:0, factVol:0
         });
       }
     });
