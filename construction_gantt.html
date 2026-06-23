@@ -642,6 +642,14 @@ function renderGantt(){
       ? `<i class="ti ti-chevron-${isCollapsedNow?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
       : `<span style="width:13px;flex-shrink:0;"></span>`;
     const isEditingName = editingTaskId===t.id;
+    const isEditingDate = editingDateTaskId===t.id;
+    const isEditingDur = editingDurTaskId===t.id;
+    const dateHtml = isEditingDate
+      ? `<input id="taskDateInput-${t.id}" type="month" value="${monthInputValue(t.start)}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:100px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDate(${t.id}, this.value, this.dataset.cancel)">`
+      : `<span ondblclick="event.stopPropagation();startEditTaskDate(${t.id})" title="Двойной клик — изменить дату начала">${formatDateDDMMYY(monthStartDate(t.start))}</span>`;
+    const durHtml = isEditingDur
+      ? `<input id="taskDurInput-${t.id}" type="number" min="1" value="${t.dur}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:48px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDur(${t.id}, this.value, this.dataset.cancel)"> мес.`
+      : `<span ondblclick="event.stopPropagation();startEditTaskDur(${t.id})" title="Двойной клик — изменить длительность">${taskDurationDays(t)} дн.</span>`;
     const nameHtml = isEditingName
       ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
       : t.name;
@@ -651,8 +659,8 @@ function renderGantt(){
     tr.innerHTML=`
       <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
-      <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthStartDate(t.start))}</td>
-      <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${taskDurationDays(t)} дн.</td>
+      <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
+      <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
       <td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(monthEndDate(t.start+t.dur-1))}</td>
       <td class="col-volume tight-col" style="text-align:right;font-size:12px;">${(t.volume||0).toLocaleString('ru')}</td>
       <td class="col-unit" style="color:var(--text3)">${t.unit}</td>
@@ -1064,6 +1072,59 @@ function commitTaskName(id, value){
   }
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+}
+
+// ─── редактирование даты начала и длительности работы по двойному клику ───────
+let editingDateTaskId = null;
+let editingDurTaskId = null;
+
+// представление месяца смещения offset в формате, понятном <input type="month">
+function monthInputValue(offset){
+  const d = monthStartDate(offset);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+// смещение (в месяцах от начала периода проекта) для года/месяца, введённых пользователем
+function monthOffsetFromYM(year, month){
+  const p = activeProject();
+  const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+  return (year - ps.year)*12 + (month - ps.month);
+}
+
+function startEditTaskDate(id){
+  editingDateTaskId = id;
+  renderGantt();
+  const input = document.getElementById('taskDateInput-'+id);
+  if(input){ input.focus(); }
+}
+
+function commitTaskDate(id, value, cancelled){
+  editingDateTaskId = null;
+  const t = tasks.find(x=>x.id===id);
+  if(t && value && !cancelled){
+    const [y,m] = value.split('-').map(Number);
+    t.start = monthOffsetFromYM(y, m-1);
+  }
+  renderGantt();
+  saveState();
+}
+
+function startEditTaskDur(id){
+  editingDurTaskId = id;
+  renderGantt();
+  const input = document.getElementById('taskDurInput-'+id);
+  if(input){ input.focus(); }
+}
+
+function commitTaskDur(id, value, cancelled){
+  editingDurTaskId = null;
+  const t = tasks.find(x=>x.id===id);
+  if(t && !cancelled){
+    const n = parseInt(value, 10);
+    if(n>0) t.dur = n;
+  }
+  renderGantt();
   saveState();
 }
 
