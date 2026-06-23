@@ -337,14 +337,14 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
         <tbody id="ganttBody"></tbody>
       </table>
     </div>
-    <div style="padding:10px 16px;border-top:0.5px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:16px;padding:10px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
       <button class="btn" onclick="addSection()"><i class="ti ti-folder-plus"></i> Добавить раздел работ</button>
-    </div>
-    <div style="display:flex;gap:16px;padding:8px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
-      <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#B5D4F4;vertical-align:middle;margin-right:4px;"></span>План</span>
-      <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#1D9E75;opacity:0.8;vertical-align:middle;margin-right:4px;"></span>Факт</span>
-      <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#E24B4A;opacity:0.5;vertical-align:middle;margin-right:4px;"></span>Отставание</span>
-      <span style="margin-left:auto;"><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:3px;"></i>Текущий месяц: <strong id="curMonthLabel"></strong></span>
+      <span style="display:flex;align-items:center;gap:16px;margin-left:auto;">
+        <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#B5D4F4;vertical-align:middle;margin-right:4px;"></span>План</span>
+        <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#1D9E75;opacity:0.8;vertical-align:middle;margin-right:4px;"></span>Факт</span>
+        <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:#E24B4A;opacity:0.5;vertical-align:middle;margin-right:4px;"></span>Отставание</span>
+        <span><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:3px;"></i>Текущий месяц: <strong id="curMonthLabel"></strong></span>
+      </span>
     </div>
   </div>
 
