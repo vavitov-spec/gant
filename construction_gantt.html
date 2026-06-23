@@ -80,7 +80,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ok{color:var(--text-success);}.warn{color:var(--text-warning);}.danger{color:var(--text-danger);}
 
 /* Gantt */
-.gantt-wrap{flex:1;min-height:0;overflow:auto;}
+.gantt-wrap{flex:1;min-height:0;overflow:auto;position:relative;}
+.bar-plan{cursor:grab;}
+.bar-plan:active{cursor:grabbing;}
 .gantt-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .gantt-table th{font-size:11px;font-weight:500;color:var(--text2);padding:8px 10px;text-align:left;border-bottom:0.5px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:2;}
 .gantt-table td{padding:6px 10px;border-bottom:0.5px solid var(--border);font-size:12px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;}
@@ -336,6 +338,14 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
         </tr></thead>
         <tbody id="ganttBody"></tbody>
       </table>
+      <svg id="ganttLinksSvg" style="position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:3;">
+        <defs>
+          <marker id="linkArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#185FA5"></path>
+          </marker>
+        </defs>
+        <g id="ganttLinksGroup"></g>
+      </svg>
     </div>
     <div style="display:flex;align-items:center;gap:16px;padding:5px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
       <button class="btn" onclick="addSection()"><i class="ti ti-folder-plus"></i> Добавить раздел работ</button>
@@ -661,7 +671,12 @@ function renderGantt(){
     const cls = pctClass(t);
     const isSelected = selectedTaskId===t.id;
     tr.className = `task-row level-${level}${showCollapseToggle?' has-children':''}${isSelected?' selected':''}`;
-    tr.onclick = (e)=>{ e.stopPropagation(); selectTask(t.id); };
+    tr.dataset.taskId = t.id;
+    tr.onclick = (e)=>{
+      e.stopPropagation();
+      if(suppressRowClick){ suppressRowClick=false; return; } // клик — хвост от перетаскивания связи, а не выбор строки
+      selectTask(t.id);
+    };
     const indentPx = level*24;
     const collapseToggleHtml = showCollapseToggle
       ? `<i class="ti ti-chevron-${isCollapsedNow?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
@@ -692,7 +707,7 @@ function renderGantt(){
       <td class="col-factplan" style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
       <td class="col-pct ${cls}" style="font-size:12px;font-weight:500;">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
       <td class="bar-cell" style="position:relative;"><div class="bar-wrap">
-        <div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${pW}%;background:#B5D4F4;"></div>
+        <div id="bar-${t.id}" class="bar-plan" style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${pW}%;background:#B5D4F4;" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь"></div>
         ${t.factPct>0?`<div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${pL}%;width:${fW}%;background:#1D9E75;opacity:0.85;"></div>`:''}
         ${isLate?`<div style="position:absolute;height:8px;top:6px;border-radius:3px;left:${dL}%;width:${dW}%;background:#E24B4A;opacity:0.45;"></div>`:''}
       </div>
@@ -703,6 +718,7 @@ function renderGantt(){
 
   updateCollapseAllBtnState();
   applyColumnVisibility();
+  renderGanttLinks();
 }
 
 // ── выбор строки и управление уровнем вложенности (вид работ ↔ подвид работ) ───
@@ -786,6 +802,7 @@ function deleteTask(id){
   const childIds = getChildIds(id);
   const idsToRemove = new Set([id, ...childIds]);
   tasks = tasks.filter(t=>!idsToRemove.has(t.id));
+  links = links.filter(l=>!idsToRemove.has(l.from) && !idsToRemove.has(l.to));
   if(selectedTaskId!==null && idsToRemove.has(selectedTaskId)) selectedTaskId = null;
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
@@ -1141,6 +1158,7 @@ function commitTaskDate(id, value, cancelled){
       // отбрасываем некорректные даты (например, 31.02.26) — Date их "перекатывает" на другой месяц
       if(d.getFullYear()===year && d.getMonth()===month0 && d.getDate()===dd){
         t.start = dateToOffset(d);
+        cascadeFrom(id); // сдвигаем по цепочке связанные с этой задачей последующие работы
       }
     }
   }
@@ -1160,10 +1178,170 @@ function commitTaskDur(id, value, cancelled){
   const t = tasks.find(x=>x.id===id);
   if(t && !cancelled){
     const n = parseInt(value, 10);
-    if(n>0) t.dur = n;
+    if(n>0){ t.dur = n; cascadeFrom(id); } // меняется дата завершения — сдвигаем связанные следующие работы
   }
   renderGantt();
   saveState();
+}
+
+// ─── связи между задачами (зависимости: дата начала следующей = дата завершения предыдущей) ──
+let links = [];
+
+function predecessorsOf(id){ return links.filter(l=>l.to===id).map(l=>l.from); }
+function successorsOf(id){ return links.filter(l=>l.from===id).map(l=>l.to); }
+
+// проверка, что связь from→to не создаст цикл (to уже не должен прямо/косвенно предшествовать from)
+function wouldCreateCycle(fromId, toId){
+  if(fromId===toId) return true;
+  const visited = new Set();
+  const stack = [fromId];
+  while(stack.length){
+    const cur = stack.pop();
+    if(cur===toId) return true;
+    if(visited.has(cur)) continue;
+    visited.add(cur);
+    predecessorsOf(cur).forEach(p=>stack.push(p));
+  }
+  return false;
+}
+
+// сдвигает дату начала всех связанных следующих работ под дату завершения их предшественника, и так по цепочке
+function cascadeFrom(taskId, visited){
+  visited = visited || new Set();
+  if(visited.has(taskId)) return;
+  visited.add(taskId);
+  successorsOf(taskId).forEach(succId=>{
+    const pred = tasks.find(x=>x.id===taskId);
+    const succ = tasks.find(x=>x.id===succId);
+    if(!pred || !succ) return;
+    succ.start = dateToOffset(taskEndDate(pred));
+    cascadeFrom(succId, visited);
+  });
+}
+
+function deleteLink(linkId){
+  const link = links.find(l=>l.id===linkId);
+  if(!link) return;
+  const from = tasks.find(t=>t.id===link.from);
+  const to = tasks.find(t=>t.id===link.to);
+  if(!confirm(`Удалить связь «${from?from.name:'?'}» → «${to?to.name:'?'}»?`)) return;
+  links = links.filter(l=>l.id!==linkId);
+  renderGantt();
+  saveState();
+}
+
+// ─── создание связи перетаскиванием: зажать на полосе задачи и потянуть на другую работу ──
+let linkDrag = null; // {fromId, startX, startY, dragging}
+let suppressRowClick = false;
+
+function startLinkDrag(e, taskId){
+  e.preventDefault();
+  e.stopPropagation();
+  linkDrag = {fromId:taskId, startX:e.clientX, startY:e.clientY, dragging:false};
+  document.addEventListener('mousemove', onLinkDragMove);
+  document.addEventListener('mouseup', onLinkDragEnd);
+}
+
+// координаты точки относительно содержимого .gantt-wrap (с учётом текущего скролла)
+function ganttWrapPoint(clientX, clientY){
+  const wrap = document.querySelector('.gantt-wrap');
+  const wr = wrap.getBoundingClientRect();
+  return { x: clientX - wr.left + wrap.scrollLeft, y: clientY - wr.top + wrap.scrollTop };
+}
+
+// точка подключения линии связи у края полосы задачи (правый край — для предшественника, левый — для последователя)
+function barAnchor(taskId, side){
+  const bar = document.getElementById('bar-'+taskId);
+  if(!bar) return null;
+  const wrap = document.querySelector('.gantt-wrap');
+  const wr = wrap.getBoundingClientRect();
+  const br = bar.getBoundingClientRect();
+  const x = side==='right' ? (br.right - wr.left + wrap.scrollLeft) : (br.left - wr.left + wrap.scrollLeft);
+  const y = br.top + br.height/2 - wr.top + wrap.scrollTop;
+  return {x,y};
+}
+
+function onLinkDragMove(e){
+  if(!linkDrag) return;
+  if(!linkDrag.dragging){
+    if(Math.abs(e.clientX-linkDrag.startX)<4 && Math.abs(e.clientY-linkDrag.startY)<4) return;
+    linkDrag.dragging = true;
+    document.body.style.userSelect = 'none';
+  }
+  const svg = document.getElementById('ganttLinksSvg');
+  const from = barAnchor(linkDrag.fromId, 'right');
+  if(!from || !svg) return;
+  const to = ganttWrapPoint(e.clientX, e.clientY);
+  let tmp = document.getElementById('linkDragTmp');
+  if(!tmp){
+    tmp = document.createElementNS('http://www.w3.org/2000/svg','line');
+    tmp.id = 'linkDragTmp';
+    tmp.setAttribute('stroke', '#185FA5');
+    tmp.setAttribute('stroke-width', '2');
+    tmp.setAttribute('stroke-dasharray', '4 3');
+    svg.appendChild(tmp);
+  }
+  tmp.setAttribute('x1', from.x); tmp.setAttribute('y1', from.y);
+  tmp.setAttribute('x2', to.x); tmp.setAttribute('y2', to.y);
+}
+
+function onLinkDragEnd(e){
+  document.removeEventListener('mousemove', onLinkDragMove);
+  document.removeEventListener('mouseup', onLinkDragEnd);
+  document.body.style.userSelect = '';
+  const tmp = document.getElementById('linkDragTmp');
+  if(tmp) tmp.remove();
+  if(!linkDrag) return;
+  const wasDragging = linkDrag.dragging;
+  const fromId = linkDrag.fromId;
+  linkDrag = null;
+  if(!wasDragging) return; // обычный клик без перетаскивания — это просто выбор строки, его обрабатывает onclick
+
+  const rowEl = e.target.closest && e.target.closest('tr.task-row');
+  const toId = rowEl ? parseInt(rowEl.dataset.taskId,10) : null;
+  if(toId && toId!==fromId){
+    suppressRowClick = true; // подавляем клик по строке-приёмнику, который иначе переключил бы её выбор
+    if(wouldCreateCycle(fromId, toId)){
+      alert('Нельзя создать такую связь — она образует цикл (зависимость по кругу).');
+    } else if(!links.some(l=>l.from===fromId && l.to===toId)){
+      const pred = tasks.find(t=>t.id===fromId);
+      const succ = tasks.find(t=>t.id===toId);
+      if(pred && succ){
+        const newLinkId = Math.max(0, ...links.map(l=>l.id))+1;
+        links.push({id:newLinkId, from:fromId, to:toId});
+        succ.start = dateToOffset(taskEndDate(pred));
+        cascadeFrom(toId);
+      }
+    }
+  }
+  renderGantt();
+  saveState();
+}
+
+// ─── отрисовка линий связи поверх диаграммы (SVG-оверлей внутри .gantt-wrap) ──
+function renderGanttLinks(){
+  const svg = document.getElementById('ganttLinksSvg');
+  const group = document.getElementById('ganttLinksGroup');
+  const table = document.querySelector('.gantt-table');
+  if(!svg || !group || !table) return;
+  svg.setAttribute('width', table.scrollWidth);
+  svg.setAttribute('height', table.scrollHeight);
+  group.innerHTML = '';
+  links.forEach(link=>{
+    const from = barAnchor(link.from, 'right');
+    const to = barAnchor(link.to, 'left');
+    if(!from || !to) return; // одна из связанных задач сейчас скрыта/свёрнута — временно не рисуем линию
+    const midX = from.x + 10;
+    const d = `M${from.x},${from.y} L${midX},${from.y} L${midX},${to.y} L${to.x},${to.y}`;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.style.pointerEvents = 'auto';
+    g.innerHTML = `
+      <path d="${d}" fill="none" stroke="#185FA5" stroke-width="1.6" marker-end="url(#linkArrow)"></path>
+      <path d="${d}" fill="none" stroke="transparent" stroke-width="10" style="cursor:pointer;pointer-events:stroke;"></path>`;
+    g.title = 'Клик — удалить связь';
+    g.onclick = (e)=>{ e.stopPropagation(); deleteLink(link.id); };
+    group.appendChild(g);
+  });
 }
 
 // ─── add section ────────────────────────────────────────────────────────────
@@ -1264,7 +1442,7 @@ let projects = [
     icon:'ti-building-skyscraper', color:'#185FA5',
     total:12, current:6,
     periodStart:{year:2025,month:0}, periodEnd:{year:2025,month:11},
-    tasks: DEFAULT_TASKS.map(t=>({...t}))
+    tasks: DEFAULT_TASKS.map(t=>({...t})), links: []
   },
 ];
 let activeProjectId = 1;
@@ -1297,7 +1475,7 @@ function renderProjectsList(){
 function saveActiveProjectState(){
   // сохраняем текущее состояние работающего проекта обратно в массив projects
   const p = projects.find(x=>x.id===activeProjectId);
-  if(p){ p.tasks = tasks; p.total = TOTAL; p.current = CURRENT; }
+  if(p){ p.tasks = tasks; p.total = TOTAL; p.current = CURRENT; p.links = links; }
 }
 
 function switchProject(id){
@@ -1314,6 +1492,7 @@ function switchProject(id){
 
   // переключаем рабочее состояние на данные выбранного проекта
   tasks = p.tasks;
+  links = p.links || [];
   TOTAL = p.total;
   CURRENT = Math.min(p.current, p.total);
 
@@ -1667,7 +1846,7 @@ function createProject(){
     total: months,
     current: 0, // новый проект, факт ещё не вносился — "сегодня" в начале периода
     periodStart:npRangeStart, periodEnd:npRangeEnd||npRangeStart,
-    tasks:newTasks
+    tasks:newTasks, links: []
   };
   projects.push(newProject);
 
@@ -1676,6 +1855,7 @@ function createProject(){
   // сразу переключаемся на только что созданный график
   activeProjectId = newId;
   tasks = newProject.tasks;
+  links = newProject.links;
   TOTAL = newProject.total;
   CURRENT = newProject.current;
   document.getElementById('projBadge').textContent = newProject.name.replace(/«|»/g,'') + ' · ' + projectMeta(newProject);
@@ -1842,7 +2022,9 @@ function deleteSection(id){
   if(idx===-1) return;
   let end = idx+1;
   while(end<tasks.length && !tasks[end].cat) end++;
+  const removedIds = new Set(tasks.slice(idx, end).map(t=>t.id));
   tasks.splice(idx, end-idx);
+  links = links.filter(l=>!removedIds.has(l.from) && !removedIds.has(l.to));
   renderGSSections();
   renderGantt();
   saveState();
@@ -2210,6 +2392,7 @@ function deleteContractor(i){
     const p = activeProject();
     if(p){
       tasks = p.tasks;
+      links = p.links || [];
       TOTAL = p.total;
       CURRENT = Math.min(p.current, p.total);
     }
