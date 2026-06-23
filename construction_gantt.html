@@ -1336,9 +1336,9 @@ function renderGanttLinks(){
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.style.pointerEvents = 'auto';
     g.innerHTML = `
+      <title>Клик — удалить связь</title>
       <path d="${d}" fill="none" stroke="#185FA5" stroke-width="1.6" marker-end="url(#linkArrow)"></path>
       <path d="${d}" fill="none" stroke="transparent" stroke-width="10" style="cursor:pointer;pointer-events:stroke;"></path>`;
-    g.title = 'Клик — удалить связь';
     g.onclick = (e)=>{ e.stopPropagation(); deleteLink(link.id); };
     group.appendChild(g);
   });
