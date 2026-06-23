@@ -340,7 +340,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
       </table>
       <svg id="ganttLinksSvg" style="position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:3;">
         <defs>
-          <marker id="linkArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <marker id="linkArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 Z" fill="#185FA5"></path>
           </marker>
         </defs>
@@ -1261,6 +1261,23 @@ function barAnchor(taskId, side){
   return {x,y};
 }
 
+// полные координаты полосы задачи (относительно содержимого .gantt-wrap) — нужны, чтобы линия связи
+// заходила точно в верхний или нижний край плашки, а не сбоку
+function barRectRel(taskId){
+  const bar = document.getElementById('bar-'+taskId);
+  if(!bar) return null;
+  const wrap = document.querySelector('.gantt-wrap');
+  const wr = wrap.getBoundingClientRect();
+  const br = bar.getBoundingClientRect();
+  return {
+    left: br.left - wr.left + wrap.scrollLeft,
+    right: br.right - wr.left + wrap.scrollLeft,
+    top: br.top - wr.top + wrap.scrollTop,
+    bottom: br.bottom - wr.top + wrap.scrollTop,
+    midY: br.top + br.height/2 - wr.top + wrap.scrollTop,
+  };
+}
+
 function onLinkDragMove(e){
   if(!linkDrag) return;
   if(!linkDrag.dragging){
@@ -1328,16 +1345,19 @@ function renderGanttLinks(){
   svg.setAttribute('height', table.scrollHeight);
   group.innerHTML = '';
   links.forEach(link=>{
-    const from = barAnchor(link.from, 'right');
-    const to = barAnchor(link.to, 'left');
-    if(!from || !to) return; // одна из связанных задач сейчас скрыта/свёрнута — временно не рисуем линию
-    const midX = from.x + 10;
-    const d = `M${from.x},${from.y} L${midX},${from.y} L${midX},${to.y} L${to.x},${to.y}`;
+    const src = barRectRel(link.from);
+    const tgt = barRectRel(link.to);
+    if(!src || !tgt) return; // одна из связанных задач сейчас скрыта/свёрнута — временно не рисуем линию
+    const stub = 5; // короткий отступ от исходной задачи перед поворотом
+    const stubX = src.right + stub;
+    // заходим строго сверху или снизу в плашку второй задачи — без обратного поворота в сторону
+    const entryY = tgt.midY > src.midY ? tgt.top : tgt.bottom;
+    const d = `M${src.right},${src.midY} L${stubX},${src.midY} L${stubX},${entryY}`;
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.style.pointerEvents = 'auto';
     g.innerHTML = `
       <title>Клик — удалить связь</title>
-      <path d="${d}" fill="none" stroke="#185FA5" stroke-width="1.6" marker-end="url(#linkArrow)"></path>
+      <path d="${d}" fill="none" stroke="#185FA5" stroke-width="1" marker-end="url(#linkArrow)"></path>
       <path d="${d}" fill="none" stroke="transparent" stroke-width="10" style="cursor:pointer;pointer-events:stroke;"></path>`;
     g.onclick = (e)=>{ e.stopPropagation(); deleteLink(link.id); };
     group.appendChild(g);
