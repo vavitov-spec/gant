@@ -155,6 +155,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .issue-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px;}
 .issue-desc{font-size:12px;color:var(--text2);line-height:1.5;}
 
+/* ── Row drag-and-drop ── */
+.row-drag-handle{display:inline-flex;align-items:center;justify-content:center;width:14px;height:100%;cursor:grab;color:var(--text3);opacity:0;transition:opacity .1s;flex-shrink:0;margin-right:2px;}
+tr:hover .row-drag-handle, tr.selected .row-drag-handle{opacity:1;}
+tr.row-dragging{opacity:0.35;}
+tr.drag-over-top td{box-shadow:inset 0 2px 0 #185FA5;}
+tr.drag-over-bottom td{box-shadow:inset 0 -2px 0 #185FA5;}
+
 /* ── Settings modal ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;}
 .modal-overlay.open{display:flex;}
@@ -1256,12 +1263,19 @@ function renderGantt(){
       tr.className='cat-row';
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
+      tr.draggable = !isEditingCat;
+      tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,true));
+      tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,true));
+      tr.addEventListener('dragleave', rowDragLeave);
+      tr.addEventListener('drop',      e=>rowDrop(e,t.id,true));
+      tr.addEventListener('dragend',   rowDragEnd);
       tr.onclick = isEditingCat ? null : (()=>toggleGanttSection(t.id));
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
       tr.innerHTML=`<td class="sticky-col-cat">
         <span style="display:flex;align-items:center;gap:7px;white-space:nowrap;">
+          <span class="row-drag-handle" title="Перетащить раздел"><i class="ti ti-grip-vertical" style="font-size:13px;"></i></span>
           <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
           <i class="ti ${t.icon}" style="font-size:15px;"></i>
           ${catLabelHtml}
@@ -1307,6 +1321,12 @@ function renderGantt(){
       if(suppressRowClick){ suppressRowClick=false; return; } // клик — хвост от перетаскивания связи, а не выбор строки
       selectTask(t.id);
     };
+    tr.draggable = true;
+    tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,false));
+    tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,false));
+    tr.addEventListener('dragleave', rowDragLeave);
+    tr.addEventListener('drop',      e=>rowDrop(e,t.id,false));
+    tr.addEventListener('dragend',   rowDragEnd);
     const indentPx = level*24;
     const collapseToggleHtml = showCollapseToggle
       ? `<i class="ti ti-chevron-${isCollapsedNow?'right':'down'}" style="font-size:11px;width:13px;flex-shrink:0;color:var(--text3);cursor:pointer;" onclick="event.stopPropagation();toggleWorkSection(${t.id})"></i>`
@@ -1332,7 +1352,7 @@ function renderGantt(){
       ? `<button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
     tr.innerHTML=`
-      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;">${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
+      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
@@ -1392,6 +1412,96 @@ function applyStickyColumnOffsets(){
 }
 
 // ── выбор строки и управление уровнем вложенности (вид работ ↔ подвид работ) ───
+// ─── row drag-and-drop ──────────────────────────────────────────────────────
+let _dragSrcId = null;
+let _dragSrcIsCat = false;
+
+function rowDragStart(e, id, isCat){
+  _dragSrcId = id;
+  _dragSrcIsCat = isCat;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(id));
+  setTimeout(()=>{ const tr=e.currentTarget; if(tr) tr.classList.add('row-dragging'); }, 0);
+}
+
+function rowDragOver(e, id, isCat){
+  if(_dragSrcId===null || _dragSrcId===id) return;
+  if(_dragSrcIsCat && !isCat) return; // секция — только на другую секцию
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const tr = e.currentTarget;
+  const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height/2;
+  tr.classList.remove('drag-over-top','drag-over-bottom');
+  tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
+}
+
+function rowDragLeave(e){
+  e.currentTarget.classList.remove('drag-over-top','drag-over-bottom');
+}
+
+function rowDragEnd(){
+  _dragSrcId = null;
+  _dragSrcIsCat = false;
+  document.querySelectorAll('.row-dragging,.drag-over-top,.drag-over-bottom')
+    .forEach(el=>el.classList.remove('row-dragging','drag-over-top','drag-over-bottom'));
+}
+
+function rowDrop(e, targetId, targetIsCat){
+  e.preventDefault();
+  const srcId = _dragSrcId;
+  const srcIsCat = _dragSrcIsCat;
+  const tr = e.currentTarget;
+  const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height/2;
+  const pos = e.clientY < mid ? 'before' : 'after';
+  rowDragEnd();
+  if(!srcId || srcId===targetId) return;
+  if(srcIsCat && !targetIsCat) return;
+  if(srcIsCat) moveSectionBlock(srcId, targetId, pos);
+  else moveTaskBlock(srcId, targetId, targetIsCat, pos);
+  renderGantt();
+  saveState();
+}
+
+function moveSectionBlock(srcId, targetId, pos){
+  const srcIdx = tasks.findIndex(t=>t.id===srcId && t.cat);
+  if(srcIdx===-1) return;
+  let srcEnd = tasks.length;
+  for(let i=srcIdx+1;i<tasks.length;i++){ if(tasks[i].cat){srcEnd=i;break;} }
+  const block = tasks.splice(srcIdx, srcEnd-srcIdx);
+  const tgtIdx = tasks.findIndex(t=>t.id===targetId && t.cat);
+  if(tgtIdx===-1){ tasks.push(...block); return; }
+  let insertIdx;
+  if(pos==='before'){
+    insertIdx = tgtIdx;
+  } else {
+    insertIdx = tasks.length;
+    for(let i=tgtIdx+1;i<tasks.length;i++){ if(tasks[i].cat){insertIdx=i;break;} }
+  }
+  tasks.splice(insertIdx, 0, ...block);
+}
+
+function moveTaskBlock(srcId, targetId, targetIsCat, pos){
+  const srcIdx = tasks.findIndex(t=>t.id===srcId && !t.cat);
+  if(srcIdx===-1) return;
+  const srcLevel = tasks[srcIdx].level||0;
+  let srcEnd = srcIdx+1;
+  while(srcEnd<tasks.length && !tasks[srcEnd].cat && (tasks[srcEnd].level||0)>srcLevel) srcEnd++;
+  const block = tasks.splice(srcIdx, srcEnd-srcIdx);
+  const tgtIdx = tasks.findIndex(t=>t.id===targetId);
+  if(tgtIdx===-1){ tasks.push(...block); return; }
+  let insertIdx;
+  if(targetIsCat){
+    insertIdx = tgtIdx+1; // первой задачей этой секции
+  } else if(pos==='before'){
+    insertIdx = tgtIdx;
+  } else {
+    const tgtLevel = tasks[tgtIdx].level||0;
+    insertIdx = tgtIdx+1;
+    while(insertIdx<tasks.length && !tasks[insertIdx].cat && (tasks[insertIdx].level||0)>tgtLevel) insertIdx++;
+  }
+  tasks.splice(insertIdx, 0, ...block);
+}
+
 let selectedTaskId = null;
 
 function selectTask(id){
