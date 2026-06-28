@@ -352,7 +352,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
           <th class="col-end tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>оконч.</th>
           <th class="col-volume tight-col" style="width:46px;line-height:1.2;text-align:right">Общ.<br>объём</th>
           <th class="col-unit" style="width:50px">Ед.</th>
-          <th class="col-factplan" style="width:80px;text-align:right">Факт / План</th>
+          <th class="col-factplan" style="width:80px;text-align:right">План / Факт</th>
           <th class="col-pct" style="width:60px">%</th>
           <th class="bar-cell" id="ganttBarTh" style="padding:0;">
             <div style="display:flex;width:100%;padding:0 10px;box-sizing:border-box;" id="ganttMonthHeader"></div>
@@ -1201,6 +1201,18 @@ function factPeriodVolumes(t){
   });
 }
 
+// суммы план и факт по всем прошедшим периодам задачи (для колонки "План / Факт")
+function planAndFactToDate(t){
+  const fps = factPeriodVolumes(t);
+  let plan = 0, fact = 0;
+  for(const p of fps){
+    if(!p.isPast) continue;
+    plan += p.planVol;
+    if(p.factVol !== null) fact += p.factVol;
+  }
+  return { plan, fact };
+}
+
 function setFactOverride(taskId, periodKey, newVol){
   const t = tasks.find(x=>x.id===taskId);
   if(!t) return;
@@ -1430,7 +1442,7 @@ function renderGantt(){
         ? `<select id="taskUnitSelect-${t.id}" onclick="event.stopPropagation();" onchange="commitTaskUnit(${t.id},this.value)" onblur="if(editingUnitTaskId===${t.id}){editingUnitTaskId=null;renderGantt();}" style="font:inherit;font-size:12px;padding:2px 3px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;">${unitsList.map(u=>`<option value="${u}"${t.unit===u?' selected':''}>${u}</option>`).join('')}</select>`
         : `<span ondblclick="event.stopPropagation();startEditTaskUnit(${t.id})" title="Двойной клик — изменить единицу измерения" style="cursor:default;">${t.unit}</span>`
       }</td>
-      <td class="col-factplan" style="text-align:right;font-size:12px;">${(t.factVol||0).toLocaleString('ru')}<span style="color:var(--text3);"> / ${t.volume.toLocaleString('ru')}</span></td>
+      ${(()=>{ const pf=planAndFactToDate(t); const ok=pf.fact>=pf.plan; return `<td class="col-factplan" style="text-align:right;font-size:12px;white-space:nowrap;" title="До сегодня: план ${pf.plan.toLocaleString('ru')} / факт ${pf.fact.toLocaleString('ru')}">${pf.plan.toLocaleString('ru')}<span style="color:${pf.plan>0?(ok?'var(--text-success)':'var(--text-danger)'):'var(--text3)'}"> / ${pf.fact.toLocaleString('ru')}</span></td>`; })()}
       <td class="col-pct ${cls}" style="font-size:12px;font-weight:500;">${t.factPct!==undefined?t.factPct+'%':'—'}</td>
       <td class="bar-cell" style="position:relative;"><div class="bar-wrap">
         ${weekendHtml}
