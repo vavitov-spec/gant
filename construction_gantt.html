@@ -1161,6 +1161,74 @@ function editPlanPeriod(taskId, periodKey, currentVol, el){
   inp.focus(); inp.select();
 }
 
+// ─── ввод факта по периодам ──────────────────────────────────────────────────
+
+// true если период закончился до сегодняшнего дня (значит, факт уже можно вносить)
+function isPeriodPast(periodKey){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const p = activeProject();
+  const ps = (p && p.periodStart) ? p.periodStart : {year:2025,month:0};
+  if(periodKey.startsWith('m')){
+    const mi = parseInt(periodKey.slice(1));
+    return new Date(ps.year, ps.month+mi+1, 1) <= today; // первый день следующего месяца
+  }
+  const days = periodDates();
+  if(periodKey.startsWith('w')){
+    const wi = parseInt(periodKey.slice(1));
+    if(!days[wi]) return false;
+    const wd0 = days[wi].getDay();
+    const span = Math.min(wd0===0?1:(8-wd0), days.length-wi);
+    const last = days[Math.min(wi+span-1, days.length-1)];
+    return new Date(last.getTime()+86400000) <= today;
+  }
+  if(periodKey.startsWith('d')){
+    const day = days[parseInt(periodKey.slice(1))];
+    return day ? day < today : false;
+  }
+  return false;
+}
+
+// факт по периодам: если переопределён — берём override; если период прошёл — план (серый); иначе null
+function factPeriodVolumes(t){
+  const planPers = planPeriodVolumes(t);
+  if(!planPers.length) return [];
+  const fov = (t.factOverrides && t.factOverrides[ganttScale]) || {};
+  return planPers.map(per=>{
+    const past = isPeriodPast(per.key);
+    const isEdited = fov[per.key] !== undefined;
+    const fv = isEdited ? fov[per.key] : (past ? per.vol : null);
+    return { ...per, factVol:fv, planVol:per.vol, isPast:past, isEdited };
+  });
+}
+
+function setFactOverride(taskId, periodKey, newVol){
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  newVol = Math.max(0, Math.round(Number(newVol)||0));
+  if(!t.factOverrides) t.factOverrides = {};
+  if(!t.factOverrides[ganttScale]) t.factOverrides[ganttScale] = {};
+  t.factOverrides[ganttScale][periodKey] = newVol;
+  const fps = factPeriodVolumes(t);
+  t.factVol = fps.filter(p=>p.factVol!==null).reduce((s,p)=>s+p.factVol, 0);
+  t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
+  renderGantt();
+  saveState();
+}
+
+function editFactPeriod(taskId, periodKey, currentVol, planVol, el){
+  const inp = document.createElement('input');
+  inp.type='number'; inp.min='0'; inp.value=currentVol;
+  inp.style.cssText='font-size:9px;width:100%;height:8px;box-sizing:border-box;border:1px solid #888;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
+  inp.onclick=e=>e.stopPropagation();
+  inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
+  inp.onblur=()=>{
+    if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setFactOverride(taskId,periodKey,v);return;}}
+    renderGantt();
+  };
+  el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
+  inp.focus(); inp.select();
+}
+
 // положение вертикальной линии "сегодня" для текущего масштаба
 function todayMarkerLeft(){
   const today = new Date();
@@ -1311,7 +1379,7 @@ function renderGantt(){
     const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const dm = durMonthUnits(t);
     const m = barMetrics(t);
-    const isLate = t.start+dm<=CURRENT && t.factPct<100;
+    // isLate убран — просроченность видна по красным цифрам факта на полосе
     const cls = pctClass(t);
     const isSelected = selectedTaskId===t.id;
     tr.className = `task-row level-${level}${showCollapseToggle?' has-children':''}${isSelected?' selected':''}`;
@@ -1367,11 +1435,15 @@ function renderGantt(){
       <td class="bar-cell" style="position:relative;"><div class="bar-wrap">
         ${weekendHtml}
         ${periodGridLinesHtml()}
-        <div id="bar-${t.id}" class="bar-plan" style="position:absolute;height:10px;top:3px;border-radius:3px;left:${m.left}${m.unit};width:${m.width}${m.unit};background:#B5D4F4;" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь"></div>
-        ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span style="position:absolute;top:3px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;color:rgba(20,60,100,0.8);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:2;${editable?'cursor:pointer;text-decoration:underline dotted rgba(20,60,100,0.4);':'pointer-events:none;'}"${editable?` onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
-        ${t.factPct>0?`<div style="position:absolute;height:10px;top:22px;border-radius:3px;left:${m.left}${m.unit};width:${m.factWidth}${m.unit};background:rgba(29,158,117,0.85);"></div>
-        <span style="position:absolute;top:22px;height:10px;line-height:10px;left:${m.left}${m.unit};width:${m.factWidth}${m.unit};overflow:hidden;font-size:9px;color:rgba(255,255,255,0.9);white-space:nowrap;padding:0 4px;box-sizing:border-box;text-align:right;pointer-events:none;z-index:2;">${(t.factVol||0).toLocaleString('ru')}</span>`:''}
-        ${isLate?`<div style="position:absolute;height:10px;top:22px;border-radius:3px;left:${m.lateLeft}${m.unit};width:${m.lateWidth}${m.unit};background:rgba(226,75,74,0.45);"></div>`:''}
+        <div id="bar-${t.id}" class="bar-plan" style="position:absolute;height:8px;top:3px;border-radius:3px;left:${m.left}${m.unit};width:${m.width}${m.unit};background:#B5D4F4;" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь"></div>
+        ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span style="position:absolute;top:3px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;color:rgba(20,60,100,0.8);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:2;${editable?'cursor:pointer;text-decoration:underline dotted rgba(20,60,100,0.4);':'pointer-events:none;'}"${editable?` onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
+        <div style="position:absolute;height:8px;top:14px;border-radius:3px;left:${m.left}${m.unit};width:${m.width}${m.unit};background:rgba(150,150,150,0.1);border:0.5px solid rgba(150,150,150,0.2);"></div>
+        ${factPeriodVolumes(t).map(({left,width,factVol,planVol,key,isPast,isEdited})=>{
+          if(factVol===null) return '';
+          const color=!isEdited?'rgba(150,150,150,0.5)':factVol<planVol?'rgba(210,55,55,0.9)':factVol>planVol?'rgba(30,140,75,0.9)':'rgba(30,80,150,0.9)';
+          const title=isPast?(isEdited?`Факт: ${factVol.toLocaleString('ru')} / план: ${planVol.toLocaleString('ru')} — нажмите для изменения`:'Нажмите для ввода факта'):'';
+          return `<span style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;color:${color};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isPast?'cursor:pointer;':''}"${isPast?` onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${factVol},${planVol},this)" title="${title}"`:''}>${factVol.toLocaleString('ru')}</span>`;
+        }).join('')}
       </div>
       </td>`;
     body.appendChild(tr);
@@ -1809,7 +1881,7 @@ let editingTaskId = null;
 
 function showAddTask(catId){
   const newId=Math.max(0,...tasks.map(t=>t.id))+1;
-  const newTask={id:newId,name:'',contractor:'Не указан',unit:'%',volume:100,start:CURRENT,dur:30,factPct:0,factVol:0};
+  const newTask={id:newId,name:'',contractor:'Не указан',unit:'%',volume:100,start:CURRENT,dur:30,factPct:0,factVol:0,factOverrides:{}};
 
   if(catId!==undefined){
     ganttCollapsed[catId] = false; // если раздел был свёрнут — раскрываем, чтобы новая работа была видна
