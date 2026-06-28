@@ -1263,7 +1263,7 @@ function renderGantt(){
       tr.className='cat-row';
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
-      tr.draggable = !isEditingCat;
+      tr.draggable = false;
       tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,true));
       tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,true));
       tr.addEventListener('dragleave', rowDragLeave);
@@ -1275,7 +1275,7 @@ function renderGantt(){
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
       tr.innerHTML=`<td class="sticky-col-cat">
         <span style="display:flex;align-items:center;gap:7px;white-space:nowrap;">
-          <span class="row-drag-handle" title="Перетащить раздел"><i class="ti ti-grip-vertical" style="font-size:13px;"></i></span>
+          <span class="row-drag-handle" title="Перетащить раздел" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:13px;"></i></span>
           <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
           <i class="ti ${t.icon}" style="font-size:15px;"></i>
           ${catLabelHtml}
@@ -1321,7 +1321,7 @@ function renderGantt(){
       if(suppressRowClick){ suppressRowClick=false; return; } // клик — хвост от перетаскивания связи, а не выбор строки
       selectTask(t.id);
     };
-    tr.draggable = true;
+    tr.draggable = false;
     tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,false));
     tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,false));
     tr.addEventListener('dragleave', rowDragLeave);
@@ -1352,7 +1352,7 @@ function renderGantt(){
       ? `<button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
     tr.innerHTML=`
-      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
+      <td><div class="task-indent-wrap" style="display:flex;align-items:center;gap:6px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
@@ -1444,6 +1444,7 @@ function rowDragEnd(){
   _dragSrcIsCat = false;
   document.querySelectorAll('.row-dragging,.drag-over-top,.drag-over-bottom')
     .forEach(el=>el.classList.remove('row-dragging','drag-over-top','drag-over-bottom'));
+  document.querySelectorAll('tr.cat-row,tr.task-row').forEach(tr=>tr.draggable=false);
 }
 
 function rowDrop(e, targetId, targetIsCat){
