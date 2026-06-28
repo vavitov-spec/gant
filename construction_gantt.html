@@ -1202,13 +1202,14 @@ function factPeriodVolumes(t){
 }
 
 // суммы план и факт по всем прошедшим периодам задачи (для колонки "План / Факт")
+// факт считается только по периодам с явно введёнными данными (isEdited)
 function planAndFactToDate(t){
   const fps = factPeriodVolumes(t);
   let plan = 0, fact = 0;
   for(const p of fps){
     if(!p.isPast) continue;
     plan += p.planVol;
-    if(p.factVol !== null) fact += p.factVol;
+    if(p.isEdited) fact += p.factVol;
   }
   return { plan, fact };
 }
@@ -1221,7 +1222,7 @@ function setFactOverride(taskId, periodKey, newVol){
   if(!t.factOverrides[ganttScale]) t.factOverrides[ganttScale] = {};
   t.factOverrides[ganttScale][periodKey] = newVol;
   const fps = factPeriodVolumes(t);
-  t.factVol = fps.filter(p=>p.factVol!==null).reduce((s,p)=>s+p.factVol, 0);
+  t.factVol = fps.filter(p=>p.isEdited).reduce((s,p)=>s+p.factVol, 0);
   t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
   renderGantt();
   saveState();
