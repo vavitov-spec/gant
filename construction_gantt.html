@@ -1259,7 +1259,7 @@ function renderGantt(){
       tr.onclick = isEditingCat ? null : (()=>toggleGanttSection(t.id));
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
-        : `<span class="cat-row-label">${t.name}</span>`;
+        : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
       tr.innerHTML=`<td class="sticky-col-cat">
         <span style="display:flex;align-items:center;gap:7px;white-space:nowrap;">
           <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
@@ -1327,7 +1327,7 @@ function renderGantt(){
       : `<span ondblclick="event.stopPropagation();startEditTaskVol(${t.id})" title="Двойной клик — изменить общий объём">${(t.volume||0).toLocaleString('ru')}</span>`;
     const nameHtml = isEditingName
       ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
-      : t.name;
+      : `<span ondblclick="event.stopPropagation();startEditTaskName(${t.id})" title="Двойной клик — переименовать работу" style="cursor:text;">${escapeHtml(t.name)}</span>`;
     const deleteBtnHtml = (isSelected && !isEditingName)
       ? `<button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
@@ -2174,6 +2174,20 @@ function asConfirmCopy(){
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
   saveState();
+}
+
+function startEditCat(id){
+  editingCatId = id;
+  renderGantt();
+  const input = document.getElementById('catNameInput-'+id);
+  if(input){ input.focus(); input.select(); }
+}
+
+function startEditTaskName(id){
+  editingTaskId = id;
+  renderGantt();
+  const input = document.getElementById('taskNameInput-'+id);
+  if(input){ input.focus(); input.select(); }
 }
 
 function commitCatName(id, value){
