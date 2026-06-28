@@ -2062,12 +2062,118 @@ function renderGanttLinks(){
 let editingCatId = null;
 
 function addSection(){
+  // открываем диалог выбора типа раздела
+  const overlay = document.getElementById('addSectionOverlay');
+  overlay.classList.add('open');
+  asReset();
+}
+
+let _asCopySourceId = null;
+
+function asReset(){
+  _asCopySourceId = null;
+  document.getElementById('asSectionStep1').style.display = '';
+  document.getElementById('asSectionStep2new').style.display = 'none';
+  document.getElementById('asSectionStep2copy').style.display = 'none';
+  document.getElementById('asSectionStep3copy').style.display = 'none';
+  document.getElementById('asSectionActions').style.display = 'none';
+  document.getElementById('asNewName').value = '';
+  document.getElementById('asCopyName').value = '';
+}
+
+function closeAddSection(){
+  document.getElementById('addSectionOverlay').classList.remove('open');
+  asReset();
+}
+
+function asChooseMode(mode){
+  document.getElementById('asSectionStep1').style.display = 'none';
+  document.getElementById('asSectionActions').style.display = '';
+  if(mode === 'new'){
+    document.getElementById('asSectionStep2new').style.display = '';
+    document.getElementById('asSectionConfirmBtn').textContent = '';
+    document.getElementById('asSectionConfirmBtn').innerHTML = '<i class="ti ti-check"></i> Создать';
+    setTimeout(()=>document.getElementById('asNewName').focus(), 50);
+  } else {
+    // заполняем список разделов
+    const cats = tasks.filter(t=>t.cat);
+    const list = document.getElementById('asSectionList');
+    list.innerHTML = cats.map(c=>`
+      <div onclick="asSelectSource(${c.id})" style="padding:8px 12px;border-radius:var(--rad);cursor:pointer;border:0.5px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px;transition:background .1s;"
+           onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+        <i class="ti ${c.icon||'ti-folder'}" style="color:#185FA5;font-size:14px;"></i>
+        <span>${escapeHtml(c.name)}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text3);">${tasks.filter(t=>!t.cat && tasks.indexOf(t) > tasks.indexOf(c) && (tasks.findIndex((x,i)=>x.cat && i>tasks.indexOf(c)) === -1 || tasks.indexOf(t) < tasks.findIndex((x,i)=>x.cat && i>tasks.indexOf(c)))).length} работ</span>
+      </div>`).join('');
+    document.getElementById('asSectionStep2copy').style.display = '';
+    // на шаге выбора раздела кнопка "Создать" скрыта
+    document.getElementById('asSectionConfirmBtn').style.display = 'none';
+  }
+}
+
+function asSelectSource(catId){
+  _asCopySourceId = catId;
+  const cat = tasks.find(t=>t.id===catId);
+  document.getElementById('asSectionStep2copy').style.display = 'none';
+  document.getElementById('asSectionStep3copy').style.display = '';
+  document.getElementById('asCopySourceName').textContent = cat.name;
+  document.getElementById('asCopyName').value = cat.name + ' (копия)';
+  document.getElementById('asSectionConfirmBtn').style.display = '';
+  setTimeout(()=>{ const inp=document.getElementById('asCopyName'); inp.focus(); inp.select(); }, 50);
+}
+
+function asBack(){
+  // возвращаемся на шаг 1
+  document.getElementById('asSectionStep2new').style.display = 'none';
+  document.getElementById('asSectionStep2copy').style.display = 'none';
+  document.getElementById('asSectionStep3copy').style.display = 'none';
+  document.getElementById('asSectionActions').style.display = 'none';
+  document.getElementById('asSectionConfirmBtn').style.display = '';
+  document.getElementById('asSectionStep1').style.display = '';
+  _asCopySourceId = null;
+}
+
+function asSectionConfirm(){
+  if(document.getElementById('asSectionStep2new').style.display !== 'none'){
+    asConfirmNew();
+  } else {
+    asConfirmCopy();
+  }
+}
+
+function asConfirmNew(){
+  const name = (document.getElementById('asNewName').value||'').trim();
+  if(!name) return;
   const newId = Math.max(0,...tasks.map(t=>t.id))+1;
-  tasks.push({ id:newId, cat:true, name:'', icon:'ti-folder' });
-  editingCatId = newId;
+  tasks.push({ id:newId, cat:true, name, icon:'ti-folder' });
+  closeAddSection();
   renderGantt();
-  const input = document.getElementById('catNameInput-'+newId);
-  if(input){ input.focus(); }
+  if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+}
+
+function asConfirmCopy(){
+  const name = (document.getElementById('asCopyName').value||'').trim();
+  if(!name || _asCopySourceId===null) return;
+  const srcCatIdx = tasks.findIndex(t=>t.id===_asCopySourceId && t.cat);
+  if(srcCatIdx===-1) return;
+  // находим все работы раздела-источника
+  let sectionEnd = tasks.length;
+  for(let i=srcCatIdx+1;i<tasks.length;i++){
+    if(tasks[i].cat){ sectionEnd=i; break; }
+  }
+  const srcCat = tasks[srcCatIdx];
+  const srcWorks = tasks.slice(srcCatIdx+1, sectionEnd);
+  // генерируем новые id
+  let nextId = Math.max(0,...tasks.map(t=>t.id))+1;
+  const newCat = { ...srcCat, id:nextId++, name };
+  const newWorks = srcWorks.map(w=>({ ...w, id:nextId++, factPct:0, factVol:0,
+    planOverrides:{}, dayOverrides:{} }));
+  tasks.push(newCat, ...newWorks);
+  closeAddSection();
+  renderGantt();
+  if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
 }
 
 function commitCatName(id, value){
@@ -3395,6 +3501,66 @@ renderProjectsList();
         <button class="btn" onclick="closeGraphSettings()">Закрыть</button>
         <button class="btn btn-primary" onclick="saveGraphSettings()"><i class="ti ti-check"></i> Сохранить</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD SECTION MODAL -->
+<div class="modal-overlay" id="addSectionOverlay" onclick="if(event.target===this)closeAddSection()">
+  <div class="modal" style="width:440px;max-height:70vh;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-folder-plus"></i> Добавить раздел работ</div>
+      <button class="modal-close" onclick="closeAddSection()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-content" style="flex:1;overflow-y:auto;padding:20px;">
+
+      <!-- Step 1: choose mode -->
+      <div id="asSectionStep1">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn-primary" style="justify-content:flex-start;gap:10px;padding:12px 16px;font-size:13px;" onclick="asChooseMode('new')">
+            <i class="ti ti-folder-plus" style="font-size:16px;"></i>
+            <div style="text-align:left;">
+              <div style="font-weight:600;">Новый раздел</div>
+              <div style="font-size:11px;opacity:0.8;font-weight:400;">Создать пустой раздел и назвать его</div>
+            </div>
+          </button>
+          <button class="btn" style="justify-content:flex-start;gap:10px;padding:12px 16px;font-size:13px;" onclick="asChooseMode('copy')">
+            <i class="ti ti-copy" style="font-size:16px;"></i>
+            <div style="text-align:left;">
+              <div style="font-weight:600;">На основе существующего раздела</div>
+              <div style="font-size:11px;opacity:0.8;font-weight:400;">Скопировать раздел со всеми работами и переименовать</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2a: new section — enter name -->
+      <div id="asSectionStep2new" style="display:none;">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Название нового раздела:</div>
+        <input type="text" id="asNewName" class="np-input" placeholder="Например, Кровельные работы"
+          style="width:100%;box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter')asConfirmNew();if(event.key==='Escape')closeAddSection();">
+      </div>
+
+      <!-- Step 2b: copy — pick source section -->
+      <div id="asSectionStep2copy" style="display:none;">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Выберите раздел для копирования:</div>
+        <div id="asSectionList" style="display:flex;flex-direction:column;gap:4px;max-height:240px;overflow-y:auto;"></div>
+      </div>
+
+      <!-- Step 3: copy — enter new name -->
+      <div id="asSectionStep3copy" style="display:none;">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">Скопирован раздел: <strong id="asCopySourceName"></strong></div>
+        <div style="font-size:12px;color:var(--text2);margin:10px 0 8px;">Название нового раздела:</div>
+        <input type="text" id="asCopyName" class="np-input" placeholder="Введите название"
+          style="width:100%;box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter')asConfirmCopy();if(event.key==='Escape')closeAddSection();">
+      </div>
+
+    </div>
+    <div class="np-actions" id="asSectionActions" style="display:none;">
+      <button class="btn" onclick="asBack()"><i class="ti ti-arrow-left"></i> Назад</button>
+      <button class="btn btn-primary" id="asSectionConfirmBtn" onclick="asSectionConfirm()"><i class="ti ti-check"></i> Создать</button>
     </div>
   </div>
 </div>
