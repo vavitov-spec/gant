@@ -935,14 +935,13 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
     // верхний ярус — месяцы по РЕАЛЬНЫМ границам месяцев (по дням), без привязки к неделям:
     // ширина месяца = число его дней в диапазоне × ширина дня (граница может пройти внутри недели)
     let monthRow = '';
-    let k=0, firstSeg=true;
+    let k=0;
     while(k<days.length){
       const m = days[k].getMonth(), y = days[k].getFullYear();
       let cnt=0;
       while(k<days.length && days[k].getMonth()===m && days[k].getFullYear()===y){ cnt++; k++; }
       const width = cnt*dayPx;
-      const label = MONTHS_SHORT[m] + ((firstSeg || m===0) ? ` ${y}` : '');
-      firstSeg=false;
+      const label = MONTHS[m]; // полное название месяца, без года
       monthRow += `<div style="flex:0 0 ${width}px;width:${width}px;box-sizing:border-box;border-left:1px solid var(--border);font-size:9px;font-weight:500;color:var(--text2);display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;">${label}</div>`;
     }
     // каждый ярус занимает половину высоты шапки, текст центрируется в своей половине
