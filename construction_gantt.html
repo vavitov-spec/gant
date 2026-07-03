@@ -179,6 +179,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bar-cell{min-width:420px;padding:1px 10px;}
 .bar-wrap{position:relative;height:24px;width:100%;overflow:hidden;}
 .today-line{position:absolute;top:0;bottom:0;width:1px;background:#E24B4A;z-index:4;pointer-events:none;opacity:0.75;}
+/* пустая (без введённого факта) ячейка периода: числа нет, но при наведении подсвечиваем — можно кликнуть и ввести */
+.gantt-fact-empty:hover{background:rgba(24,95,165,0.12)!important;}
 /* оверлеи «сверхсрочной» зоны — периоды за датой завершения проекта */
 .overtime-band{position:absolute;background:rgba(234,88,12,0.10);z-index:1;pointer-events:none;}
 .project-end-line{position:absolute;width:2px;background:#EA580C;z-index:5;pointer-events:none;opacity:0.9;}
@@ -1388,7 +1390,10 @@ function isPeriodStarted(periodKey){
   return false;
 }
 
-// факт по периодам: единая основа — дневные данные; для недели/месяца агрегируем
+// факт по периодам: единая основа — дневные данные; для недели/месяца агрегируем.
+// Пока по работе не введён ни один факт — строка факта пустая (ничего не показываем).
+// Как только введено хотя бы одно значение — остаток объёма (общий объём − сумма введённого)
+// равномерно раскидывается по оставшимся (не введённым) рабочим дням; недели/месяцы — сумма своих дней.
 function factPeriodVolumes(t){
   const planPers = planPeriodVolumes(t);
   if(!planPers.length) return [];
@@ -1396,46 +1401,37 @@ function factPeriodVolumes(t){
   const allDays = periodDates();
   const p = activeProject();
   const startDate = taskStartDate(t);
-  const endExcl = new Date(taskEndDate(t).getTime() + 86400000);
+  const endExcl = addDays(taskEndDate(t), 1);
+
+  // все рабочие дни задачи (индексы в общей шкале дней)
+  const allWD = [];
+  allDays.forEach((d, idx) => { if(d >= startDate && d < endExcl && isWorkingDay(d, p)) allWD.push(idx); });
+
+  // введённые дни и их суммарный факт
+  const entered = new Set();
+  let sumEntered = 0;
+  for(const idx of allWD){
+    const v = dayFacts['d'+idx];
+    if(v !== undefined){ entered.add(idx); sumEntered += (v||0); }
+  }
+  const hasAnyEntry = entered.size > 0;
+
+  // остаток объёма делим поровну между не введёнными рабочими днями (равномерная проекция)
+  const nonEnteredCount = allWD.length - entered.size;
+  const remaining = Math.max(0, (t.volume||0) - sumEntered);
+  const share = nonEnteredCount > 0 ? remaining / nonEnteredCount : 0;
+  const dayFact = idx => entered.has(idx) ? (dayFacts['d'+idx]||0) : share;
 
   return planPers.map(per=>{
     const past = isPeriodPast(per.key);
     // в месячном масштабе ввод запрещён — только отображение
     const enterable = ganttScale !== 'month' && (past || isPeriodStarted(per.key));
-
-    if(per.key.startsWith('d')){
-      const isEdited = dayFacts[per.key] !== undefined;
-      // серый план-заглушка (и клик для ввода) показывается для прошедших И для текущего начавшегося дня
-      const fv = isEdited ? dayFacts[per.key] : ((past || isPeriodStarted(per.key)) ? per.vol : null);
-      return {...per, factVol:fv, planVol:per.vol, isPast:past, isEnterable:enterable, isEdited};
-    }
-
-    // недельный или месячный — собираем индексы дней периода
-    let dayIdxs = [];
-    if(per.key.startsWith('w')){
-      const wi = parseInt(per.key.slice(1));
-      if(wi < allDays.length){
-        const wd0 = allDays[wi].getDay();
-        const span = Math.min(wd0===0?1:(8-wd0), allDays.length-wi);
-        for(let j=0;j<span;j++) dayIdxs.push(wi+j);
-      }
-    } else if(per.key.startsWith('m')){
-      const mi = parseInt(per.key.slice(1));
-      const mS = new Date(p.year, p.month+mi, 1);
-      const mE = new Date(p.year, p.month+mi+1, 1);
-      allDays.forEach((d,idx)=>{ if(d>=mS && d<mE) dayIdxs.push(idx); });
-    }
-
-    const taskIdxs = dayIdxs.filter(idx=>{ const d=allDays[idx]; return d&&d>=startDate&&d<endExcl; });
-    const editedIdxs = taskIdxs.filter(idx => dayFacts['d'+idx] !== undefined);
-    const isEdited = editedIdxs.length > 0;
-    // для месячного масштаба: текущий месяц показывает факт из дней (если введён), иначе null
-    // для недельного/дневного: серый план показывается для прошедших периодов
-    const showGrayPlan = per.key.startsWith('m') ? past : (past || isPeriodStarted(per.key));
-    const fv = isEdited
-      ? taskIdxs.reduce((s,idx)=>s+(dayFacts['d'+idx]||0), 0)
-      : (showGrayPlan ? per.vol : null);
-    return {...per, factVol:fv, planVol:per.vol, isPast:past, isEnterable:enterable, isEdited};
+    const dayIdxs = getWorkingDayIndicesForPeriodKey(t, per.key);
+    const hasEntered = dayIdxs.some(idx => entered.has(idx)); // есть ли в периоде явно введённый день
+    // без единого факта по работе — пусто; иначе сумма введённого + проекции по дням периода
+    const fv = (!hasAnyEntry || !dayIdxs.length) ? null
+      : Math.round(dayIdxs.reduce((s,idx)=>s+dayFact(idx), 0));
+    return {...per, factVol:fv, planVol:per.vol, isPast:past, isEnterable:enterable, isEdited:hasEntered};
   });
 }
 
@@ -1909,11 +1905,15 @@ function renderGantt(){
                + (redW>0?`<div class="gantt-fact-strip cap-right" style="left:${redLeft.toFixed(1)}px;width:${redW.toFixed(1)}px;background:linear-gradient(180deg,#E36A66,#C43F3F);z-index:2;" title="Недобор до сегодня"></div>`:'');
         })()}
         ${factPeriodVolumes(t).map(({left,width,factVol,planVol,key,isPast,isEnterable,isEdited})=>{
-          if(factVol===null) return '';
-          const color=!isEdited?'var(--text3)':factVol<planVol?'var(--text-danger)':factVol>planVol?'var(--text-success)':'var(--text-info)';
-          const bg=!isEdited?'transparent':factVol<planVol?'var(--bg-danger)':factVol>planVol?'var(--bg-success)':'var(--bg-info)';
+          const isEmpty = factVol===null;
+          if(isEmpty && !isEnterable) return '';           // нечего показывать и вводить нельзя
+          const shown = isEmpty ? '' : factVol.toLocaleString('ru');
+          const color=(isEmpty||!isEdited)?'var(--text3)':factVol<planVol?'var(--text-danger)':factVol>planVol?'var(--text-success)':'var(--text-info)';
+          const bg=(isEmpty||!isEdited)?'transparent':factVol<planVol?'var(--bg-danger)':factVol>planVol?'var(--bg-success)':'var(--bg-info)';
+          const clickVal = isEmpty ? 0 : factVol;
           const title=isEnterable?(isEdited?`Факт: ${factVol.toLocaleString('ru')} / план: ${planVol.toLocaleString('ru')} — нажмите для изменения`:'Нажмите для ввода факта'):'';
-          return `<span class="gantt-fact-vol" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEdited?600:400};color:${color};background:${bg};border-radius:3px;white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isEnterable?'cursor:pointer;':''}"${isEnterable?` tabindex="0" role="button" onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${factVol},${planVol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editFactPeriod(${t.id},'${key}',${factVol},${planVol},this)}" title="${title}"`:''}>${factVol.toLocaleString('ru')}</span>`;
+          const cls = 'gantt-fact-vol'+(isEmpty?' gantt-fact-empty':'');
+          return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEdited?600:400};color:${color};background:${bg};border-radius:3px;white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isEnterable?'cursor:pointer;':''}"${isEnterable?` tabindex="0" role="button" onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)}" title="${title}"`:''}>${shown}</span>`;
         }).join('')}
       </div>
       </td>`;
