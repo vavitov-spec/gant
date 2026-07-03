@@ -132,7 +132,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-table th.col-volume,.gantt-table td.col-volume{position:sticky;left:calc(364px + 23ch);background:var(--bg);}
 .gantt-table th.col-unit,.gantt-table td.col-unit{position:sticky;left:calc(410px + 23ch);background:var(--bg);}
 .gantt-table th.col-factplan,.gantt-table td.col-factplan{position:sticky;left:calc(450px + 23ch);background:var(--bg);}
-.gantt-table th.col-pct,.gantt-table td.col-pct{position:sticky;left:calc(510px + 23ch);background:var(--bg);}
+.gantt-table th.col-pct,.gantt-table td.col-pct{position:sticky;left:calc(550px + 23ch);background:var(--bg);}
 /* колонка «План на сегодня» — только для мобильного (третий свайп-экран), на десктопе скрыта */
 .gantt-table th.col-plantoday,.gantt-table td.col-plantoday{display:none;}
 .gantt-table th:first-child,.gantt-table th.col-contractor,.gantt-table th.col-start,.gantt-table th.col-dur,.gantt-table th.col-end,.gantt-table th.col-volume,.gantt-table th.col-unit,.gantt-table th.col-factplan,.gantt-table th.col-pct{z-index:9;}
@@ -478,12 +478,14 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
           <th class="col-end tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>оконч.</th>
           <th class="col-volume tight-col" style="width:46px;line-height:1.2;text-align:right">Общ.<br>объём</th>
           <th class="col-unit" style="width:40px">Ед.</th>
-          <th class="col-factplan" style="width:60px;text-align:center">
-            <div class="fp-mode-toggle">
-              <span class="fp-mode-btn active" id="fpBtn-cur" onclick="setFactplanMode('cur')">тек.</span>
-              <span class="fp-mode-btn" id="fpBtn-tot" onclick="setFactplanMode('tot')">общ.</span>
+          <th class="col-factplan" style="width:100px;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:5px;">
+              <div class="fp-mode-toggle" style="margin-bottom:0;flex-shrink:0;">
+                <span class="fp-mode-btn active" id="fpBtn-cur" onclick="setFactplanMode('cur')">тек.</span>
+                <span class="fp-mode-btn" id="fpBtn-tot" onclick="setFactplanMode('tot')">общ.</span>
+              </div>
+              <span style="line-height:1.15;text-align:left;">Факт /<br>План</span>
             </div>
-            Факт / План
           </th>
           <th class="col-pct" style="width:30px">%</th>
           <th class="col-plantoday" style="width:88px;line-height:1.2;text-align:right">План<br>на сегодня</th>
