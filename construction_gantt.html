@@ -1506,12 +1506,33 @@ function setFactOverride(taskId, periodKey, newVol){
   }
 
   // фильтруем до рабочих дней в рамках задачи
-  const wdIdxs = calIdxs.filter(idx=>{
+  let wdIdxs = calIdxs.filter(idx=>{
     const d = allDays[idx];
     return d && d>=startDate && d<endExcl && isWorkingDay(d, p);
   });
 
+  // для многодневного периода (неделя/месяц) объём раскладываем только по уже прошедшим
+  // дням этого периода, а не по всем — чтобы факт не «утекал» в будущие дни недели.
+  // Для одиночного дня ('d') фильтр не нужен — правим именно выбранный день.
+  if(periodKey.startsWith('w') || periodKey.startsWith('m')){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const pastWd = wdIdxs.filter(idx => allDays[idx] < today);
+    if(pastWd.length){
+      wdIdxs = pastWd;                       // есть прошедшие дни — используем их
+    } else {
+      const uptoToday = wdIdxs.filter(idx => allDays[idx] <= today);
+      if(uptoToday.length) wdIdxs = uptoToday; // прошедших нет (сегодня — первый день периода) — кладём на сегодня
+    }
+  }
+
   if(!wdIdxs.length){ renderGantt(); return; }
+
+  // очищаем прежние дневные значения этого периода (в рамках задачи), чтобы не оставались
+  // устаревшие значения на днях, куда объём больше не распределяется (напр. будущие дни недели)
+  for(const idx of calIdxs){
+    const d = allDays[idx];
+    if(d && d>=startDate && d<endExcl) delete t.factOverrides['day']['d'+idx];
+  }
 
   // равномерно распределяем newVol по рабочим дням (без округления накопленной ошибки)
   const r = newVol / wdIdxs.length;
