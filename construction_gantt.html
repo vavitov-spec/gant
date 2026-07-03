@@ -133,6 +133,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-table th.col-unit,.gantt-table td.col-unit{position:sticky;left:calc(410px + 23ch);background:var(--bg);}
 .gantt-table th.col-factplan,.gantt-table td.col-factplan{position:sticky;left:calc(450px + 23ch);background:var(--bg);}
 .gantt-table th.col-pct,.gantt-table td.col-pct{position:sticky;left:calc(510px + 23ch);background:var(--bg);}
+/* колонка «План на сегодня» — только для мобильного (третий свайп-экран), на десктопе скрыта */
+.gantt-table th.col-plantoday,.gantt-table td.col-plantoday{display:none;}
 .gantt-table th:first-child,.gantt-table th.col-contractor,.gantt-table th.col-start,.gantt-table th.col-dur,.gantt-table th.col-end,.gantt-table th.col-volume,.gantt-table th.col-unit,.gantt-table th.col-factplan,.gantt-table th.col-pct{z-index:9;}
 .gantt-table td:first-child,.gantt-table td.col-contractor,.gantt-table td.col-start,.gantt-table td.col-dur,.gantt-table td.col-end,.gantt-table td.col-volume,.gantt-table td.col-unit,.gantt-table td.col-factplan,.gantt-table td.col-pct,.gantt-table td.sticky-col-cat{z-index:5;}
 .gantt-table td.sticky-col-cat{overflow:visible;z-index:6;}
@@ -368,6 +370,9 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   .gantt-table th.col-unit,.gantt-table td.col-unit,
   .gantt-table th.col-factplan,.gantt-table td.col-factplan,
   .gantt-table th.col-pct,.gantt-table td.col-pct{position:static!important;left:auto!important;}
+  /* третий свайп-экран: «План на сегодня» + ед. — на телефоне показываем */
+  .gantt-table th.col-plantoday,.gantt-table td.col-plantoday{
+    display:table-cell!important;position:static!important;left:auto!important;padding-left:10px;padding-right:10px;}
   /* имя раздела/работы — единственная замороженная колонка */
   .gantt-table th:first-child,.gantt-table td:first-child,.gantt-table td.sticky-col-cat{
     left:0!important;width:40vw!important;min-width:40vw!important;max-width:40vw!important;}
@@ -377,7 +382,8 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
      чтобы при свайпе колонки не оставались наполовину видимыми */
   .gantt-wrap{scroll-snap-type:x proximity;scroll-padding-left:40vw;}
   .gantt-table td.col-start,.gantt-table th.col-start,
-  .gantt-table td.col-volume,.gantt-table th.col-volume{scroll-snap-align:start;}
+  .gantt-table td.col-volume,.gantt-table th.col-volume,
+  .gantt-table td.col-plantoday,.gantt-table th.col-plantoday{scroll-snap-align:start;}
   /* тонкие серые горизонтальные линии между работами */
   .gantt-table tbody td{border-bottom:1px solid var(--border)!important;}
 }
@@ -473,6 +479,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
             Факт / План
           </th>
           <th class="col-pct" style="width:30px">%</th>
+          <th class="col-plantoday" style="width:88px;line-height:1.2;text-align:right">План<br>на сегодня</th>
           <th class="bar-cell" id="ganttBarTh" style="padding:0;">
             <div style="display:flex;width:100%;height:100%;align-items:stretch;padding:0 10px;box-sizing:border-box;" id="ganttMonthHeader"></div>
           </th>
@@ -1806,7 +1813,7 @@ function renderGantt(){
           ${isEditingCat?'':`<button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
             <i class="ti ti-plus" style="font-size:11px;"></i> Работы
           </button>`}
-        </span></td><td class="col-contractor"></td><td class="col-start"></td><td class="col-dur"></td><td class="col-end"></td><td class="col-volume"></td><td class="col-unit"></td><td class="col-factplan"></td><td class="col-pct"></td><td class="bar-cell" style="position:relative;"><div class="bar-wrap">${periodGridLinesHtml()}</div></td>`;
+        </span></td><td class="col-contractor"></td><td class="col-start"></td><td class="col-dur"></td><td class="col-end"></td><td class="col-volume"></td><td class="col-unit"></td><td class="col-factplan"></td><td class="col-pct"></td><td class="col-plantoday"></td><td class="bar-cell" style="position:relative;"><div class="bar-wrap">${periodGridLinesHtml()}</div></td>`;
       body.appendChild(tr);
       return;
     }
@@ -1913,6 +1920,7 @@ function renderGantt(){
         }
         return `<td class="col-pct ${cls2}" style="font-size:12px;font-weight:500;">${pct!==undefined?pct+'%':'—'}</td>`;
       })()}
+      <td class="col-plantoday" style="font-size:12px;color:var(--text2);white-space:nowrap;text-align:right;">${(()=>{const pl=Math.round(planAndFactToDate(t).plan);return pl.toLocaleString('ru')+' '+escapeHtml(t.unit||'');})()}</td>
       <td class="bar-cell" style="position:relative;"><div class="bar-wrap">
         ${weekendHtml}
         ${periodGridLinesHtml()}
