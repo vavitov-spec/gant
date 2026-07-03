@@ -952,6 +952,12 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
   el.style.justifyContent = '';
   el.style.height = ''; // сброс высоты из месячного вида → назад к 100% (inline)
   el.innerHTML = html;
+  if(ganttScale==='week'){
+    // height:100% в ячейке таблицы не разворачивается — задаём реальную высоту строки заголовка,
+    // чтобы два яруса (месяцы/недели) поделили её поровну и текст центрировался в своей половине
+    const row = th.closest('tr');
+    if(row){ const h = row.getBoundingClientRect().height; if(h) el.style.height = h + 'px'; }
+  }
 }
 function renderGanttMonthHeader(){
   _renderMonthHeaderInto('ganttMonthHeader','ganttBarTh',document.querySelector('.gantt-table'),monthBufferPx);
