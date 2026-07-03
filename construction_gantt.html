@@ -529,7 +529,7 @@ function toggleFilter(key){
   if(btn) btn.classList.toggle('active', Object.values(ganttFilters).some(Boolean));
   renderGantt();
 }
-const SCALE_DAY_PX = { day: 32, week: 6 };
+const SCALE_DAY_PX = { day: 32, week: 10 };
 // цвета «сверхсрочных» периодов (за датой завершения проекта)
 const OVERTIME_TEXT = '#C2410C';
 const OVERTIME_BG   = 'rgba(234,88,12,0.10)';
