@@ -434,7 +434,12 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
       <div class="view-toggle-btn" onclick="setGanttViewMode('data',this)">Данные</div>
       <div class="view-toggle-btn active" onclick="setGanttViewMode('chart',this)">График</div>
     </div>
-    <button class="btn" style="margin-left:auto;" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
+    <div class="scale-switch no-print" id="ganttScaleSwitch" style="display:flex;align-self:center;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;margin-left:8px;">
+      <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
+      <button class="scale-switch-btn" data-scale="week" onclick="setGanttScale('week')">Неделя</button>
+      <button class="scale-switch-btn" data-scale="month" onclick="setGanttScale('month')">Месяц</button>
+    </div>
+    <button class="btn" style="margin-left:8px;" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
   </div>
 
   <!-- GANTT -->
@@ -498,11 +503,6 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     </div>
     <div style="display:flex;align-items:center;gap:16px;padding:5px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
       <button class="btn no-print add-section-btn" onclick="addSection()"><i class="ti ti-folder-plus"></i> Добавить раздел работ</button>
-      <div class="scale-switch no-print" id="ganttScaleSwitch" style="display:flex;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;">
-        <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
-        <button class="scale-switch-btn" data-scale="week" onclick="setGanttScale('week')">Неделя</button>
-        <button class="scale-switch-btn" data-scale="month" onclick="setGanttScale('month')">Месяц</button>
-      </div>
       <span style="display:flex;align-items:center;gap:16px;margin-left:auto;">
         <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:linear-gradient(180deg,#D9ECFC,#A8CFF1);box-shadow:0 1px 1px rgba(20,80,140,0.2);vertical-align:middle;margin-right:4px;"></span>План</span>
         <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:linear-gradient(180deg,#4FB783,#2E8C5D);vertical-align:middle;margin-right:4px;"></span>Факт</span>
