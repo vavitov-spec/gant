@@ -364,11 +364,18 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   .gantt-table th.col-unit,.gantt-table td.col-unit,
   .gantt-table th.col-factplan,.gantt-table td.col-factplan,
   .gantt-table th.col-pct,.gantt-table td.col-pct{position:static!important;left:auto!important;}
-  /* имя раздела/работы — единственная замороженная колонка, чуть уже */
+  /* имя раздела/работы — единственная замороженная колонка */
   .gantt-table th:first-child,.gantt-table td:first-child,.gantt-table td.sticky-col-cat{
-    left:0!important;width:36vw!important;min-width:36vw!important;max-width:36vw!important;}
+    left:0!important;width:40vw!important;min-width:40vw!important;max-width:40vw!important;}
   /* мини-кнопки редактирования в шапке названия на телефоне прячем */
   .gantt-table th:first-child .th-mini-btn{display:none!important;}
+  /* прокрутка «прилипает» к границам колонок (с учётом замороженного имени) —
+     чтобы при свайпе колонки не оставались наполовину видимыми */
+  .gantt-wrap{scroll-snap-type:x proximity;scroll-padding-left:40vw;}
+  .gantt-table td.col-start,.gantt-table th.col-start,
+  .gantt-table td.col-volume,.gantt-table th.col-volume{scroll-snap-align:start;}
+  /* тонкие серые горизонтальные линии между работами */
+  .gantt-table tbody td{border-bottom:1px solid var(--border)!important;}
 }
 @media print{
   .no-print{display:none!important;}
