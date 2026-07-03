@@ -885,7 +885,7 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
       const over = i>=TOTAL; // месяц за пределами официального срока проекта
       html += `<div style="flex:0 0 ${MONTH_COL_PX}px;width:${MONTH_COL_PX}px;box-sizing:border-box;border-left:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:${over?OVERTIME_TEXT:'var(--text2)'};${over?`background:${OVERTIME_BG};`:''}">${label}</div>`;
     }
-    el.style.flexDirection=''; // одноярусная шапка месяцев (сброс после недельного двухъярусного вида)
+    el.style.flexDirection=''; el.style.justifyContent=''; // одноярусная шапка месяцев (сброс после недельного двухъярусного вида)
     el.innerHTML = html;
     // растягиваем разделители на 60% высоты строки заголовка
     const row = th.closest('tr');
@@ -945,9 +945,10 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
       firstSeg=false;
       monthRow += `<div style="flex:0 0 ${width}px;width:${width}px;box-sizing:border-box;border-left:1px solid var(--border);font-size:9px;font-weight:500;color:var(--text2);display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;">${label}</div>`;
     }
-    html = `<div style="display:flex;flex:0 0 auto;border-bottom:0.5px solid var(--border);">${monthRow}</div><div style="display:flex;flex:1 1 auto;align-items:stretch;">${weekRow}</div>`;
+    html = `<div style="display:flex;flex:0 0 auto;border-bottom:0.5px solid var(--border);">${monthRow}</div><div style="display:flex;flex:0 0 auto;">${weekRow}</div>`;
   }
   el.style.flexDirection = (ganttScale==='week') ? 'column' : '';
+  el.style.justifyContent = (ganttScale==='week') ? 'center' : ''; // двухъярусный блок по центру шапки по вертикали
   el.style.height = ''; // сброс высоты из месячного вида → назад к 100% (inline)
   el.innerHTML = html;
 }
