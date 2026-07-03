@@ -107,11 +107,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-mode-chart #ganttLinksGroup{ display:block; }
 .gantt-mode-chart .bar-plan { height:10px !important; top:5px !important; border-radius:5px !important; }
 /* ── переключатель данные/график ── */
-.view-toggle{display:flex;align-items:center;margin-left:auto;padding-right:4px;gap:0;}
-.view-toggle-btn{padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);border:0.5px solid var(--border);background:var(--bg2);transition:background .15s,color .15s;line-height:1.4;}
-.view-toggle-btn:first-child{border-radius:6px 0 0 6px;border-right:none;}
-.view-toggle-btn:last-child{border-radius:0 6px 6px 0;}
-.view-toggle-btn.active{background:#185FA5;color:#fff;border-color:#185FA5;font-weight:500;}
+/* view-toggle (Данные/График) — тот же стиль и размер, что у переключателя масштаба */
+.view-toggle{display:flex;align-items:center;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;background:var(--bg);}
+.view-toggle-btn{padding:4px 10px;font-size:11px;font-family:inherit;cursor:pointer;color:var(--text2);background:var(--bg);border:none;border-right:0.5px solid var(--border2);transition:background .15s,color .15s;}
+.view-toggle-btn:last-child{border-right:none;}
+.view-toggle-btn.active{background:#185FA5;color:#fff;}
 .bar-plan:active{cursor:grabbing;}
 .gantt-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .gantt-table th{font-size:11px;font-weight:500;color:var(--text2);padding:8px 10px;text-align:left;border-bottom:0.5px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:8;}
@@ -430,16 +430,18 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     <div class="tab active" onclick="switchTab('gantt',this)"><i class="ti ti-layout-list"></i> График</div>
     <div class="tab" onclick="switchTab('ai',this)"><i class="ti ti-chart-bar"></i> Анализ отклонений</div>
     <div class="tab" onclick="switchTab('chart',this)"><i class="ti ti-chart-line"></i> S-кривая</div>
-    <div class="view-toggle" id="ganttViewToggle">
-      <div class="view-toggle-btn" onclick="setGanttViewMode('data',this)">Данные</div>
-      <div class="view-toggle-btn active" onclick="setGanttViewMode('chart',this)">График</div>
+    <div id="ganttControls" class="no-print" style="display:flex;align-items:center;gap:10px;z-index:2;">
+      <div class="scale-switch" id="ganttScaleSwitch" style="display:flex;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;background:var(--bg);">
+        <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
+        <button class="scale-switch-btn" data-scale="week" onclick="setGanttScale('week')">Неделя</button>
+        <button class="scale-switch-btn" data-scale="month" onclick="setGanttScale('month')">Месяц</button>
+      </div>
+      <div class="view-toggle" id="ganttViewToggle">
+        <div class="view-toggle-btn" onclick="setGanttViewMode('data',this)">Данные</div>
+        <div class="view-toggle-btn active" onclick="setGanttViewMode('chart',this)">График</div>
+      </div>
     </div>
-    <div class="scale-switch no-print" id="ganttScaleSwitch" style="display:flex;align-self:center;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;margin-left:8px;z-index:2;background:var(--bg);">
-      <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
-      <button class="scale-switch-btn" data-scale="week" onclick="setGanttScale('week')">Неделя</button>
-      <button class="scale-switch-btn" data-scale="month" onclick="setGanttScale('month')">Месяц</button>
-    </div>
-    <button class="btn" style="margin-left:8px;" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
+    <button class="btn" style="margin-left:auto;" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
   </div>
 
   <!-- GANTT -->
@@ -2004,22 +2006,22 @@ function renderGantt(){
 // выравнивание переключателя масштаба (День/Неделя/Месяц) по началу области полос Ганта —
 // т.е. по правой границе замороженных колонок. На телефоне — обычный поток (мобильный CSS).
 function positionScaleSwitch(){
-  const sw = document.getElementById('ganttScaleSwitch');
-  if(!sw) return;
+  const box = document.getElementById('ganttControls');
+  if(!box) return;
   const th = document.getElementById('ganttBarTh');
   const table = document.querySelector('.gantt-table');
   const wrap = document.getElementById('ganttWrap');
   const tabs = document.querySelector('.tabs');
   if(!th || !table || !wrap || !tabs || isNarrowView()){
-    sw.style.position=''; sw.style.left=''; sw.style.top=''; sw.style.transform='';
+    box.style.position=''; box.style.left=''; box.style.top=''; box.style.transform='';
     return;
   }
   const leftCols = th.getBoundingClientRect().left - table.getBoundingClientRect().left; // ширина замороженных колонок (инвариант к горизонт. скроллу)
   const barsStartX = wrap.getBoundingClientRect().left + leftCols;                        // где визуально начинаются полосы
-  sw.style.position = 'absolute';
-  sw.style.top = '50%';
-  sw.style.transform = 'translateY(-50%)';
-  sw.style.left = Math.max(0, barsStartX - tabs.getBoundingClientRect().left) + 'px';
+  box.style.position = 'absolute';
+  box.style.top = '50%';
+  box.style.transform = 'translateY(-50%)';
+  box.style.left = Math.max(0, barsStartX - tabs.getBoundingClientRect().left) + 'px';
 }
 
 
