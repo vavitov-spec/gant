@@ -590,7 +590,7 @@ function toggleFilter(key){
   if(btn) btn.classList.toggle('active', Object.values(ganttFilters).some(Boolean));
   renderGantt();
 }
-const SCALE_DAY_PX = { day: 32, week: 10 };
+const SCALE_DAY_PX = { day: 32, week: 12 };
 // цвета «сверхсрочных» периодов (за датой завершения проекта)
 const OVERTIME_TEXT = '#C2410C';
 const OVERTIME_BG   = 'rgba(234,88,12,0.10)';
@@ -930,7 +930,7 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
     // нижний ярус — недели (начало/конец на двух строках)
     let weekRow = '';
     weeks.forEach(wk=>{
-      weekRow += `<div style="flex:0 0 ${wk.w}px;width:${wk.w}px;box-sizing:border-box;font-size:7px;line-height:1.25;text-align:center;color:${wk.over?OVERTIME_TEXT:'var(--text2)'};${wk.over?`background:${OVERTIME_BG};`:''}border-left:1px solid var(--border2);overflow:hidden;display:flex;flex-direction:column;justify-content:center;" title="${formatDateDDMMYY(wk.start)} — ${formatDateDDMMYY(wk.end)}"><span>${formatDateDDMMYY(wk.start).slice(0,5)}</span><span>${formatDateDDMMYY(wk.end).slice(0,5)}</span></div>`;
+      weekRow += `<div style="flex:0 0 ${wk.w}px;width:${wk.w}px;box-sizing:border-box;font-size:8.5px;line-height:1.2;text-align:center;color:${wk.over?OVERTIME_TEXT:'var(--text2)'};${wk.over?`background:${OVERTIME_BG};`:''}border-left:1px solid var(--border2);overflow:hidden;display:flex;align-items:center;justify-content:center;white-space:nowrap;" title="${formatDateDDMMYY(wk.start)} — ${formatDateDDMMYY(wk.end)}">${formatDateDDMMYY(wk.start).slice(0,5)}–${formatDateDDMMYY(wk.end).slice(0,5)}</div>`;
     });
     // верхний ярус — месяцы по РЕАЛЬНЫМ границам месяцев (по дням), без привязки к неделям:
     // ширина месяца = число его дней в диапазоне × ширина дня (граница может пройти внутри недели)
