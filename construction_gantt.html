@@ -65,7 +65,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn:hover{background:var(--bg2);}
 .btn-primary{background:#185FA5;color:#fff;border-color:#185FA5;}
 .btn-primary:hover{background:#0C447C;}
-.tabs{flex-shrink:0;display:flex;border-bottom:0.5px solid var(--border);padding:0 16px;}
+.tabs{flex-shrink:0;display:flex;border-bottom:0.5px solid var(--border);padding:0 16px;position:relative;}
 .tab{padding:10px 14px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-0.5px;display:flex;align-items:center;gap:5px;}
 .tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:500;}
 .tab:hover:not(.active){color:var(--text);}
@@ -434,7 +434,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
       <div class="view-toggle-btn" onclick="setGanttViewMode('data',this)">Данные</div>
       <div class="view-toggle-btn active" onclick="setGanttViewMode('chart',this)">График</div>
     </div>
-    <div class="scale-switch no-print" id="ganttScaleSwitch" style="display:flex;align-self:center;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;margin-left:8px;">
+    <div class="scale-switch no-print" id="ganttScaleSwitch" style="display:flex;align-self:center;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;margin-left:8px;z-index:2;background:var(--bg);">
       <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
       <button class="scale-switch-btn" data-scale="week" onclick="setGanttScale('week')">Неделя</button>
       <button class="scale-switch-btn" data-scale="month" onclick="setGanttScale('month')">Месяц</button>
@@ -1998,7 +1998,28 @@ function renderGantt(){
   applyColumnVisibility();
   applyStickyColumnOffsets();
   renderGanttLinks();
-  requestAnimationFrame(()=>{ renderTodayLine(); renderProjectEndOverlay(); });
+  requestAnimationFrame(()=>{ renderTodayLine(); renderProjectEndOverlay(); positionScaleSwitch(); });
+}
+
+// выравнивание переключателя масштаба (День/Неделя/Месяц) по началу области полос Ганта —
+// т.е. по правой границе замороженных колонок. На телефоне — обычный поток (мобильный CSS).
+function positionScaleSwitch(){
+  const sw = document.getElementById('ganttScaleSwitch');
+  if(!sw) return;
+  const th = document.getElementById('ganttBarTh');
+  const table = document.querySelector('.gantt-table');
+  const wrap = document.getElementById('ganttWrap');
+  const tabs = document.querySelector('.tabs');
+  if(!th || !table || !wrap || !tabs || isNarrowView()){
+    sw.style.position=''; sw.style.left=''; sw.style.top=''; sw.style.transform='';
+    return;
+  }
+  const leftCols = th.getBoundingClientRect().left - table.getBoundingClientRect().left; // ширина замороженных колонок (инвариант к горизонт. скроллу)
+  const barsStartX = wrap.getBoundingClientRect().left + leftCols;                        // где визуально начинаются полосы
+  sw.style.position = 'absolute';
+  sw.style.top = '50%';
+  sw.style.transform = 'translateY(-50%)';
+  sw.style.left = Math.max(0, barsStartX - tabs.getBoundingClientRect().left) + 'px';
 }
 
 
@@ -4310,6 +4331,7 @@ window.addEventListener('pagehide', flushCloudSave);
 // перестраиваем график при изменении ширины окна, чтобы в режиме "Месяц" он снова растянулся/сжался под область просмотра
 let _ganttResizeTimer = null;
 window.addEventListener('resize', ()=>{
+  positionScaleSwitch(); // переключатель масштаба держим у начала полос Ганта при любом ресайзе
   if(ganttScale!=='month') return;
   clearTimeout(_ganttResizeTimer);
   _ganttResizeTimer = setTimeout(renderGantt, 120);
