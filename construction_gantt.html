@@ -603,7 +603,8 @@ let monthBufferPx = 820;      // запас справа под закреплё
 // если не влезает — базовые 90px и горизонтальный скролл, как раньше
 function recomputeMonthColPx(){
   const rt = renderMonths();
-  if(ganttScale!=='month'){ MONTH_COL_PX = MONTH_COL_PX_BASE; monthBufferPx = STICKY_COLS_BUFFER_PX; return; }
+  // День/Неделя: маленький запас справа, чтобы прокрутка доходила только до последнего периода (не в пустоту)
+  if(ganttScale!=='month'){ MONTH_COL_PX = MONTH_COL_PX_BASE; monthBufferPx = 6; return; }
   const wrap = document.getElementById('ganttWrap');
   const th = document.getElementById('ganttBarTh');
   const table = wrap ? wrap.querySelector('.gantt-table') : null;
@@ -1797,6 +1798,9 @@ function periodGridLinesHtml(){
       }
     }
   }
+  // замыкающая линия в самом конце графика (у последнего периода нет левой границы справа)
+  const endPx = (ganttScale === 'month') ? renderMonths()*MONTH_COL_PX : periodDates().length*SCALE_DAY_PX[ganttScale];
+  html += `<div style="position:absolute;top:0;bottom:0;left:${PAD+endPx}px;width:1px;background:var(--border);pointer-events:none;z-index:0;"></div>`;
   return html;
 }
 
