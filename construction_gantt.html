@@ -1470,9 +1470,11 @@ function factPeriodVolumes(t){
   }
   const hasAnyEntry = entered.size > 0;
 
-  // остаток объёма делим поровну между не введёнными рабочими днями (равномерная проекция)
+  // остаток объёма делим поровну между не введёнными рабочими днями (равномерная проекция).
+  // Остаток считаем от ОБЩЕГО факта задачи (t.factVol, включает исходный факт без дневной
+  // разбивки), а не только от введённых дней — иначе проекция игнорировала бы уже выполненное.
   const nonEnteredCount = allWD.length - entered.size;
-  const remaining = Math.max(0, (t.volume||0) - sumEntered);
+  const remaining = Math.max(0, (t.volume||0) - Math.max(sumEntered, t.factVol||0));
   const share = nonEnteredCount > 0 ? remaining / nonEnteredCount : 0;
 
   return planPers.map(per=>{
@@ -1588,10 +1590,17 @@ function setFactOverride(taskId, periodKey, newVol){
   if(!wdIdxs.length){ renderGantt(); return; }
 
   // очищаем прежние дневные значения этого периода (в рамках задачи), чтобы не оставались
-  // устаревшие значения на днях, куда объём больше не распределяется (напр. будущие дни недели)
+  // устаревшие значения на днях, куда объём больше не распределяется (напр. будущие дни недели);
+  // попутно запоминаем их сумму, чтобы обновить общий факт ПО РАЗНИЦЕ — не теряя исходный
+  // факт работы, заданный без дневной разбивки (напр. процентом при создании графика)
+  let oldSum = 0;
   for(const idx of calIdxs){
     const d = allDays[idx];
-    if(d && d>=startDate && d<endExcl) delete t.factOverrides['day']['d'+idx];
+    if(d && d>=startDate && d<endExcl){
+      const k = 'd'+idx;
+      if(t.factOverrides['day'][k] !== undefined) oldSum += (t.factOverrides['day'][k]||0);
+      delete t.factOverrides['day'][k];
+    }
   }
 
   // равномерно распределяем newVol по рабочим дням (без округления накопленной ошибки)
@@ -1604,8 +1613,9 @@ function setFactOverride(taskId, periodKey, newVol){
   }
   t.factOverrides['day']['d'+wdIdxs[wdIdxs.length-1]] = Math.max(0, newVol-s);
 
-  // пересчёт итогов из дневных данных
-  t.factVol = Object.values(t.factOverrides['day']).reduce((a,v)=>a+(v||0), 0);
+  // общий факт обновляем по разнице (введено − что было на этих днях): исходный факт
+  // работы (в т.ч. заданный без дневной разбивки) сохраняется
+  t.factVol = Math.max(0, (t.factVol||0) - oldSum + newVol);
   t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
   renderGantt();
   saveState();
