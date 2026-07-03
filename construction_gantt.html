@@ -337,6 +337,34 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
 .np-select-toggle:hover{text-decoration:underline;}
 
 /* ── экспорт в PDF (печать через диалог браузера) ── */
+/* ─────────── Адаптив под телефон (узкие экраны ≤700px) ─────────── */
+@media(max-width:700px){
+  .layout{padding:0 4px;}
+  /* вкладки: горизонтальный скролл вместо переполнения, иконки прячем */
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;padding:0 8px;}
+  .tab{padding:9px 10px;font-size:12.5px;flex-shrink:0;}
+  .tab i{display:none;}
+  .view-toggle{flex-shrink:0;margin-left:6px;}
+  .tabs .btn{flex-shrink:0;margin-left:6px;padding:6px 9px;}
+  /* карточки статистики: горизонтальный скролл */
+  .stats-row{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+  .stat-card{flex-shrink:0;}
+  /* ── ГЛАВНОЕ: таблица графика → имя + полоса Ганта. Числовые колонки скрыты
+     (их данные видны в режиме «Данные» прямо на полосах) ── */
+  .gantt-table th.col-contractor,.gantt-table td.col-contractor,
+  .gantt-table th.col-start,.gantt-table td.col-start,
+  .gantt-table th.col-dur,.gantt-table td.col-dur,
+  .gantt-table th.col-end,.gantt-table td.col-end,
+  .gantt-table th.col-volume,.gantt-table td.col-volume,
+  .gantt-table th.col-unit,.gantt-table td.col-unit,
+  .gantt-table th.col-factplan,.gantt-table td.col-factplan,
+  .gantt-table th.col-pct,.gantt-table td.col-pct{display:none!important;}
+  /* колонка с названием — единственная замороженная, уже по ширине */
+  .gantt-table th:first-child,.gantt-table td:first-child,.gantt-table td.sticky-col-cat{
+    left:0!important;width:42vw!important;min-width:42vw!important;max-width:42vw!important;}
+  /* мини-кнопки редактирования в шапке названия на телефоне прячем */
+  .gantt-table th:first-child .th-mini-btn{display:none!important;}
+}
 @media print{
   .no-print{display:none!important;}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
