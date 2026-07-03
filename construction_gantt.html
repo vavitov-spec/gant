@@ -1915,8 +1915,9 @@ function renderGantt(){
       ${(()=>{
         let fact, plan, title;
         if(factplanMode==='tot'){
-          fact=t.factVol||0; plan=t.volume||0;
-          title=`Всего: факт ${fact.toLocaleString('ru')} / объём ${plan.toLocaleString('ru')}`;
+          // «общ.»: выполнено к сегодня (без факта на будущие даты) / весь объём
+          fact=planAndFactToDate(t).fact; plan=t.volume||0;
+          title=`Всего: выполнено ${fact.toLocaleString('ru')} / объём ${plan.toLocaleString('ru')}`;
         } else {
           const pf=planAndFactToDate(t); fact=pf.fact; plan=pf.plan;
           title=`До сегодня: факт ${fact.toLocaleString('ru')} / план ${plan.toLocaleString('ru')}`;
@@ -1927,7 +1928,9 @@ function renderGantt(){
       ${(()=>{
         let pct, cls2;
         if(factplanMode==='tot'){
-          pct=t.factPct;
+          // «общ.»: процент от всего объёма по выполненному к сегодня
+          const pf=planAndFactToDate(t);
+          pct=t.volume>0?Math.round(pf.fact/t.volume*100):0;
           cls2=pctClass(t);
         } else {
           const pf=planAndFactToDate(t);
