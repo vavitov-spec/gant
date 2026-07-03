@@ -1474,7 +1474,6 @@ function factPeriodVolumes(t){
   const nonEnteredCount = allWD.length - entered.size;
   const remaining = Math.max(0, (t.volume||0) - sumEntered);
   const share = nonEnteredCount > 0 ? remaining / nonEnteredCount : 0;
-  const dayFact = idx => entered.has(idx) ? (dayFacts['d'+idx]||0) : share;
 
   return planPers.map(per=>{
     const past = isPeriodPast(per.key);
@@ -1482,9 +1481,16 @@ function factPeriodVolumes(t){
     const enterable = ganttScale !== 'month' && (past || isPeriodStarted(per.key));
     const dayIdxs = getWorkingDayIndicesForPeriodKey(t, per.key);
     const hasEntered = dayIdxs.some(idx => entered.has(idx)); // есть ли в периоде явно введённый день
-    // без единого факта по работе — пусто; иначе сумма введённого + проекции по дням периода
-    const fv = (!hasAnyEntry || !dayIdxs.length) ? null
-      : Math.round(dayIdxs.reduce((s,idx)=>s+dayFact(idx), 0));
+    let fv;
+    if(!hasAnyEntry || !dayIdxs.length){
+      fv = null;                       // по работе нет факта — период пустой
+    } else if(hasEntered){
+      // период с введёнными днями — показываем ТОЛЬКО сумму реально введённого (без проекции)
+      fv = Math.round(dayIdxs.reduce((s,idx)=> s + (entered.has(idx) ? (dayFacts['d'+idx]||0) : 0), 0));
+    } else {
+      // период без введённых дней — равномерная проекция остатка объёма (серым)
+      fv = Math.round(share * dayIdxs.length);
+    }
     return {...per, factVol:fv, planVol:per.vol, isPast:past, isEnterable:enterable, isEdited:hasEntered};
   });
 }
