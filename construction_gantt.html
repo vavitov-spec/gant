@@ -932,16 +932,18 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
     weeks.forEach(wk=>{
       weekRow += `<div style="flex:0 0 ${wk.w}px;width:${wk.w}px;box-sizing:border-box;font-size:7px;line-height:1.25;text-align:center;color:${wk.over?OVERTIME_TEXT:'var(--text2)'};${wk.over?`background:${OVERTIME_BG};`:''}border-left:1px solid var(--border2);overflow:hidden;display:flex;flex-direction:column;justify-content:center;" title="${formatDateDDMMYY(wk.start)} — ${formatDateDDMMYY(wk.end)}"><span>${formatDateDDMMYY(wk.start).slice(0,5)}</span><span>${formatDateDDMMYY(wk.end).slice(0,5)}</span></div>`;
     });
-    // верхний ярус — месяцы (подряд идущие недели группируем по месяцу начала недели)
+    // верхний ярус — месяцы по РЕАЛЬНЫМ границам месяцев (по дням), без привязки к неделям:
+    // ширина месяца = число его дней в диапазоне × ширина дня (граница может пройти внутри недели)
     let monthRow = '';
-    let g=0;
-    while(g<weeks.length){
-      const m = weeks[g].start.getMonth(), y = weeks[g].start.getFullYear();
-      let width=0, j=g;
-      while(j<weeks.length && weeks[j].start.getMonth()===m && weeks[j].start.getFullYear()===y){ width+=weeks[j].w; j++; }
-      const label = MONTHS_SHORT[m] + ((g===0 || m===0) ? ` ${y}` : '');
+    let k=0, firstSeg=true;
+    while(k<days.length){
+      const m = days[k].getMonth(), y = days[k].getFullYear();
+      let cnt=0;
+      while(k<days.length && days[k].getMonth()===m && days[k].getFullYear()===y){ cnt++; k++; }
+      const width = cnt*dayPx;
+      const label = MONTHS_SHORT[m] + ((firstSeg || m===0) ? ` ${y}` : '');
+      firstSeg=false;
       monthRow += `<div style="flex:0 0 ${width}px;width:${width}px;box-sizing:border-box;border-left:1px solid var(--border);font-size:9px;font-weight:500;color:var(--text2);display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;">${label}</div>`;
-      g=j;
     }
     html = `<div style="display:flex;flex:0 0 auto;border-bottom:0.5px solid var(--border);">${monthRow}</div><div style="display:flex;flex:1 1 auto;align-items:stretch;">${weekRow}</div>`;
   }
