@@ -340,6 +340,8 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
 /* ─────────── Адаптив под телефон (узкие экраны ≤700px) ─────────── */
 @media(max-width:700px){
   .layout{padding:0 4px;}
+  /* шапка «График производства работ: …» + плашки показателей — на телефоне прячем */
+  .header{display:none!important;}
   /* вкладки: горизонтальный скролл вместо переполнения, иконки прячем */
   .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;padding:0 8px;}
   .tab{padding:9px 10px;font-size:12.5px;flex-shrink:0;}
