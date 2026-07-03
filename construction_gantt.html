@@ -945,10 +945,11 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
       firstSeg=false;
       monthRow += `<div style="flex:0 0 ${width}px;width:${width}px;box-sizing:border-box;border-left:1px solid var(--border);font-size:9px;font-weight:500;color:var(--text2);display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;">${label}</div>`;
     }
-    html = `<div style="display:flex;flex:0 0 auto;border-bottom:0.5px solid var(--border);">${monthRow}</div><div style="display:flex;flex:0 0 auto;">${weekRow}</div>`;
+    // каждый ярус занимает половину высоты шапки, текст центрируется в своей половине
+    html = `<div style="display:flex;flex:1 1 0;align-items:stretch;border-bottom:0.5px solid var(--border);">${monthRow}</div><div style="display:flex;flex:1 1 0;align-items:stretch;">${weekRow}</div>`;
   }
   el.style.flexDirection = (ganttScale==='week') ? 'column' : '';
-  el.style.justifyContent = (ganttScale==='week') ? 'center' : ''; // двухъярусный блок по центру шапки по вертикали
+  el.style.justifyContent = '';
   el.style.height = ''; // сброс высоты из месячного вида → назад к 100% (inline)
   el.innerHTML = html;
 }
