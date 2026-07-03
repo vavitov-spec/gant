@@ -349,19 +349,24 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   /* карточки статистики: горизонтальный скролл */
   .stats-row{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
   .stat-card{flex-shrink:0;}
-  /* ── ГЛАВНОЕ: таблица графика → имя + полоса Ганта. Числовые колонки скрыты
-     (их данные видны в режиме «Данные» прямо на полосах) ── */
+  /* ── ГЛАВНОЕ: таблица графика на телефоне ──
+     Заморожена только колонка с названием (чуть уже). Справа — колонки-данные,
+     листаются пальцем: сначала Дата начала / Длит. / Дата оконч.,
+     свайп → Общ. объём / Ед. / Факт-План / %. Подрядчик и полосу Ганта пока прячем. */
   .gantt-table th.col-contractor,.gantt-table td.col-contractor,
+  .gantt-table th.bar-cell,.gantt-table td.bar-cell{display:none!important;}
+  #ganttTodayLine,#ganttLinksSvg{display:none!important;} /* относятся к скрытой полосе */
+  /* колонки-данные больше не «липкие» — свободно скроллятся вправо за именем */
   .gantt-table th.col-start,.gantt-table td.col-start,
   .gantt-table th.col-dur,.gantt-table td.col-dur,
   .gantt-table th.col-end,.gantt-table td.col-end,
   .gantt-table th.col-volume,.gantt-table td.col-volume,
   .gantt-table th.col-unit,.gantt-table td.col-unit,
   .gantt-table th.col-factplan,.gantt-table td.col-factplan,
-  .gantt-table th.col-pct,.gantt-table td.col-pct{display:none!important;}
-  /* колонка с названием — единственная замороженная, уже по ширине */
+  .gantt-table th.col-pct,.gantt-table td.col-pct{position:static!important;left:auto!important;}
+  /* имя раздела/работы — единственная замороженная колонка, чуть уже */
   .gantt-table th:first-child,.gantt-table td:first-child,.gantt-table td.sticky-col-cat{
-    left:0!important;width:42vw!important;min-width:42vw!important;max-width:42vw!important;}
+    left:0!important;width:36vw!important;min-width:36vw!important;max-width:36vw!important;}
   /* мини-кнопки редактирования в шапке названия на телефоне прячем */
   .gantt-table th:first-child .th-mini-btn{display:none!important;}
 }
