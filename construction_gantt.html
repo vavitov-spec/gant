@@ -117,6 +117,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-table th{font-size:11px;font-weight:500;color:var(--text2);padding:8px 10px;text-align:left;border-bottom:0.5px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:8;}
 .gantt-table td{padding:6px 10px;border-bottom:0.5px solid var(--border);font-size:12px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;}
 .gantt-table .tight-col{padding-left:4px;padding-right:4px;}
+/* первый столбец («Вид работ»/раздел): меньше отступ слева, чтобы название начиналось ближе к краю */
+.gantt-table th:first-child,.gantt-table td:first-child,.gantt-table td.sticky-col-cat{padding-left:5px;}
 .gantt-table .bar-cell{overflow:visible;}
 .gantt-table tr:hover td{background:var(--bg2);}
 
@@ -200,7 +202,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .issue-desc{font-size:12px;color:var(--text2);line-height:1.5;}
 
 /* ── Row drag-and-drop ── */
-.row-drag-handle{display:inline-flex;align-items:center;justify-content:center;width:14px;height:100%;cursor:grab;color:var(--text3);opacity:0;transition:opacity .1s;flex-shrink:0;margin-right:2px;}
+.row-drag-handle{display:inline-flex;align-items:center;justify-content:center;width:11px;height:100%;cursor:grab;color:var(--text3);opacity:0;transition:opacity .1s;flex-shrink:0;margin-right:0;}
 tr:hover .row-drag-handle, tr.selected .row-drag-handle{opacity:1;}
 tr.row-dragging{opacity:0.35;}
 tr.drag-over-top td{box-shadow:inset 0 2px 0 #185FA5;}
@@ -1753,7 +1755,7 @@ function renderGantt(){
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
       tr.innerHTML=`<td class="sticky-col-cat">
-        <span style="display:flex;align-items:center;gap:7px;white-space:nowrap;">
+        <span style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
           <span class="row-drag-handle" title="Перетащить раздел" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:13px;"></i></span>
           <i class="ti ti-chevron-${currentCollapsed?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
           <i class="ti ${t.icon}" style="font-size:15px;"></i>
@@ -1834,7 +1836,7 @@ function renderGantt(){
       ? `<button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
     tr.innerHTML=`
-      <td><div class="task-indent-wrap" style="display:flex;align-items:flex-start;gap:6px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
+      <td><div class="task-indent-wrap" style="display:flex;align-items:flex-start;gap:3px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}<span class="task-indent">${level>0?'∟':'└'}</span>${nameHtml}${deleteBtnHtml}</div></td>
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
