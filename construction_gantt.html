@@ -1162,7 +1162,27 @@ function sectionRollup(catId){
   let left,width;
   if(ganttScale==='month'){ left=minStart*MONTH_COL_PX; width=(maxEndOffset-minStart)*MONTH_COL_PX; }
   else { const dayPx=SCALE_DAY_PX[ganttScale]; left=minStartIdx*dayPx; width=(maxEndIdxExcl-minStartIdx)*dayPx; }
-  return { left, width, planTot, factTot, planCur, factCur, startDate, endDate };
+  // длительность раздела в рабочих днях — от самого раннего начала до самого позднего
+  // окончания включительно (тот же смысл, что и «Длит.» у отдельной работы)
+  let durWD = 0;
+  if(startDate && endDate){
+    const p = activeProject();
+    let d = new Date(startDate);
+    const endExcl = addDays(endDate, 1);
+    while(d < endExcl){ if(isWorkingDay(d, p)) durWD++; d = addDays(d, 1); }
+  }
+  return { left, width, planTot, factTot, planCur, factCur, startDate, endDate, durWD };
+}
+
+// содержимое колонок «Дата начала» / «Длит.» / «Дата оконч.» для свёрнутого раздела
+function sectionDateCellsHtml(catId){
+  const r = sectionRollup(catId);
+  if(!r || !r.startDate) return null;
+  return {
+    startHtml: formatDateDDMMYY(r.startDate),
+    durHtml: r.durWD + ' дн.',
+    endHtml: formatDateDDMMYY(r.endDate)
+  };
 }
 
 // сводная полоса раздела (план + факт/отставание до сегодня, в том же визуальном языке,
@@ -2064,8 +2084,12 @@ function renderGantt(){
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
-      // при свёрнутом разделе показываем сводную полосу и агрегированный факт/план —
-      // иначе строка раздела была бы совсем пустой в области диаграммы
+      // при свёрнутом разделе показываем сводную полосу, даты/длительность и агрегированный
+      // факт/план — иначе строка раздела была бы совсем пустой в области диаграммы
+      const dateCells = currentCollapsed ? sectionDateCellsHtml(t.id) : null;
+      const startTd = dateCells ? `<td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.startHtml}</td>` : `<td class="col-start"></td>`;
+      const durTd   = dateCells ? `<td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.durHtml}</td>` : `<td class="col-dur"></td>`;
+      const endTd   = dateCells ? `<td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.endHtml}</td>` : `<td class="col-end"></td>`;
       const rollupCells = currentCollapsed ? sectionFactPlanCellsHtml(t.id) : null;
       const factplanTd = rollupCells
         ? `<td class="col-factplan" style="text-align:center;font-size:12px;white-space:nowrap;" title="Свод по разделу">${rollupCells.factplanHtml}</td>`
@@ -2084,7 +2108,7 @@ function renderGantt(){
           ${isEditingCat?'':`<button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
             <i class="ti ti-plus" style="font-size:11px;"></i> Работы
           </button>`}
-        </span></td><td class="col-contractor"></td><td class="col-start"></td><td class="col-dur"></td><td class="col-end"></td><td class="col-volume"></td><td class="col-unit"></td>${factplanTd}${pctTd}<td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}${barCellHtml}</td>`;
+        </span></td><td class="col-contractor"></td>${startTd}${durTd}${endTd}<td class="col-volume"></td><td class="col-unit"></td>${factplanTd}${pctTd}<td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}${barCellHtml}</td>`;
       body.appendChild(tr);
       return;
     }
