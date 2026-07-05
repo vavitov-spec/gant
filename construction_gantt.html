@@ -847,14 +847,34 @@ function renderMonths(){
   return Math.max(TOTAL, Math.ceil(maxEnd - 1e-6));
 }
 
+let _periodDatesCache = null; // кэш массива дней: строится заново только при смене проекта/периода
 function periodDates(){
   const p = activeProject();
   const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+  const rt = renderMonths();
+  const key = (p ? p.id : 0) + ':' + ps.year + ':' + ps.month + ':' + rt;
+  if(_periodDatesCache && _periodDatesCache.key === key) return _periodDatesCache.days;
   const days = [];
   let d = new Date(ps.year, ps.month, 1);
-  const endExclusive = new Date(ps.year, ps.month + renderMonths(), 1);
+  const endExclusive = new Date(ps.year, ps.month + rt, 1);
   while(d < endExclusive){ days.push(new Date(d)); d = addDays(d,1); }
+  _periodDatesCache = { key, days };
   return days;
+}
+
+// индексы рабочих дней задачи (0-based от начала периода графика) — общий помощник
+// для планов/фактов: один и тот же перебор дней раньше повторялся в нескольких местах
+function taskWorkingDayIdxs(t){
+  const p = activeProject();
+  const startDate = taskStartDate(t);
+  const endExcl = addDays(taskEndDate(t), 1);
+  const allDays = periodDates();
+  const idxs = [];
+  for(let i = 0; i < allDays.length; i++){
+    const day = allDays[i];
+    if(day >= startDate && day < endExcl && isWorkingDay(day, p)) idxs.push(i);
+  }
+  return idxs;
 }
 
 // номер дня (0-based) от начала периода графика — используется для позиционирования в режимах "Неделя"/"День"
@@ -1080,11 +1100,7 @@ function getDayVolumeMap(t){
   while(d < endExcl){ if(isWorkingDay(d, p)) totalWD++; d = addDays(d, 1); }
   if(!totalWD) return new Map();
   const volPerWD = storedRate !== undefined ? storedRate : t.volume / totalWD;
-  const allDays = periodDates();
-  const wdIndices = [];
-  allDays.forEach((day, idx) => {
-    if(day >= startDate && day < endExcl && isWorkingDay(day, p)) wdIndices.push(idx);
-  });
+  const wdIndices = taskWorkingDayIdxs(t);
   if(!wdIndices.length) return new Map();
   const map = new Map();
   let sumNonLast = 0;
@@ -1405,6 +1421,7 @@ function setPlanOverride(taskId, periodKey, newVol){
   if(!t.planOverrides) t.planOverrides = {};
   if(!t.planOverrides[ganttScale]) t.planOverrides[ganttScale] = {};
   const ov = t.planOverrides[ganttScale];
+  const rtBefore = renderMonths(); // длина шкалы до правки — если изменится, нужна полная перерисовка
 
   // Получаем периоды ДО изменений
   const displayed = planPeriodVolumes(t);
@@ -1452,7 +1469,7 @@ function setPlanOverride(taskId, periodKey, newVol){
   }
   // если ставка=0 и остаток>0 — длительность не меняем, последний период поглотит остаток
 
-  renderGantt();
+  if(renderMonths() !== rtBefore) renderGantt(); else refreshTaskRow(taskId);
   saveState();
 }
 
@@ -1465,7 +1482,7 @@ function editPlanPeriod(taskId, periodKey, currentVol, el){
   inp.onkeydown = e => { if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.dataset.cancel='1'; inp.blur(); } };
   inp.onblur = () => {
     if(!inp.dataset.cancel){ const v = parseFloat(inp.value); if(!isNaN(v)){ setPlanOverride(taskId, periodKey, v); return; } }
-    renderGantt();
+    refreshTaskRow(taskId);
   };
   el.style.overflow = 'visible';
   el.innerHTML = '';
@@ -1530,14 +1547,9 @@ function factPeriodVolumes(t){
   const planPers = planPeriodVolumes(t);
   if(!planPers.length) return [];
   const dayFacts = (t.factOverrides && t.factOverrides['day']) || {};
-  const allDays = periodDates();
-  const p = activeProject();
-  const startDate = taskStartDate(t);
-  const endExcl = addDays(taskEndDate(t), 1);
 
   // все рабочие дни задачи (индексы в общей шкале дней)
-  const allWD = [];
-  allDays.forEach((d, idx) => { if(d >= startDate && d < endExcl && isWorkingDay(d, p)) allWD.push(idx); });
+  const allWD = taskWorkingDayIdxs(t);
 
   // введённые дни и их суммарный факт
   const entered = new Set();
@@ -1641,8 +1653,9 @@ function setFactOverride(taskId, periodKey, newVol){
     }
   } else if(periodKey.startsWith('m')){
     const mi = parseInt(periodKey.slice(1));
-    const mS = new Date(p.year, p.month+mi, 1);
-    const mE = new Date(p.year, p.month+mi+1, 1);
+    const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+    const mS = new Date(ps.year, ps.month+mi, 1);
+    const mE = new Date(ps.year, ps.month+mi+1, 1);
     allDays.forEach((d,idx)=>{ if(d>=mS && d<mE) calIdxs.push(idx); });
   }
 
@@ -1666,7 +1679,7 @@ function setFactOverride(taskId, periodKey, newVol){
     }
   }
 
-  if(!wdIdxs.length){ renderGantt(); return; }
+  if(!wdIdxs.length){ refreshTaskRow(taskId); return; }
 
   // очищаем прежние дневные значения этого периода (в рамках задачи), чтобы не оставались
   // устаревшие значения на днях, куда объём больше не распределяется (напр. будущие дни недели);
@@ -1696,7 +1709,7 @@ function setFactOverride(taskId, periodKey, newVol){
   // работы (в т.ч. заданный без дневной разбивки) сохраняется
   t.factVol = Math.max(0, (t.factVol||0) - oldSum + newVol);
   t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
-  renderGantt();
+  refreshTaskRow(taskId);
   saveState();
 }
 
@@ -1709,7 +1722,7 @@ function editFactPeriod(taskId, periodKey, currentVol, planVol, el){
   inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
   inp.onblur=()=>{
     if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setFactOverride(taskId,periodKey,v);return;}}
-    renderGantt();
+    refreshTaskRow(taskId);
   };
   el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
   inp.focus(); inp.select();
@@ -1887,8 +1900,8 @@ function renderGantt(){
   }
 
   tasks.forEach((t,idx)=>{
-    const tr = document.createElement('tr');
     if(t.cat){
+      const tr = document.createElement('tr');
       currentCollapsed = !!ganttCollapsed[t.id];
       currentSectionHidden = !!t.hidden;
       collapsedChain = [];
@@ -1946,7 +1959,25 @@ function renderGantt(){
     if(ganttFilters.showOnlyCurrent && !isTaskCurrentWeek(t)){ return; }
     if(ganttFilters.showOnlyCurrentMonth && !isTaskCurrentMonth(t)){ return; }
 
-    const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
+    body.appendChild(buildTaskRow(t, idx, weekendHtml));
+  });
+
+  updateCollapseAllBtnState();
+  applyColumnVisibility();
+  applyStickyColumnOffsets();
+  renderGanttLinks();
+  requestAnimationFrame(()=>{ renderTodayLine(); renderProjectEndOverlay(); positionScaleSwitch(); });
+}
+
+// ── построение одной строки работы <tr> — вынесено из renderGantt, чтобы при вводе
+// плана/факта обновлять только эту строку (refreshTaskRow), а не всю таблицу ──
+function buildTaskRow(t, idx, weekendHtml){
+  const tr = document.createElement('tr');
+  const level = t.level||0;
+  const next = tasks[idx+1];
+  const showCollapseToggle = !!(next && !next.cat && (next.level||0) > level);
+  const isCollapsedNow = showCollapseToggle && !!workCollapsed[t.id];
+  const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const dm = durMonthUnits(t);
     const m = barMetrics(t);
     // isLate убран — просроченность видна по красным цифрам факта на полосе
@@ -2080,14 +2111,21 @@ function renderGantt(){
         }).join('')}
       </div>
       </td>`;
-    body.appendChild(tr);
-  });
+  return tr;
+}
 
-  updateCollapseAllBtnState();
-  applyColumnVisibility();
-  applyStickyColumnOffsets();
+// точечное обновление одной строки работы после ввода плана/факта.
+// При активных фильтрах или изменении длины шкалы строка может влиять на соседей —
+// тогда честно перерисовываем всё.
+function refreshTaskRow(taskId){
+  const filtersActive = ganttFilters.hideCompleted || ganttFilters.showOnlyCurrent || ganttFilters.showOnlyCurrentMonth;
+  const idx = tasks.findIndex(x=>x.id===taskId);
+  const old = document.querySelector('#ganttBody tr[data-task-id="'+taskId+'"]');
+  if(filtersActive || idx<0 || !old){ renderGantt(); return; }
+  old.replaceWith(buildTaskRow(tasks[idx], idx, weekendBandsHtml()));
+  renderStats();
   renderGanttLinks();
-  requestAnimationFrame(()=>{ renderTodayLine(); renderProjectEndOverlay(); positionScaleSwitch(); });
+  requestAnimationFrame(()=>{ renderTodayLine(); renderProjectEndOverlay(); });
 }
 
 // выравнивание переключателя масштаба (День/Неделя/Месяц) по началу области полос Ганта —
