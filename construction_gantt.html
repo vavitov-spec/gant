@@ -26,6 +26,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .cat-row .cat-row-label{color:#D8E6F5;}
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
+  .gantt-fact-early{background:rgba(167,139,250,0.18);color:#C4B5FD;border-color:rgba(167,139,250,0.55);}
+  .gantt-fact-early-empty{border-color:rgba(167,139,250,0.35);}
 }
 .layout{max-width:none;height:100vh;margin:0 auto;display:flex;flex-direction:column;gap:3px;padding:0 8px;}
 .sidebar{width:100%;flex-shrink:0;background:var(--bg);border-radius:var(--rad-lg) var(--rad-lg) 0 0;border:0.5px solid var(--border);border-bottom:none;overflow:visible;display:flex;flex-direction:row;align-items:center;position:sticky;top:0;}
@@ -203,6 +205,11 @@ body.readonly .th-edit-btn{display:none!important;}
 .today-line{position:absolute;top:0;bottom:0;width:1px;background:#E24B4A;z-index:4;pointer-events:none;opacity:0.75;}
 /* пустая (без введённого факта) ячейка периода: числа нет, но при наведении подсвечиваем — можно кликнуть и ввести */
 .gantt-fact-empty:hover{background:rgba(24,95,165,0.12)!important;}
+/* факт вне графика: работу начали выполнять раньше плановой даты начала — план не трогаем,
+   но факт до планового начала виден отдельным (не синим/зелёным) цветом, как явное отклонение */
+.gantt-fact-early{background:rgba(124,58,237,0.14);color:#6D28D9;border:1px dashed rgba(124,58,237,0.55);border-radius:3px;}
+.gantt-fact-early-empty{background:transparent;border:1px dashed rgba(124,58,237,0.35);color:var(--text3);}
+.gantt-fact-early-empty:hover{background:rgba(124,58,237,0.12)!important;}
 /* оверлеи «сверхсрочной» зоны — периоды за датой завершения проекта */
 .overtime-band{position:absolute;background:rgba(234,88,12,0.10);z-index:1;pointer-events:none;}
 .project-end-line{position:absolute;width:2px;background:#EA580C;z-index:5;pointer-events:none;opacity:0.9;}
@@ -1733,6 +1740,88 @@ function factPeriodVolumes(t){
   });
 }
 
+// ─── факт вне графика: работу начали выполнять раньше плановой даты начала ──────────────
+// Плановые даты и распределение объёма НЕ трогаем — просто разрешаем внести факт на дни
+// до планового начала и показываем это отдельным цветом (не план, не обычный факт),
+// чтобы отклонение «начали раньше графика» было заметно, а не скрывалось задним числом.
+
+// рабочие дни ДО планового начала, которые нужно показать: уже введённые факт-записи
+// раньше плана, плюс — если сегодня раньше плана — весь промежуток от сегодня до начала
+function preStartWorkingDayIdxs(t){
+  const startIdx = dayIndexOfDate(taskStartDate(t));
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const enteredBefore = Object.keys(dayOv)
+    .map(k=>parseInt(k.slice(1)))
+    .filter(idx=>!isNaN(idx) && idx<startIdx);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
+  let zoneStart = Infinity;
+  if(todayIdx < startIdx) zoneStart = todayIdx; // сегодня раньше плана — открываем зону с сегодня
+  if(enteredBefore.length) zoneStart = Math.min(zoneStart, ...enteredBefore); // + уже введённые более ранние дни
+  if(!isFinite(zoneStart) || zoneStart >= startIdx) return [];
+  zoneStart = Math.max(0, zoneStart);
+  const p = activeProject();
+  const allDays = periodDates();
+  const idxs = [];
+  for(let i=zoneStart;i<startIdx;i++){ const d=allDays[i]; if(d && isWorkingDay(d,p)) idxs.push(i); }
+  return idxs;
+}
+
+// HTML ячеек факта вне графика — те же координаты (день × ширина дня), что и у обычных
+// ячеек факта, но своим цветом и без привязки к плановым периодам
+function earlyFactCellsHtml(t){
+  if(ganttScale==='month') return ''; // в месячном масштабе ввод факта отключён и для обычных дней
+  const idxs = preStartWorkingDayIdxs(t);
+  if(!idxs.length) return '';
+  const dayPx = SCALE_DAY_PX[ganttScale];
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  return idxs.map(idx=>{
+    const v = dayOv['d'+idx];
+    const isEmpty = v===undefined;
+    if(isEmpty && !canEdit) return ''; // нечего показывать и вводить нельзя
+    const shown = isEmpty ? '' : v.toLocaleString('ru');
+    const left = idx*dayPx;
+    const clickVal = isEmpty ? 0 : v;
+    const title = isEmpty
+      ? 'По плану работа ещё не должна была начаться — нажмите, чтобы внести факт вне графика'
+      : `Факт вне графика: ${v.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
+    const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'');
+    return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${dayPx}px;overflow:hidden;font-size:9px;font-weight:${isEmpty?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},${idx},${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},${idx},${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
+  }).join('');
+}
+
+function setEarlyFactOverride(taskId, dayIdx, newVol){
+  if(isReadOnly()) return;
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  newVol = Math.max(0, Math.round(Number(newVol)||0));
+  if(!t.factOverrides) t.factOverrides = {};
+  if(!t.factOverrides['day']) t.factOverrides['day'] = {};
+  const key = 'd'+dayIdx;
+  const oldVal = t.factOverrides['day'][key] || 0;
+  if(newVol>0) t.factOverrides['day'][key] = newVol; else delete t.factOverrides['day'][key];
+  // общий факт задачи обновляем по разнице — как и обычный факт по периодам
+  t.factVol = Math.max(0, (t.factVol||0) - oldVal + newVol);
+  t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
+  refreshTaskRow(taskId);
+  saveState();
+}
+
+function editEarlyFactPeriod(taskId, dayIdx, currentVol, el){
+  if(isReadOnly()) return;
+  const inp = document.createElement('input');
+  inp.type='text'; inp.inputMode='numeric'; inp.value=currentVol;
+  inp.style.cssText='font-size:9px;width:100%;height:8px;box-sizing:border-box;border:1px solid #7C3AED;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
+  inp.onclick=e=>e.stopPropagation();
+  inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
+  inp.onblur=()=>{
+    if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setEarlyFactOverride(taskId,dayIdx,v);return;}}
+    refreshTaskRow(taskId);
+  };
+  el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
+  inp.focus(); inp.select();
+}
+
 // суммы план и факт по всем прошедшим периодам задачи (для колонки "План / Факт")
 // факт считается только по периодам с явно введёнными данными (isEdited)
 function planAndFactToDate(t){
@@ -2249,6 +2338,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
         ${weekendHtml}
         ${periodGridLinesHtml()}
         <div class="bar-wrap">
+        ${earlyFactCellsHtml(t)}
         ${(()=>{
           const barLeft = parseFloat(m.left);
           const barW    = parseFloat(m.width);
