@@ -2084,9 +2084,10 @@ function renderGantt(){
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
-      // при свёрнутом разделе показываем сводную полосу, даты/длительность и агрегированный
-      // факт/план — иначе строка раздела была бы совсем пустой в области диаграммы
-      const dateCells = currentCollapsed ? sectionDateCellsHtml(t.id) : null;
+      // даты начала/окончания и длительность раздела показываем всегда (свёрнут он или нет);
+      // сводную полосу и агрегированный факт/план — только при свёрнутом разделе, чтобы не
+      // дублировать то, что и так видно по развёрнутым работам
+      const dateCells = sectionDateCellsHtml(t.id);
       const startTd = dateCells ? `<td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.startHtml}</td>` : `<td class="col-start"></td>`;
       const durTd   = dateCells ? `<td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.durHtml}</td>` : `<td class="col-dur"></td>`;
       const endTd   = dateCells ? `<td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.endHtml}</td>` : `<td class="col-end"></td>`;
