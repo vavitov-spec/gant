@@ -1119,6 +1119,99 @@ function barMetrics(t){
   };
 }
 
+// работы раздела (не сам раздел) — все, включая вложенные подуровни, до следующего
+// раздела или конца списка
+function sectionChildren(catId){
+  const idx = tasks.findIndex(x=>x.id===catId);
+  if(idx<0) return [];
+  const out = [];
+  for(let i=idx+1;i<tasks.length;i++){
+    if(tasks[i].cat) break;
+    out.push(tasks[i]);
+  }
+  return out;
+}
+
+// сводные метрики раздела для свёрнутого состояния: общий диапазон дат (от самого раннего
+// начала до самого позднего окончания среди работ раздела) + суммарные план/факт.
+// Объёмы разных видов работ (разные ед. измерения) складываются приближённо — тем же
+// способом, что и общие показатели по всему проекту (overallFact/overallPlan).
+function sectionRollup(catId){
+  const children = sectionChildren(catId);
+  if(!children.length) return null;
+  let minStart=Infinity, maxEndOffset=-Infinity, minStartIdx=Infinity, maxEndIdxExcl=-Infinity;
+  let planTot=0, factTot=0, planCur=0, factCur=0, startDate=null, endDate=null;
+  for(const t of children){
+    const dm = durMonthUnits(t);
+    if(t.start<minStart) minStart=t.start;
+    const endOffset=t.start+dm;
+    if(endOffset>maxEndOffset) maxEndOffset=endOffset;
+    const sIdx=dayIndexOfDate(taskStartDate(t));
+    const eIdxExcl=dayIndexOfDate(taskEndDate(t))+1;
+    if(sIdx<minStartIdx) minStartIdx=sIdx;
+    if(eIdxExcl>maxEndIdxExcl) maxEndIdxExcl=eIdxExcl;
+    const sd=taskStartDate(t), ed=taskEndDate(t);
+    if(!startDate || sd<startDate) startDate=sd;
+    if(!endDate   || ed>endDate)   endDate=ed;
+    planTot += (t.volume||0);
+    factTot += (t.factVol||0);
+    const pf = planAndFactToDate(t);
+    planCur += pf.plan;
+    factCur += pf.fact;
+  }
+  let left,width;
+  if(ganttScale==='month'){ left=minStart*MONTH_COL_PX; width=(maxEndOffset-minStart)*MONTH_COL_PX; }
+  else { const dayPx=SCALE_DAY_PX[ganttScale]; left=minStartIdx*dayPx; width=(maxEndIdxExcl-minStartIdx)*dayPx; }
+  return { left, width, planTot, factTot, planCur, factCur, startDate, endDate };
+}
+
+// сводная полоса раздела (план + факт/отставание до сегодня, в том же визуальном языке,
+// что и полосы отдельных работ) — используется только когда раздел свёрнут, чтобы не
+// дублировать информацию, уже видную по развёрнутым работам
+function sectionSummaryBarHtml(catId){
+  const r = sectionRollup(catId);
+  if(!r || r.width<=0) return '<div class="bar-wrap"></div>';
+  const barLeft = r.left, barW = r.width;
+  const todayAbs = parseFloat(todayMarkerLeft().value);
+  const todayOnTask = Math.max(0, Math.min(todayAbs-barLeft, barW));
+  const pct = r.planTot>0 ? Math.round(r.factTot/r.planTot*100) : 0;
+  const title = `${formatDateDDMMYY(r.startDate)}–${formatDateDDMMYY(r.endDate)}: факт ${r.factTot.toLocaleString('ru')} / план ${r.planTot.toLocaleString('ru')} (${pct}%)`;
+
+  let greenW=0, redW=0;
+  if(todayOnTask>0 && r.planTot>0){
+    const factOnTask = Math.min((r.factTot/r.planTot)*barW, barW);
+    greenW = Math.min(factOnTask, todayOnTask);
+    redW   = Math.max(todayOnTask-factOnTask, 0);
+  }
+  let inner = '';
+  if(greenW>0) inner += `<div style="position:absolute;top:0;left:0;width:${(greenW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#4FB783,#2E8C5D);pointer-events:none;"></div>`;
+  if(redW>0)   inner += `<div style="position:absolute;top:0;left:${(greenW/barW*100).toFixed(2)}%;width:${(redW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#E36A66,#C43F3F);pointer-events:none;"></div>`;
+  const accent = `<div class="bar-plan-accent" style="background:#185FA5;"></div>`;
+  const barPlanHtml = `<div class="bar-plan" style="left:${barLeft.toFixed(1)}px;width:${barW.toFixed(1)}px;" title="${title}">${accent}${inner}</div>`;
+
+  const factBgHtml = `<div class="gantt-fact-bg" style="left:${barLeft.toFixed(1)}px;width:${barW.toFixed(1)}px;"></div>`;
+  let factStripHtml = '';
+  if(greenW>0) factStripHtml += `<div class="gantt-fact-strip cap-left" style="left:${barLeft.toFixed(1)}px;width:${greenW.toFixed(1)}px;background:linear-gradient(180deg,#4FB783,#2E8C5D);z-index:2;" title="${title}"></div>`;
+  if(redW>0)   factStripHtml += `<div class="gantt-fact-strip cap-right" style="left:${(barLeft+greenW).toFixed(1)}px;width:${redW.toFixed(1)}px;background:linear-gradient(180deg,#E36A66,#C43F3F);z-index:2;" title="Недобор до сегодня"></div>`;
+
+  return `<div class="bar-wrap">${barPlanHtml}${factBgHtml}${factStripHtml}</div>`;
+}
+
+// содержимое колонок «Факт/План» и «%» для свёрнутого раздела — то же правило тек./общ.,
+// что и в этих колонках у отдельных работ, только суммарно по работам раздела
+function sectionFactPlanCellsHtml(catId){
+  const r = sectionRollup(catId);
+  if(!r) return { factplanHtml:'', pctHtml:'', cls:'' };
+  let fact, plan;
+  if(factplanMode==='tot'){ fact=r.factTot; plan=r.planTot; }
+  else { fact=r.factCur; plan=r.planCur; }
+  const pct = plan>0 ? Math.round(fact/plan*100) : 0;
+  const cls = plan>0 ? (pct>=100?'ok':pct>=50?'warn':'danger') : '';
+  const ok = fact>=plan;
+  const factplanHtml = `<span style="color:${plan>0?(ok?'var(--text-success)':'var(--text-danger)'):'var(--text3)'}">${fact.toLocaleString('ru')}</span> / ${plan.toLocaleString('ru')}`;
+  return { factplanHtml, pctHtml: (plan>0 ? pct+'%' : '—'), cls };
+}
+
 // объём по каждому рабочему дню задачи с учётом дневных правок (Map: dayIndex → vol)
 function getDayVolumeMap(t){
   const p = activeProject();
@@ -1971,6 +2064,16 @@ function renderGantt(){
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
+      // при свёрнутом разделе показываем сводную полосу и агрегированный факт/план —
+      // иначе строка раздела была бы совсем пустой в области диаграммы
+      const rollupCells = currentCollapsed ? sectionFactPlanCellsHtml(t.id) : null;
+      const factplanTd = rollupCells
+        ? `<td class="col-factplan" style="text-align:center;font-size:12px;white-space:nowrap;" title="Свод по разделу">${rollupCells.factplanHtml}</td>`
+        : `<td class="col-factplan"></td>`;
+      const pctTd = rollupCells
+        ? `<td class="col-pct ${rollupCells.cls}" style="font-size:12px;font-weight:500;">${rollupCells.pctHtml}</td>`
+        : `<td class="col-pct"></td>`;
+      const barCellHtml = currentCollapsed ? sectionSummaryBarHtml(t.id) : '<div class="bar-wrap"></div>';
       tr.innerHTML=`<td class="sticky-col-cat">
         <span style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
           <span class="row-drag-handle" title="Перетащить раздел" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:13px;"></i></span>
@@ -1981,7 +2084,7 @@ function renderGantt(){
           ${isEditingCat?'':`<button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
             <i class="ti ti-plus" style="font-size:11px;"></i> Работы
           </button>`}
-        </span></td><td class="col-contractor"></td><td class="col-start"></td><td class="col-dur"></td><td class="col-end"></td><td class="col-volume"></td><td class="col-unit"></td><td class="col-factplan"></td><td class="col-pct"></td><td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}<div class="bar-wrap"></div></td>`;
+        </span></td><td class="col-contractor"></td><td class="col-start"></td><td class="col-dur"></td><td class="col-end"></td><td class="col-volume"></td><td class="col-unit"></td>${factplanTd}${pctTd}<td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}${barCellHtml}</td>`;
       body.appendChild(tr);
       return;
     }
