@@ -152,6 +152,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 .add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;flex-shrink:0;}
 .add-work-btn-inline:hover{background:rgba(24,95,165,0.14);border-color:#185FA5;}
+/* режим только чтения (нет пароля): прячем элементы редактирования */
+body.readonly .add-section-btn,
+body.readonly .add-work-btn-inline,
+body.readonly .row-drag-handle,
+body.readonly .task-del-btn,
+body.readonly .sidebar-add,
+body.readonly .th-edit-btn{display:none!important;}
 
 .th-mini-btn{border:0.5px solid var(--border2);background:var(--bg);cursor:pointer;color:var(--text3);width:19px;height:19px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;}
 .th-mini-btn:hover{color:#185FA5;background:var(--bg-info);border-color:#185FA5;}
@@ -412,8 +419,9 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     <div class="sidebar-list" id="projectsList"></div>
     <button class="sidebar-add" onclick="openNewProject()" title="Создать график" style="flex-shrink:0;margin:0 6px;"><i class="ti ti-plus"></i></button>
     <div class="sidebar-footer">
+      <button class="sidebar-footer-btn no-print" id="editLockBtn" onclick="unlockEdit()" title="Ввести пароль для редактирования"><i class="ti ti-lock"></i> Только чтение</button>
       <button class="sidebar-footer-btn no-print" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
-      <button class="sidebar-footer-btn" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
+      <button class="sidebar-footer-btn th-edit-btn" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
     </div>
   </aside>
 
@@ -453,7 +461,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
             <div style="display:flex;align-items:center;gap:6px;">
               <span>Наименование работ</span>
               <span class="no-print" style="display:flex;align-items:center;gap:2px;margin-left:auto;">
-                <button class="th-mini-btn" onclick="openGraphSettings()" title="Настройка графика">
+                <button class="th-mini-btn th-edit-btn" onclick="openGraphSettings()" title="Настройка графика">
                   <i class="ti ti-settings" style="font-size:12px;"></i>
                 </button>
                 <button class="th-mini-btn" id="btnFilter" onclick="toggleFilterMenu(this)" title="Фильтр">
@@ -463,10 +471,10 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
                 <button class="th-mini-btn" id="btnCollapseAll" onclick="toggleAllSections()" title="Свернуть/развернуть все разделы">
                   <i class="ti ti-arrows-vertical" style="font-size:12px;"></i>
                 </button>
-                <button class="th-mini-btn" onclick="indentSelectedTask(1)" title="Понизить уровень (до 5 уровней)">
+                <button class="th-mini-btn th-edit-btn" onclick="indentSelectedTask(1)" title="Понизить уровень (до 5 уровней)">
                   <i class="ti ti-arrow-right" style="font-size:12px;"></i>
                 </button>
-                <button class="th-mini-btn" onclick="indentSelectedTask(-1)" title="Повысить уровень">
+                <button class="th-mini-btn th-edit-btn" onclick="indentSelectedTask(-1)" title="Повысить уровень">
                   <i class="ti ti-arrow-left" style="font-size:12px;"></i>
                 </button>
               </span>
@@ -621,6 +629,43 @@ function recomputeMonthColPx(){
 
 // на узком экране (телефон) — режим только просмотра: правка/добавление/удаление отключены
 function isNarrowView(){ return !!(window.matchMedia && window.matchMedia('(max-width:700px)').matches); }
+
+// ─── режим редактирования (простой пароль) ───────────────────────────────────
+// По умолчанию все в режиме ЧТЕНИЯ. Чтобы менять/вносить данные — ввести пароль.
+// ВНИМАНИЕ: это защита «от случайных правок», не криптостойкая (пароль в коде страницы).
+const EDIT_PASSWORD = '555'; // ← пароль редактирования (можно поменять на любой)
+let canEdit = false;
+try { canEdit = localStorage.getItem('gantt_canedit') === '1'; } catch(e){}
+function isReadOnly(){ return !canEdit; }                       // режим только чтения (пароль не введён)
+function noStructureEdit(){ return isReadOnly() || isNarrowView(); } // правка структуры: нельзя без пароля И нельзя на телефоне
+function unlockEdit(){
+  if(canEdit){ lockEdit(); return; } // уже редактируем → выйти в чтение
+  const p = prompt('Введите пароль для редактирования:');
+  if(p === null) return;
+  if(p === EDIT_PASSWORD){
+    canEdit = true;
+    try{ localStorage.setItem('gantt_canedit','1'); }catch(e){}
+    applyEditMode();
+  } else {
+    alert('Неверный пароль');
+  }
+}
+function lockEdit(){
+  canEdit = false;
+  try{ localStorage.removeItem('gantt_canedit'); }catch(e){}
+  applyEditMode();
+}
+function applyEditMode(){
+  document.body.classList.toggle('readonly', isReadOnly());
+  const btn = document.getElementById('editLockBtn');
+  if(btn){
+    btn.innerHTML = canEdit
+      ? '<i class="ti ti-lock-open"></i> Редактирование'
+      : '<i class="ti ti-lock"></i> Только чтение';
+    btn.title = canEdit ? 'Выйти в режим просмотра' : 'Ввести пароль для редактирования';
+  }
+  if(typeof renderGantt === 'function') try{ renderGantt(); }catch(e){}
+}
 
 function setGanttScale(scale){
   ganttScale = scale;
@@ -1266,7 +1311,7 @@ function planPeriodVolumes(t){
     const per = periods[i];
     const vol = ov[per.key] !== undefined ? ov[per.key] : per.defaultVol;
     sumNonLast += vol;
-    result.push({ ...per, vol, editable: true, isLast: false });
+    result.push({ ...per, vol, editable: canEdit, isLast: false });
   }
   const last = periods[periods.length - 1];
   result.push({ ...last, vol: Math.max(0, t.volume - sumNonLast), editable: false, isLast: true });
@@ -1351,6 +1396,7 @@ function recomputeTaskDur(t){
 }
 
 function setPlanOverride(taskId, periodKey, newVol){
+  if(isReadOnly()) return;
   const t = tasks.find(x => x.id === taskId);
   if(!t) return;
 
@@ -1411,6 +1457,7 @@ function setPlanOverride(taskId, periodKey, newVol){
 }
 
 function editPlanPeriod(taskId, periodKey, currentVol, el){
+  if(isReadOnly()) return;
   const inp = document.createElement('input');
   inp.type = 'text'; inp.inputMode = 'numeric'; inp.value = currentVol;
   inp.style.cssText = 'font-size:9px;width:100%;height:10px;box-sizing:border-box;border:1px solid #185FA5;border-radius:2px;background:#fff;color:#1a3a6a;text-align:center;padding:0;outline:none;';
@@ -1511,7 +1558,7 @@ function factPeriodVolumes(t){
   return planPers.map(per=>{
     const past = isPeriodPast(per.key);
     // в месячном масштабе ввод запрещён — только отображение
-    const enterable = ganttScale !== 'month' && (past || isPeriodStarted(per.key));
+    const enterable = canEdit && ganttScale !== 'month' && (past || isPeriodStarted(per.key));
     const dayIdxs = getWorkingDayIndicesForPeriodKey(t, per.key);
     const hasEntered = dayIdxs.some(idx => entered.has(idx)); // есть ли в периоде явно введённый день
     let fv;
@@ -1569,6 +1616,7 @@ function planAndFactToDate(t){
 }
 
 function setFactOverride(taskId, periodKey, newVol){
+  if(isReadOnly()) return;
   const t = tasks.find(x=>x.id===taskId);
   if(!t) return;
   newVol = Math.max(0, Math.round(Number(newVol)||0));
@@ -1653,6 +1701,7 @@ function setFactOverride(taskId, periodKey, newVol){
 }
 
 function editFactPeriod(taskId, periodKey, currentVol, planVol, el){
+  if(isReadOnly()) return;
   const inp = document.createElement('input');
   inp.type='text'; inp.inputMode='numeric'; inp.value=currentVol;
   inp.style.cssText='font-size:9px;width:100%;height:8px;box-sizing:border-box;border:1px solid #888;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
@@ -2095,7 +2144,7 @@ let _dragSrcId = null;
 let _dragSrcIsCat = false;
 
 function rowDragStart(e, id, isCat){
-  if(isNarrowView()){ e.preventDefault(); return; }
+  if(noStructureEdit()){ e.preventDefault(); return; }
   _dragSrcId = id;
   _dragSrcIsCat = isCat;
   e.dataTransfer.effectAllowed = 'move';
@@ -2192,7 +2241,7 @@ function selectTask(id){
 const MAX_TASK_LEVEL = 4; // максимум 5 уровней вложенности: 0..4
 
 function indentSelectedTask(direction){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   if(selectedTaskId===null){
     alert('Сначала выберите строку вида работ, кликнув по ней.');
     return;
@@ -2249,7 +2298,7 @@ function getChildIds(taskId){
 }
 
 function confirmDeleteTask(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   const t = tasks.find(x=>x.id===id);
   if(!t) return;
   const childIds = getChildIds(id);
@@ -2489,7 +2538,7 @@ function renderSChart(){
 let editingTaskId = null;
 
 function showAddTask(catId){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   const newId=Math.max(0,...tasks.map(t=>t.id))+1;
   const newTask={id:newId,name:'',contractor:'Не указан',unit:'%',volume:100,start:Math.max(0,Math.min(dateToOffset(new Date()),TOTAL-1)),dur:10,factPct:0,factVol:0,factOverrides:{}};
 
@@ -2562,7 +2611,7 @@ function maskDateInput(el){
 }
 
 function startEditTaskDate(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   editingDateTaskId = id;
   renderGantt();
   const input = document.getElementById('taskDateInput-'+id);
@@ -2592,7 +2641,7 @@ function commitTaskDate(id, value, cancelled){
 }
 
 function startEditTaskDur(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   editingDurTaskId = id;
   renderGantt();
   const input = document.getElementById('taskDurInput-'+id);
@@ -2611,7 +2660,7 @@ function commitTaskDur(id, value, cancelled){
 }
 
 function startEditTaskUnit(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   editingUnitTaskId = id;
   renderGantt();
   const sel = document.getElementById('taskUnitSelect-'+id);
@@ -2626,7 +2675,7 @@ function commitTaskUnit(id, val){
 }
 
 function startEditTaskVol(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   editingVolTaskId = id;
   renderGantt();
   const input = document.getElementById('taskVolInput-'+id);
@@ -2929,7 +2978,7 @@ function saveLinkEdit(){
 let editingCatId = null;
 
 function addSection(){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   // открываем диалог выбора типа раздела
   const overlay = document.getElementById('addSectionOverlay');
   overlay.classList.add('open');
@@ -3045,7 +3094,7 @@ function asConfirmCopy(){
 }
 
 function startEditCat(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   editingCatId = id;
   renderGantt();
   const input = document.getElementById('catNameInput-'+id);
@@ -3053,7 +3102,7 @@ function startEditCat(id){
 }
 
 function startEditTaskName(id){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   editingTaskId = id;
   renderGantt();
   const input = document.getElementById('taskNameInput-'+id);
@@ -3390,6 +3439,7 @@ function npPickGraphType(id){
 }
 
 function openNewProject(){
+  if(isReadOnly()) return;
   npRangeStart = null;
   npRangeEnd = null;
   npGraphTypeId = graphTypes.length ? graphTypes[0].id : null;
@@ -3775,6 +3825,7 @@ function switchGSTab(name,el){
 }
 
 function openGraphSettings(){
+  if(isReadOnly()) return;
   const p = activeProject();
   if(!p) return;
   switchGSTab('general', document.querySelector('#graphSettingsOverlay .modal-sidebar-item'));
@@ -3918,6 +3969,7 @@ function deleteGraphFromSettings(){
 }
 
 function openSettings(){
+  if(isReadOnly()) return;
   if(!graphTypes.some(g=>g.id===activeGraphTypeId) && graphTypes.length) activeGraphTypeId = graphTypes[0].id;
   renderGraphTypesList();
   renderSMRList();
@@ -4143,7 +4195,7 @@ function addWork(i){
   if(newInp) newInp.focus();
 }
 function deleteWork(i,j){
-  if(isNarrowView()) return;
+  if(noStructureEdit()) return;
   const gt = activeGraphType();
   const item = gt.sections[i].works[j];
   const isSub = !!(item && typeof item==='object' && item.sub);
@@ -4292,6 +4344,7 @@ function firstRender(){
   }
   renderGantt();
   renderProjectsList();
+  applyEditMode(); // выставить режим (чтение/редактирование) и подпись кнопки-замка
 }
 
 // ─── вход по паролю (Supabase Auth) ──────────────────────────────────────────
