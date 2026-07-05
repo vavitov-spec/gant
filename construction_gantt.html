@@ -22,7 +22,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     --text:#e8e8e8;--text2:#aaa;--text3:#666;--text-info:#85B7EB;--text-danger:#F09595;--text-warning:#FAC775;--text-success:#C0DD97;
     --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);}
   .cat-row td{background:#2E3338!important;}
-  .cat-row:hover td{background:#353E48!important;}
+  .cat-row:hover td,.cat-row.selected td{background:#353E48!important;}
   .cat-row .cat-row-label{color:#D8E6F5;}
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
@@ -145,7 +145,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-table td.sticky-col-cat{overflow:visible;z-index:6;}
 .cat-row td{background:#EFF4F9!important;font-weight:600;border-left:3px solid #185FA5;padding:5px 10px 5px 9px!important;}
 .cat-row td + td{border-left:none!important;}
-.cat-row:hover td{background:#E1EAF3!important;}
+.cat-row:hover td,.cat-row.selected td{background:#E1EAF3!important;}
 .cat-row .cat-row-label{color:#15324F;font-size:13px;letter-spacing:.01em;}
 .cat-row .ti{color:#185FA5;}
 .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#6B92B8!important;}
@@ -155,7 +155,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .scale-switch-btn:hover{background:var(--bg2);}
 .scale-switch-btn.active{background:#185FA5;color:#fff;}
 
-.add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;flex-shrink:0;}
+/* кнопка «+ Работы» видна только при наведении/выделении строки раздела —
+   не занимает место и не отвлекает, пока раздел не в фокусе */
+.add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;flex-shrink:0;opacity:0;transition:opacity .12s;}
+.cat-row:hover .add-work-btn-inline,
+.cat-row.selected .add-work-btn-inline,
+.add-work-btn-inline:focus-visible{opacity:1;}
 .add-work-btn-inline:hover{background:rgba(24,95,165,0.14);border-color:#185FA5;}
 /* режим только чтения (нет пароля): прячем элементы редактирования */
 body.readonly .add-section-btn,
@@ -1948,7 +1953,7 @@ function renderGantt(){
       if(filtersActive && !sectionsWithVisible.has(t.id)){ return; } // все задачи раздела скрыты фильтром
       secCounter++; workCounter = 0;
       _sectionNumOf.set(t.id, secCounter);
-      tr.className='cat-row';
+      tr.className='cat-row'+(selectedCatId===t.id?' selected':'');
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
       tr.draggable = false;
@@ -1957,7 +1962,11 @@ function renderGantt(){
       tr.addEventListener('dragleave', rowDragLeave);
       tr.addEventListener('drop',      e=>rowDrop(e,t.id,true));
       tr.addEventListener('dragend',   rowDragEnd);
-      tr.onclick = isEditingCat ? null : (()=>toggleGanttSection(t.id));
+      tr.onclick = isEditingCat ? null : (()=>{
+        selectedCatId = (selectedCatId===t.id) ? null : t.id;
+        selectedTaskId = null;
+        toggleGanttSection(t.id);
+      });
       const catNumHtml = `<span class="row-num" style="color:var(--text3);font-weight:600;flex-shrink:0;">${secCounter}.</span>`;
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
@@ -2316,9 +2325,11 @@ function moveTaskBlock(srcId, targetId, targetIsCat, pos){
 }
 
 let selectedTaskId = null;
+let selectedCatId = null; // выбранный раздел — только для показа кнопки «+ Работы» без наведения
 
 function selectTask(id){
   selectedTaskId = (selectedTaskId===id) ? null : id;
+  selectedCatId = null;
   renderGantt();
 }
 
