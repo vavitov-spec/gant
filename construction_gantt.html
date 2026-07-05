@@ -403,6 +403,11 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   .panel.active{overflow:visible!important;height:auto!important;flex:none!important;}
   .gantt-wrap{overflow:visible!important;height:auto!important;flex:none!important;}
   .gantt-table th,.gantt-table td{position:static!important;}
+  /* колонка диаграммы должна остаться positioned — иначе полосы выходных, сетка и полосы
+     работ (абсолютные слои внутри ячейки) теряют привязку и уезжают на колонки данных */
+  .gantt-table td.bar-cell{position:relative!important;}
+  /* кнопки и ручки редактирования на бумаге не нужны */
+  .row-drag-handle,.add-work-btn-inline,.task-del-btn,.th-mini-btn,.fp-mode-toggle{display:none!important;}
   .modal-overlay{display:none!important;}
   @page{ size: landscape; margin: 10mm; }
 }
@@ -640,14 +645,28 @@ function isReadOnly(){ return !canEdit; }                       // режим т
 function noStructureEdit(){ return isReadOnly() || isNarrowView(); } // правка структуры: нельзя без пароля И нельзя на телефоне
 function unlockEdit(){
   if(canEdit){ lockEdit(); return; } // уже редактируем → выйти в чтение
-  const p = prompt('Введите пароль для редактирования:');
-  if(p === null) return;
-  if(p === EDIT_PASSWORD){
+  const o = document.getElementById('editPassOverlay');
+  const inp = document.getElementById('editPassInput');
+  const err = document.getElementById('editPassError');
+  if(err) err.textContent = '';
+  if(inp) inp.value = '';
+  if(o){ o.style.display = 'flex'; if(inp) setTimeout(()=>inp.focus(), 50); }
+}
+function closeEditPass(){
+  const o = document.getElementById('editPassOverlay');
+  if(o) o.style.display = 'none';
+}
+function confirmEditPass(){
+  const inp = document.getElementById('editPassInput');
+  if(inp && inp.value === EDIT_PASSWORD){
+    closeEditPass();
     canEdit = true;
     try{ localStorage.setItem('gantt_canedit','1'); }catch(e){}
     applyEditMode();
   } else {
-    alert('Неверный пароль');
+    const err = document.getElementById('editPassError');
+    if(err) err.textContent = 'Неверный пароль';
+    if(inp){ inp.select(); inp.focus(); }
   }
 }
 function lockEdit(){
@@ -3195,7 +3214,27 @@ function switchTab(name,el){
 // ─── экспорт в PDF: используем системный диалог печати браузера ("Сохранить как PDF") —
 // печатается текущая открытая вкладка (график/анализ/S-кривая) целиком, без обрезки по прокрутке
 function exportToPDF(){
-  window.print();
+  // на листе целиком помещается только масштаб «Месяц» — переключаемся на время печати,
+  // а если диаграмма шире листа (А4 альбомная), ужимаем страницу масштабом
+  const prevScale = ganttScale;
+  const appEl = document.querySelector('.app');
+  let restored = false;
+  const restore = ()=>{
+    if(restored) return; restored = true;
+    window.removeEventListener('afterprint', restore);
+    if(appEl) appEl.style.zoom = '';
+    if(ganttScale !== prevScale){ ganttScale = prevScale; renderGantt(); }
+  };
+  if(prevScale !== 'month'){ ganttScale = 'month'; renderGantt(); }
+  window.addEventListener('afterprint', restore);
+  setTimeout(()=>{ // даём браузеру дорисовать (часть позиционирования — в requestAnimationFrame)
+    const table = document.querySelector('#panel-gantt .gantt-table');
+    const pageW = 1050; // печатная ширина листа A4 альбомного (~96dpi, поля 10мм)
+    const w = table ? table.scrollWidth : 0;
+    if(appEl && w > pageW) appEl.style.zoom = (pageW / w).toFixed(3);
+    window.print();
+    setTimeout(restore, 500); // страховка, если afterprint не сработал
+  }, 150);
 }
 
 // ─── init ─────────────────────────────────────────────────────────────────────
@@ -3216,9 +3255,11 @@ function setCloudStatus(s){
   const el = document.getElementById('cloudStatus');
   if(bar) bar.style.display = sb ? 'flex' : 'none';
   if(!el) return;
+  el.style.color = '';
   if(s==='sync') el.textContent = '☁ синхронизация…';
   else if(s==='saved') el.textContent = '☁ сохранено';
-  else if(s==='error') el.textContent = '⚠ нет связи с облаком';
+  else if(s==='retry'){ el.textContent = '⚠ не сохранено — повторяем…'; el.style.color = 'var(--text-danger)'; }
+  else if(s==='error'){ el.textContent = '⚠ нет связи с облаком'; el.style.color = 'var(--text-danger)'; }
 }
 
 // собираем всё состояние приложения в один объект (как раньше для localStorage)
@@ -3232,6 +3273,9 @@ function buildPayload(){
 }
 
 let _cloudSaveTimer = null;
+let _cloudRetryTimer = null;
+let _cloudDirty = false;    // есть правки, ещё не подтверждённые облаком
+let _lastCloudStamp = null; // updated_at версии облака, которую мы записали или применили
 function saveState(){
   const payload = buildPayload();
   try{
@@ -3241,44 +3285,228 @@ function saveState(){
   }
   // в облако пишем с задержкой, чтобы объединить частые правки в одну запись
   if(sb){
+    _cloudDirty = true;
     setCloudStatus('sync');
     clearTimeout(_cloudSaveTimer);
-    _cloudSaveTimer = setTimeout(()=>cloudSave(payload), 800);
+    _cloudSaveTimer = setTimeout(()=>{ _cloudSaveTimer = null; cloudSave(buildPayload()); }, 800);
   }
 }
 
 async function cloudSave(payload){
   if(!sb) return;
+  clearTimeout(_cloudRetryTimer);
   try{
     const { data, error } = await sb.from('app_state')
       .update({ data: payload, updated_at: new Date().toISOString() })
       .eq('id', CLOUD_ROW_ID)
-      .select('id');
+      .select('id,updated_at');
     if(error) throw error;
     if(!data || !data.length){
       // запись изменила 0 строк — почти всегда это нет прав на запись (RLS) или нет входа
       console.warn('Запись в облако не изменила ни одной строки — проверьте права доступа (RLS) и вход.');
       setCloudStatus('error');
+      scheduleCloudRetry();
       return;
     }
+    _lastCloudStamp = data[0].updated_at;
+    if(!_cloudSaveTimer) _cloudDirty = false; // новых правок в очереди нет — всё в облаке
     setCloudStatus('saved');
+    maybeSnapshotHistory(payload);
   }catch(e){
     console.warn('Не удалось сохранить в облако:', e);
-    setCloudStatus('error');
+    setCloudStatus('retry');
+    scheduleCloudRetry();
   }
+}
+
+// повтор отправки при сбое связи: каждые 15 секунд, пока не получится
+function scheduleCloudRetry(){
+  clearTimeout(_cloudRetryTimer);
+  _cloudRetryTimer = setTimeout(()=>{ if(_cloudDirty && !_cloudSaveTimer) cloudSave(buildPayload()); }, 15000);
 }
 
 async function cloudLoad(){
   if(!sb) return null;
   try{
     const { data, error } = await sb.from('app_state')
-      .select('data').eq('id', CLOUD_ROW_ID).single();
+      .select('data,updated_at').eq('id', CLOUD_ROW_ID).single();
     if(error) throw error;
-    return data ? data.data : null;
+    return data ? { payload: data.data, stamp: data.updated_at } : null;
   }catch(e){
     console.warn('Не удалось загрузить из облака:', e);
     return null;
   }
+}
+
+// ─── история версий: автоматические снимки состояния в таблице app_state_history ───
+const HISTORY_TABLE = 'app_state_history';
+const HISTORY_KEEP = 30;                      // сколько последних снимков храним
+const HISTORY_MIN_INTERVAL_MS = 10*60*1000;   // автоснимок не чаще раза в 10 минут
+let _historySupported = null;                 // null — не проверяли; false — таблица не настроена в Supabase
+let _lastSnapshotAt = 0;
+
+function historyUnavailable(e){
+  // 42P01/PGRST205 — таблицы нет; 42501 — нет прав: история ещё не включена, работаем без неё
+  if(!e) return false;
+  const code = e.code || '';
+  const msg = String(e.message || '');
+  return code === '42P01' || code === '42501' || code === 'PGRST205' || /Could not find the table/i.test(msg);
+}
+
+async function maybeSnapshotHistory(payload){
+  if(!sb || _historySupported === false) return;
+  if(Date.now() - _lastSnapshotAt < HISTORY_MIN_INTERVAL_MS) return;
+  await snapshotHistory(payload);
+}
+
+async function snapshotHistory(payload){
+  if(!sb || _historySupported === false) return false;
+  try{
+    const { error } = await sb.from(HISTORY_TABLE).insert({ data: payload });
+    if(error) throw error;
+    _historySupported = true;
+    _lastSnapshotAt = Date.now();
+    pruneHistory();
+    return true;
+  }catch(e){
+    if(historyUnavailable(e)) _historySupported = false;
+    else console.warn('Не удалось записать снимок истории:', e);
+    return false;
+  }
+}
+
+// удаляем снимки старше последних HISTORY_KEEP
+async function pruneHistory(){
+  try{
+    const { data } = await sb.from(HISTORY_TABLE).select('id')
+      .order('id',{ascending:false}).range(HISTORY_KEEP, HISTORY_KEEP+200);
+    if(data && data.length) await sb.from(HISTORY_TABLE).delete().in('id', data.map(r=>r.id));
+  }catch(e){ /* не критично */ }
+}
+
+async function renderBackupsList(){
+  const box = document.getElementById('backupsList');
+  if(!box) return;
+  const note = (html)=>{ box.innerHTML = `<div style="font-size:12px;color:var(--text2);line-height:1.6;padding:10px 12px;background:var(--bg2);border-radius:var(--rad);">${html}</div>`; };
+  if(!sb){ note('Нет связи с облаком — резервные копии недоступны.'); return; }
+  note('Загрузка…');
+  try{
+    const { data, error } = await sb.from(HISTORY_TABLE)
+      .select('id,created_at').order('id',{ascending:false}).limit(HISTORY_KEEP);
+    if(error) throw error;
+    _historySupported = true;
+    if(!data || !data.length){
+      note('Пока нет ни одной копии. Они создаются автоматически во время работы (не чаще раза в 10 минут) — или нажмите «Создать копию сейчас».');
+      return;
+    }
+    box.innerHTML = data.map(r=>{
+      const d = new Date(r.created_at);
+      const label = d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})
+        + ', ' + d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:0.5px solid var(--border);border-radius:var(--rad);margin-bottom:6px;">
+        <span style="font-size:12.5px;color:var(--text);"><i class="ti ti-clock" style="margin-right:6px;color:var(--text3);"></i>${label}</span>
+        <button class="btn" style="padding:4px 10px;font-size:11.5px;" onclick="restoreBackup(${r.id})"><i class="ti ti-restore"></i> Восстановить</button>
+      </div>`;
+    }).join('');
+  }catch(e){
+    if(historyUnavailable(e)){
+      _historySupported = false;
+      note('История версий ещё не включена в облаке. Нужно один раз выполнить настройку в панели Supabase — инструкция в файле <b>НАСТРОЙКА_ОБЛАКА.md</b> в папке проекта (или попросите Claude выполнить её).');
+    } else {
+      note('Не удалось загрузить список копий: ' + ((e && e.message) || e));
+    }
+  }
+}
+
+async function createBackupNow(){
+  const btn = document.getElementById('backupNowBtn');
+  if(btn) btn.disabled = true;
+  await snapshotHistory(buildPayload());
+  if(btn) btn.disabled = false;
+  renderBackupsList();
+}
+
+async function restoreBackup(id){
+  if(!confirm('Восстановить данные из этой копии?\nТекущее состояние будет заменено (перед этим мы сохраним его отдельной копией).')) return;
+  try{
+    const { data, error } = await sb.from(HISTORY_TABLE).select('data').eq('id', id).single();
+    if(error || !data) throw (error || new Error('копия не найдена'));
+    await snapshotHistory(buildPayload()); // страховка: текущее состояние тоже в историю
+    if(!applyPayload(data.data)){ alert('Копия пуста или повреждена — восстановление отменено.'); return; }
+    firstRender();
+    saveState(); // восстановленное состояние — в localStorage и в облако
+    closeSettings();
+    showSyncToast('Данные восстановлены из копии');
+  }catch(e){
+    alert('Не удалось восстановить копию: ' + ((e && e.message) || e));
+  }
+}
+
+// ─── живая синхронизация: подхватываем правки с других устройств ─────────────
+const CLOUD_POLL_MS = 20000;
+let _pendingRemote = null; // свежая версия из облака, отложенная пока пользователь печатает
+
+function userIsTyping(){
+  const ae = document.activeElement;
+  return !!(ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.tagName==='SELECT'));
+}
+
+function applyRemote(payload, stamp){
+  if(_cloudDirty || _cloudSaveTimer) return;        // наши правки ещё в пути — не затираем
+  if(userIsTyping()){ _pendingRemote = { payload, stamp }; return; } // человек вводит — подождём
+  _lastCloudStamp = stamp;
+  if(!applyPayload(payload)) return;
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }catch(e){}
+  firstRender();
+  showSyncToast('Обновлено: правки с другого устройства');
+}
+
+document.addEventListener('focusout', ()=>{
+  if(_pendingRemote){
+    const r = _pendingRemote; _pendingRemote = null;
+    setTimeout(()=>applyRemote(r.payload, r.stamp), 300);
+  }
+});
+
+async function cloudCheck(){
+  if(!sb || document.hidden || _cloudDirty || _cloudSaveTimer) return;
+  try{
+    const { data, error } = await sb.from('app_state').select('updated_at').eq('id', CLOUD_ROW_ID).single();
+    if(error || !data) return;
+    if(data.updated_at === _lastCloudStamp) return; // ничего нового
+    const res = await cloudLoad();
+    if(res && res.payload) applyRemote(res.payload, res.stamp);
+  }catch(e){ /* нет связи — проверим в следующий раз */ }
+}
+
+// мгновенные обновления через realtime-канал Supabase (если включён в панели);
+// фоновая проверка раз в CLOUD_POLL_MS остаётся запасным механизмом
+function startRealtimeSync(){
+  if(!sb || typeof sb.channel !== 'function') return;
+  try{
+    sb.channel('app_state_live')
+      .on('postgres_changes',
+        { event:'UPDATE', schema:'public', table:'app_state', filter:'id=eq.'+CLOUD_ROW_ID },
+        ()=>cloudCheck())
+      .subscribe();
+  }catch(e){ /* realtime не настроен — работает только фоновая проверка */ }
+}
+
+// всплывающее уведомление у индикатора облака
+let _syncToastTimer = null;
+function showSyncToast(msg){
+  let el = document.getElementById('syncToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'syncToast';
+    el.className = 'no-print';
+    el.style.cssText = 'position:fixed;bottom:48px;right:12px;z-index:950;font-size:12px;color:#fff;background:#185FA5;border-radius:8px;padding:8px 14px;box-shadow:0 4px 14px rgba(0,0,0,0.2);opacity:0;transition:opacity .25s;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  requestAnimationFrame(()=>{ el.style.opacity = '1'; });
+  clearTimeout(_syncToastTimer);
+  _syncToastTimer = setTimeout(()=>{ el.style.opacity = '0'; }, 3500);
 }
 
 // диагностика: пробная запись и чтение облака (без консоли)
@@ -4026,6 +4254,7 @@ function switchSettingsTab(name,el){
   document.querySelectorAll('.modal-section').forEach(s=>s.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('settings-'+name).classList.add('active');
+  if(name==='backups') renderBackupsList(); // список копий подгружаем при открытии вкладки
 }
 
 // ── список видов графика (левая колонка внутри раздела "Вид графика") ──────────
@@ -4414,7 +4643,8 @@ async function bootFromCloud(){
   let local = null;
   try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw) local = JSON.parse(raw); }catch(e){}
   // и облачную
-  const remote = await cloudLoad();
+  const remoteRes = await cloudLoad();
+  const remote = remoteRes ? remoteRes.payload : null;
 
   const localHas  = local  && Array.isArray(local.projects)  && local.projects.length;
   const remoteHas = remote && Array.isArray(remote.projects) && remote.projects.length;
@@ -4430,6 +4660,7 @@ async function bootFromCloud(){
   else if(remoteHas){ chosen = remote; }
   else { pushUp = true; } // нигде ничего нет — останется стартовая заготовка, зальём её
 
+  if(chosen === remote && remoteRes) _lastCloudStamp = remoteRes.stamp; // запомнили применённую версию облака
   if(chosen) applyPayload(chosen);
   firstRender();
   if(pushUp) await cloudSave(buildPayload());
@@ -4438,14 +4669,22 @@ async function bootFromCloud(){
 
 // досохраняем отложенную запись при уходе со страницы/закрытии вкладки
 function flushCloudSave(){
-  if(sb && _cloudSaveTimer){
+  if(sb && (_cloudSaveTimer || _cloudDirty)){
     clearTimeout(_cloudSaveTimer);
     _cloudSaveTimer = null;
     cloudSave(buildPayload());
   }
 }
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushCloudSave(); });
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='hidden') flushCloudSave();
+  else cloudCheck(); // вернулись во вкладку — сразу проверяем, нет ли правок с других устройств
+});
 window.addEventListener('pagehide', flushCloudSave);
+// при закрытии с неотправленными правками — предупреждаем (браузер покажет своё окно)
+window.addEventListener('beforeunload', (e)=>{
+  flushCloudSave();
+  if(_cloudDirty){ e.preventDefault(); e.returnValue = ''; }
+});
 
 // ─── старт приложения ─────────────────────────────────────────────────────────
 (async function boot(){
@@ -4457,6 +4696,9 @@ window.addEventListener('pagehide', flushCloudSave);
   }
   // без входа: сразу читаем/пишем общую строку облака
   await bootFromCloud();
+  // следим за правками с других устройств: realtime (если включён) + фоновая проверка
+  startRealtimeSync();
+  setInterval(cloudCheck, CLOUD_POLL_MS);
 })();
 
 // перестраиваем график при изменении ширины окна, чтобы в режиме "Месяц" он снова растянулся/сжался под область просмотра
@@ -4546,6 +4788,9 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item" onclick="switchSettingsTab('units',this)">
           <i class="ti ti-ruler-measure"></i> Единицы измерения
         </div>
+        <div class="modal-sidebar-item" onclick="switchSettingsTab('backups',this)">
+          <i class="ti ti-history"></i> Резервные копии
+        </div>
         <div class="modal-sidebar-item" onclick="switchSettingsTab('data',this)">
           <i class="ti ti-database"></i> Данные
         </div>
@@ -4594,6 +4839,18 @@ window.addEventListener('resize', ()=>{
             <input type="text" id="unitInput" placeholder="Например: т, км, компл., руб...." onkeydown="if(event.key==='Enter')addUnit()">
             <button class="btn btn-primary" onclick="addUnit()"><i class="ti ti-plus"></i> Добавить</button>
           </div>
+        </div>
+
+        <div id="settings-backups" class="modal-section">
+          <div class="settings-section-title">Резервные копии</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.5;">
+            Снимки всех данных создаются автоматически во время работы (не чаще раза в 10 минут), храним последние 30.
+            Любую копию можно вернуть — текущее состояние при этом тоже сохранится отдельной копией.
+          </div>
+          <div style="margin-bottom:12px;">
+            <button class="btn btn-primary" id="backupNowBtn" onclick="createBackupNow()"><i class="ti ti-device-floppy"></i> Создать копию сейчас</button>
+          </div>
+          <div id="backupsList"></div>
         </div>
 
         <div id="settings-data" class="modal-section">
@@ -4777,6 +5034,22 @@ window.addEventListener('resize', ()=>{
   </div>
 </div>
 
+<!-- ОКНО ПАРОЛЯ РЕДАКТИРОВАНИЯ -->
+<div id="editPassOverlay" class="no-print" style="position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,0.45);display:none;align-items:center;justify-content:center;">
+  <div style="width:300px;max-width:90vw;padding:24px;border:1px solid var(--border);border-radius:12px;background:var(--bg);box-shadow:0 10px 40px rgba(0,0,0,0.18);">
+    <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;"><i class="ti ti-lock-open" style="color:#185FA5;margin-right:4px;"></i>Режим редактирования</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">Введите пароль, чтобы вносить изменения</div>
+    <input id="editPassInput" type="password" placeholder="Пароль" autocomplete="off"
+      onkeydown="if(event.key==='Enter')confirmEditPass();if(event.key==='Escape')closeEditPass();"
+      style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font:inherit;">
+    <div style="display:flex;gap:8px;">
+      <button class="btn" style="flex:1;justify-content:center;" onclick="closeEditPass()">Отмена</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="confirmEditPass()">Войти</button>
+    </div>
+    <div id="editPassError" style="font-size:12px;color:var(--text-danger);margin-top:10px;min-height:15px;"></div>
+  </div>
+</div>
+
 <!-- ЭКРАН ВХОДА -->
 <div id="authOverlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;align-items:center;justify-content:center;">
   <div style="width:320px;max-width:90vw;padding:28px;border:1px solid var(--border);border-radius:12px;background:var(--bg);box-shadow:0 10px 40px rgba(0,0,0,0.18);">
@@ -4794,7 +5067,7 @@ window.addEventListener('resize', ()=>{
 </div>
 
 <!-- ИНДИКАТОР ОБЛАКА + ВЫХОД -->
-<div id="cloudBar" style="position:fixed;bottom:10px;right:12px;z-index:900;display:none;align-items:center;gap:12px;font-size:11px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+<div id="cloudBar" class="no-print" style="position:fixed;bottom:10px;right:12px;z-index:900;display:none;align-items:center;gap:12px;font-size:11px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
   <span id="cloudStatus">☁ облако</span>
   <span style="cursor:pointer;color:var(--text-info);" onclick="cloudDiag()">Проверка</span>
 </div>
