@@ -183,6 +183,9 @@ body.readonly .th-edit-btn{display:none!important;}
 
 /* более тонкие строки разделов / работ / подвидов */
 .cat-row td{padding-top:1px!important;padding-bottom:1px!important;}
+/* даты/длительность раздела — тот же отступ 4px, что и в строках работ (.tight-col),
+   иначе текст, выровненный по правому краю, «плывёт» относительно работ на несколько px */
+.cat-row td.tight-col{padding-left:4px!important;padding-right:4px!important;}
 .gantt-table td{padding-top:0;padding-bottom:0;}
 .fp-mode-toggle{display:flex;justify-content:center;gap:2px;margin-bottom:2px;}
 .fp-mode-btn{font-size:9px;padding:0 4px;border-radius:3px;cursor:pointer;color:var(--text3);background:none;border:0.5px solid transparent;line-height:1.6;white-space:nowrap;}
