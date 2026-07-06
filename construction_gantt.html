@@ -1931,6 +1931,25 @@ function setEarlyFactOverride(taskId, periodKey, newVol){
   saveState();
 }
 
+// полностью убрать факт вне графика за этот период (в отличие от setEarlyFactOverride(...,0),
+// которое ЗАПИСЫВАЕТ 0 на каждый день — здесь дни удаляются из factOverrides, и ячейка
+// возвращается в исходное состояние "работа ещё не должна была начаться"
+function clearEarlyFactOverride(taskId, periodKey){
+  if(isReadOnly()) return;
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t || !t.factOverrides || !t.factOverrides['day']){ refreshTaskRow(taskId); return; }
+  const idxs = calendarPeriodWorkingDayIdxs(periodKey);
+  const dayOv = t.factOverrides['day'];
+  let oldSum = 0;
+  for(const idx of idxs){ if(dayOv['d'+idx]!==undefined){ oldSum += dayOv['d'+idx]||0; delete dayOv['d'+idx]; } }
+  if(oldSum){
+    t.factVol = Math.max(0, (t.factVol||0) - oldSum);
+    t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
+  }
+  refreshTaskRow(taskId);
+  saveState();
+}
+
 function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
   if(isReadOnly()) return;
   const inp = document.createElement('input');
@@ -1939,7 +1958,12 @@ function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
   inp.onclick=e=>e.stopPropagation();
   inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
   inp.onblur=()=>{
-    if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setEarlyFactOverride(taskId,periodKey,v);return;}}
+    if(!inp.dataset.cancel){
+      const raw = inp.value.trim();
+      if(raw===''){ clearEarlyFactOverride(taskId,periodKey); return; }
+      const v=parseFloat(raw);
+      if(!isNaN(v)){ setEarlyFactOverride(taskId,periodKey,v); return; }
+    }
     refreshTaskRow(taskId);
   };
   el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
