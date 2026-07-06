@@ -1901,26 +1901,35 @@ function earlyFactValueForPeriod(t, periodKey){
   return { value: Math.round(share*idxs.length), isHint:true };
 }
 
-// HTML ячеек факта вне графика — своим цветом, без привязки к плановым периодам работы
+// HTML ячеек факта вне графика — своим цветом, без привязки к плановым периодам работы.
+// Редактировать можно только уже прошедшие или сегодняшний период — будущие (до планового
+// начала) периоды показываются только как подсказка-прогноз, без возможности внести данные
+// вперёд времени.
 function earlyFactCellsHtml(t){
   const keys = preStartPeriods(t);
   if(!keys.length) return '';
   const startIdx = dayIndexOfDate(taskStartDate(t));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
   return keys.map(key=>{
     const res = earlyFactValueForPeriod(t, key);
     const isEmpty = res===null;
     if(isEmpty && !canEdit) return ''; // нечего показывать и вводить нельзя
+    const isFuture = parseInt(key.slice(1)) > todayIdx;
+    const canEditThis = canEdit && !isFuture;
     const isHint = !isEmpty && res.isHint;
     const {left,width} = periodKeyGeom(key, startIdx);
     const shown = isEmpty ? '' : res.value.toLocaleString('ru');
     const clickVal = isEmpty ? 0 : res.value;
-    const title = isEmpty
-      ? 'По плану работа ещё не должна была начаться — нажмите, чтобы внести факт вне графика'
-      : isHint
-        ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
-        : `Факт вне графика: ${res.value.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
+    const title = isFuture
+      ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — доступно для ввода со дня наступления`
+      : isEmpty
+        ? 'По плану работа ещё не должна была начаться — нажмите, чтобы внести факт вне графика'
+        : isHint
+          ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
+          : `Факт вне графика: ${res.value.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
     const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'')+(isHint?' gantt-fact-early-hint':'');
-    return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
+    return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEditThis?'cursor:pointer;':''}"${canEditThis?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}"`:''} title="${title}">${shown}</span>`;
   }).join('');
 }
 
