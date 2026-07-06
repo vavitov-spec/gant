@@ -210,6 +210,7 @@ body.readonly .th-edit-btn{display:none!important;}
 .gantt-fact-early{background:rgba(124,58,237,0.14);color:#6D28D9;border:1px dashed rgba(124,58,237,0.55);border-radius:3px;}
 .gantt-fact-early-empty{background:transparent;border:1px dashed rgba(124,58,237,0.35);color:var(--text3);}
 .gantt-fact-early-empty:hover{background:rgba(124,58,237,0.12)!important;}
+.gantt-fact-early-hint{color:var(--text3)!important;}
 /* оверлеи «сверхсрочной» зоны — периоды за датой завершения проекта */
 .overtime-band{position:absolute;background:rgba(234,88,12,0.10);z-index:1;pointer-events:none;}
 .project-end-line{position:absolute;width:2px;background:#EA580C;z-index:5;pointer-events:none;opacity:0.9;}
@@ -1700,25 +1701,7 @@ function factPeriodVolumes(t){
   const planPers = planPeriodVolumes(t);
   if(!planPers.length) return [];
   const dayFacts = (t.factOverrides && t.factOverrides['day']) || {};
-
-  // все рабочие дни задачи (индексы в общей шкале дней)
-  const allWD = taskWorkingDayIdxs(t);
-
-  // введённые дни и их суммарный факт
-  const entered = new Set();
-  let sumEntered = 0;
-  for(const idx of allWD){
-    const v = dayFacts['d'+idx];
-    if(v !== undefined){ entered.add(idx); sumEntered += (v||0); }
-  }
-  const hasAnyEntry = entered.size > 0;
-
-  // остаток объёма делим поровну между не введёнными рабочими днями (равномерная проекция).
-  // Остаток считаем от ОБЩЕГО факта задачи (t.factVol, включает исходный факт без дневной
-  // разбивки), а не только от введённых дней — иначе проекция игнорировала бы уже выполненное.
-  const nonEnteredCount = allWD.length - entered.size;
-  const remaining = Math.max(0, (t.volume||0) - Math.max(sumEntered, t.factVol||0));
-  const share = nonEnteredCount > 0 ? remaining / nonEnteredCount : 0;
+  const { entered, hasAnyEntry, share } = factProjection(t);
 
   return planPers.map(per=>{
     const past = isPeriodPast(per.key);
@@ -1804,6 +1787,47 @@ function periodKeyGeom(key, clipBeforeIdx){
   return { left:parseInt(key.slice(1))*dayPx, width:dayPx };
 }
 
+// рабочие дни ДО планового начала, входящие в открытую зону факта вне графика (см. preStartPeriods) —
+// день-уровневый список независимо от масштаба, нужен только для расчёта общей проекции остатка
+// (factProjection), чтобы «дозаполнение» после факта вне графика училось и в обычной части графика
+function preStartWorkingDayIdxs(t){
+  const startIdx = dayIndexOfDate(taskStartDate(t));
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const enteredBefore = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx<startIdx);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
+  let zoneStart = Infinity;
+  if(todayIdx < startIdx) zoneStart = todayIdx;
+  if(enteredBefore.length) zoneStart = Math.min(zoneStart, ...enteredBefore);
+  if(!isFinite(zoneStart) || zoneStart >= startIdx) return [];
+  zoneStart = Math.max(0, zoneStart);
+  const p = activeProject();
+  const allDays = periodDates();
+  const idxs = [];
+  for(let i=zoneStart;i<startIdx;i++){ const d=allDays[i]; if(d && isWorkingDay(d,p)) idxs.push(i); }
+  return idxs;
+}
+
+// общая проекция остатка объёма — общий пул рабочих дней задачи (план + открытая зона факта
+// вне графика, если работу начали раньше срока) и равная доля на один нераспределённый день.
+// Общий пул нужен, чтобы после факта вне графика остаток корректно доводился до планового
+// окончания, а не только внутри уже начавшегося планового периода.
+function factProjection(t){
+  const dayFacts = (t.factOverrides && t.factOverrides['day']) || {};
+  const combinedWD = preStartWorkingDayIdxs(t).concat(taskWorkingDayIdxs(t));
+  const entered = new Set();
+  let sumEntered = 0;
+  for(const idx of combinedWD){
+    const v = dayFacts['d'+idx];
+    if(v !== undefined){ entered.add(idx); sumEntered += (v||0); }
+  }
+  const hasAnyEntry = entered.size > 0;
+  const nonEnteredCount = combinedWD.length - entered.size;
+  const remaining = Math.max(0, (t.volume||0) - Math.max(sumEntered, t.factVol||0));
+  const share = nonEnteredCount > 0 ? remaining / nonEnteredCount : 0;
+  return { entered, hasAnyEntry, share };
+}
+
 // периоды ДО планового начала работы, которые нужно показать как «факт вне графика»
 function preStartPeriods(t){
   if(ganttScale==='month') return [];
@@ -1845,15 +1869,19 @@ function preStartPeriods(t){
   return keys;
 }
 
-// значение факта, уже введённое в этом периоде (сумма по его рабочим дням), или null — пусто
+// значение факта в этом периоде: {value, isHint:false} — реально введённое; {value, isHint:true} —
+// период ещё не заполнен, но где-то по задаче уже есть факт — показываем проекцию остатка (серым,
+// как подсказку для дозаполнения); null — по задаче вообще ничего не введено (единственная точка входа)
 function earlyFactValueForPeriod(t, periodKey){
   const startIdx = dayIndexOfDate(taskStartDate(t));
   const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
   const idxs = calendarPeriodWorkingDayIdxs(periodKey, startIdx);
   if(!idxs.length) return null;
   const entered = idxs.filter(idx=>dayOv['d'+idx]!==undefined);
-  if(!entered.length) return null;
-  return Math.round(entered.reduce((s,idx)=>s+(dayOv['d'+idx]||0),0));
+  if(entered.length) return { value: Math.round(entered.reduce((s,idx)=>s+(dayOv['d'+idx]||0),0)), isHint:false };
+  const { hasAnyEntry, share } = factProjection(t);
+  if(!hasAnyEntry) return null;
+  return { value: Math.round(share*idxs.length), isHint:true };
 }
 
 // HTML ячеек факта вне графика — своим цветом, без привязки к плановым периодам работы
@@ -1862,17 +1890,20 @@ function earlyFactCellsHtml(t){
   if(!keys.length) return '';
   const startIdx = dayIndexOfDate(taskStartDate(t));
   return keys.map(key=>{
-    const v = earlyFactValueForPeriod(t, key);
-    const isEmpty = v===null;
+    const res = earlyFactValueForPeriod(t, key);
+    const isEmpty = res===null;
     if(isEmpty && !canEdit) return ''; // нечего показывать и вводить нельзя
+    const isHint = !isEmpty && res.isHint;
     const {left,width} = periodKeyGeom(key, startIdx);
-    const shown = isEmpty ? '' : v.toLocaleString('ru');
-    const clickVal = isEmpty ? 0 : v;
+    const shown = isEmpty ? '' : res.value.toLocaleString('ru');
+    const clickVal = isEmpty ? 0 : res.value;
     const title = isEmpty
       ? 'По плану работа ещё не должна была начаться — нажмите, чтобы внести факт вне графика'
-      : `Факт вне графика: ${v.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
-    const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'');
-    return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
+      : isHint
+        ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
+        : `Факт вне графика: ${res.value.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
+    const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'')+(isHint?' gantt-fact-early-hint':'');
+    return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
   }).join('');
 }
 
@@ -2493,6 +2524,8 @@ function refreshTaskRow(taskId){
   if(filtersActive || idx<0 || !old){ renderGantt(); return; }
   old.replaceWith(buildTaskRow(tasks[idx], idx, weekendBandsHtml(), _workNumOf.get(taskId)));
   renderStats();
+  applyColumnVisibility();
+  applyStickyColumnOffsets();
   renderGanttLinks();
   requestAnimationFrame(()=>{ renderTodayLine(); renderProjectEndOverlay(); });
 }
