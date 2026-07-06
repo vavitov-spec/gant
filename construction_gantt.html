@@ -1741,73 +1741,166 @@ function factPeriodVolumes(t){
 }
 
 // ─── факт вне графика: работу начали выполнять раньше плановой даты начала ──────────────
-// Плановые даты и распределение объёма НЕ трогаем — просто разрешаем внести факт на дни
-// до планового начала и показываем это отдельным цветом (не план, не обычный факт),
-// чтобы отклонение «начали раньше графика» было заметно, а не скрывалось задним числом.
+// Плановые даты и распределение объёма НЕ трогаем. Пока по работе нет ни одной записи раньше
+// плана — доступна только ОДНА точка входа (текущий период: сегодняшний день или неделя —
+// по масштабу), чтобы не загромождать строку пустыми ячейками через весь промежуток до плана.
+// Как только в неё внесли факт — открывается весь промежуток от этой записи до планового
+// начала (по дням/неделям, как и обычный факт), чтобы можно было дозаполнить задним числом.
 
-// рабочие дни ДО планового начала, которые нужно показать: уже введённые факт-записи
-// раньше плана, плюс — если сегодня раньше плана — весь промежуток от сегодня до начала
-function preStartWorkingDayIdxs(t){
-  const startIdx = dayIndexOfDate(taskStartDate(t));
-  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
-  const enteredBefore = Object.keys(dayOv)
-    .map(k=>parseInt(k.slice(1)))
-    .filter(idx=>!isNaN(idx) && idx<startIdx);
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayIdx = dayIndexOfDate(today);
-  let zoneStart = Infinity;
-  if(todayIdx < startIdx) zoneStart = todayIdx; // сегодня раньше плана — открываем зону с сегодня
-  if(enteredBefore.length) zoneStart = Math.min(zoneStart, ...enteredBefore); // + уже введённые более ранние дни
-  if(!isFinite(zoneStart) || zoneStart >= startIdx) return [];
-  zoneStart = Math.max(0, zoneStart);
-  const p = activeProject();
-  const allDays = periodDates();
-  const idxs = [];
-  for(let i=zoneStart;i<startIdx;i++){ const d=allDays[i]; if(d && isWorkingDay(d,p)) idxs.push(i); }
-  return idxs;
+// начало календарной недельной «корзины» (пн..вс, как и в обычном недельном масштабе),
+// которой принадлежит день с этим индексом — не зависит от даты начала конкретной работы
+function weekBucketStart(dayIdx){
+  const days = periodDates();
+  let i = 0;
+  while(i < days.length){
+    const wd0 = days[i].getDay();
+    const span = Math.min(wd0===0?1:(8-wd0), days.length-i);
+    if(dayIdx < i+span) return i;
+    i += span;
+  }
+  return dayIdx;
 }
 
-// HTML ячеек факта вне графика — те же координаты (день × ширина дня), что и у обычных
-// ячеек факта, но своим цветом и без привязки к плановым периодам
-function earlyFactCellsHtml(t){
-  if(ganttScale==='month') return ''; // в месячном масштабе ввод факта отключён и для обычных дней
-  const idxs = preStartWorkingDayIdxs(t);
-  if(!idxs.length) return '';
+// ключ календарного периода (день/неделя — по текущему масштабу), которому принадлежит день
+function calendarPeriodKey(dayIdx){
+  return ganttScale==='week' ? 'w'+weekBucketStart(dayIdx) : 'd'+dayIdx;
+}
+
+// рабочие дни календарного периода по ключу — та же сетка недель/дней, что и у плана,
+// но БЕЗ привязки к датам начала/окончания конкретной работы (нужно для дней до плана).
+// beforeIdx (если задан) обрезает по плановому началу работы — иначе последняя, пограничная
+// неделя «вне графика» захватила бы и дни, уже относящиеся к обычному графику этой работы.
+function calendarPeriodWorkingDayIdxs(periodKey, beforeIdx){
+  const p = activeProject();
+  const allDays = periodDates();
+  let idxs;
+  if(periodKey.startsWith('w')){
+    const i = parseInt(periodKey.slice(1));
+    if(i>=allDays.length) return [];
+    const wd0 = allDays[i].getDay();
+    const span = Math.min(wd0===0?1:(8-wd0), allDays.length-i);
+    idxs = [];
+    for(let j=0;j<span;j++){ const idx=i+j, day=allDays[idx]; if(day && isWorkingDay(day,p)) idxs.push(idx); }
+  } else {
+    const idx = parseInt(periodKey.slice(1));
+    const day = allDays[idx];
+    idxs = (day && isWorkingDay(day,p)) ? [idx] : [];
+  }
+  return beforeIdx!==undefined ? idxs.filter(idx=>idx<beforeIdx) : idxs;
+}
+
+// геометрия периода (левый край и ширина в px) для текущего масштаба; clipBeforeIdx обрезает
+// ширину недельной ячейки по плановому началу работы (см. calendarPeriodWorkingDayIdxs)
+function periodKeyGeom(key, clipBeforeIdx){
   const dayPx = SCALE_DAY_PX[ganttScale];
+  if(key.startsWith('w')){
+    const i = parseInt(key.slice(1));
+    const days = periodDates();
+    const wd0 = days[i].getDay();
+    let span = Math.min(wd0===0?1:(8-wd0), days.length-i);
+    if(clipBeforeIdx!==undefined) span = Math.max(0, Math.min(span, clipBeforeIdx-i));
+    return { left:i*dayPx, width:span*dayPx };
+  }
+  return { left:parseInt(key.slice(1))*dayPx, width:dayPx };
+}
+
+// периоды ДО планового начала работы, которые нужно показать как «факт вне графика»
+function preStartPeriods(t){
+  if(ganttScale==='month') return [];
+  const startIdx = dayIndexOfDate(taskStartDate(t));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
+  const todayKey = calendarPeriodKey(todayIdx);
+  const todayPeriodStart = parseInt(todayKey.slice(1));
+
   const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
-  return idxs.map(idx=>{
-    const v = dayOv['d'+idx];
-    const isEmpty = v===undefined;
+  const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx<startIdx);
+
+  if(!enteredIdxs.length){
+    // ничего не внесено раньше плана — доступна только одна точка входа: текущий период
+    // (сегодня), а если сегодня выходной (в нём самом нет рабочих дней) — откатываемся
+    // на ближайший предыдущий период с рабочими днями («прошлый период»)
+    if(todayPeriodStart >= startIdx) return [];
+    let idx = todayIdx;
+    while(idx >= 0){
+      const key = calendarPeriodKey(idx);
+      if(calendarPeriodWorkingDayIdxs(key, startIdx).length) return [key];
+      idx = parseInt(key.slice(1)) - 1;
+    }
+    return [];
+  }
+
+  // уже есть более ранние записи — открываем весь промежуток от самой ранней из них до плана
+  const earliestEntered = Math.min(...enteredIdxs);
+  let zoneStart = parseInt(calendarPeriodKey(earliestEntered).slice(1));
+  if(todayPeriodStart < startIdx) zoneStart = Math.min(zoneStart, todayPeriodStart);
+
+  const keys = [];
+  let i = zoneStart;
+  while(i < startIdx){
+    const key = calendarPeriodKey(i);
+    if(calendarPeriodWorkingDayIdxs(key, startIdx).length) keys.push(key); // выходные пропускаем
+    i += (key.startsWith('w') ? periodKeyGeom(key).width / SCALE_DAY_PX[ganttScale] : 1);
+  }
+  return keys;
+}
+
+// значение факта, уже введённое в этом периоде (сумма по его рабочим дням), или null — пусто
+function earlyFactValueForPeriod(t, periodKey){
+  const startIdx = dayIndexOfDate(taskStartDate(t));
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const idxs = calendarPeriodWorkingDayIdxs(periodKey, startIdx);
+  if(!idxs.length) return null;
+  const entered = idxs.filter(idx=>dayOv['d'+idx]!==undefined);
+  if(!entered.length) return null;
+  return Math.round(entered.reduce((s,idx)=>s+(dayOv['d'+idx]||0),0));
+}
+
+// HTML ячеек факта вне графика — своим цветом, без привязки к плановым периодам работы
+function earlyFactCellsHtml(t){
+  const keys = preStartPeriods(t);
+  if(!keys.length) return '';
+  const startIdx = dayIndexOfDate(taskStartDate(t));
+  return keys.map(key=>{
+    const v = earlyFactValueForPeriod(t, key);
+    const isEmpty = v===null;
     if(isEmpty && !canEdit) return ''; // нечего показывать и вводить нельзя
+    const {left,width} = periodKeyGeom(key, startIdx);
     const shown = isEmpty ? '' : v.toLocaleString('ru');
-    const left = idx*dayPx;
     const clickVal = isEmpty ? 0 : v;
     const title = isEmpty
       ? 'По плану работа ещё не должна была начаться — нажмите, чтобы внести факт вне графика'
       : `Факт вне графика: ${v.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
     const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'');
-    return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${dayPx}px;overflow:hidden;font-size:9px;font-weight:${isEmpty?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},${idx},${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},${idx},${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
+    return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
   }).join('');
 }
 
-function setEarlyFactOverride(taskId, dayIdx, newVol){
+function setEarlyFactOverride(taskId, periodKey, newVol){
   if(isReadOnly()) return;
   const t = tasks.find(x=>x.id===taskId);
   if(!t) return;
   newVol = Math.max(0, Math.round(Number(newVol)||0));
+  const idxs = calendarPeriodWorkingDayIdxs(periodKey);
+  if(!idxs.length) return;
   if(!t.factOverrides) t.factOverrides = {};
   if(!t.factOverrides['day']) t.factOverrides['day'] = {};
-  const key = 'd'+dayIdx;
-  const oldVal = t.factOverrides['day'][key] || 0;
-  if(newVol>0) t.factOverrides['day'][key] = newVol; else delete t.factOverrides['day'][key];
-  // общий факт задачи обновляем по разнице — как и обычный факт по периодам
-  t.factVol = Math.max(0, (t.factVol||0) - oldVal + newVol);
+  const dayOv = t.factOverrides['day'];
+  // очищаем прежние значения этого периода и запоминаем их сумму — общий факт обновим по разнице
+  let oldSum = 0;
+  for(const idx of idxs){ if(dayOv['d'+idx]!==undefined){ oldSum += dayOv['d'+idx]||0; delete dayOv['d'+idx]; } }
+  // равномерно распределяем введённое значение по рабочим дням периода (как и обычный факт по неделям)
+  const r = newVol/idxs.length;
+  let s = 0;
+  for(let i=0;i<idxs.length-1;i++){ const v=Math.round((i+1)*r)-Math.round(i*r); dayOv['d'+idxs[i]]=v; s+=v; }
+  dayOv['d'+idxs[idxs.length-1]] = Math.max(0, newVol-s);
+  t.factVol = Math.max(0, (t.factVol||0) - oldSum + newVol);
   t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
   refreshTaskRow(taskId);
   saveState();
 }
 
-function editEarlyFactPeriod(taskId, dayIdx, currentVol, el){
+function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
   if(isReadOnly()) return;
   const inp = document.createElement('input');
   inp.type='text'; inp.inputMode='numeric'; inp.value=currentVol;
@@ -1815,7 +1908,7 @@ function editEarlyFactPeriod(taskId, dayIdx, currentVol, el){
   inp.onclick=e=>e.stopPropagation();
   inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
   inp.onblur=()=>{
-    if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setEarlyFactOverride(taskId,dayIdx,v);return;}}
+    if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setEarlyFactOverride(taskId,periodKey,v);return;}}
     refreshTaskRow(taskId);
   };
   el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
