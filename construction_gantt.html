@@ -1208,10 +1208,11 @@ function sectionSummaryBarHtml(catId){
   const title = `${formatDateDDMMYY(r.startDate)}–${formatDateDDMMYY(r.endDate)}: факт ${r.factTot.toLocaleString('ru')} / план ${r.planTot.toLocaleString('ru')} (${pct}%)`;
 
   let greenW=0, redW=0;
-  if(todayOnTask>0 && r.planTot>0){
+  if(r.planTot>0){
     const factOnTask = Math.min((r.factTot/r.planTot)*barW, barW);
-    greenW = Math.min(factOnTask, todayOnTask);
-    redW   = Math.max(todayOnTask-factOnTask, 0);
+    const cap = todayOnTask>0 ? todayOnTask : factOnTask;
+    greenW = Math.min(factOnTask, cap);
+    redW   = Math.max(cap-factOnTask, 0);
   }
   let inner = '';
   if(greenW>0) inner += `<div style="position:absolute;top:0;left:0;width:${(greenW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#4FB783,#2E8C5D);pointer-events:none;"></div>`;
@@ -2573,11 +2574,16 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
           const todayAbs    = parseFloat(todayMarkerLeft().value);
           const todayOnTask = Math.max(0, Math.min(todayAbs - barLeft, barW));
           let inner = '';
-          if(todayOnTask > 0 && t.volume && barW > 0){
+          if(t.volume && barW > 0){
             const factVol   = t.factVol || 0;
             const factOnTask = Math.min((factVol / t.volume) * barW, barW);
-            const greenW = Math.min(factOnTask, todayOnTask);
-            const redW   = Math.max(todayOnTask - factOnTask, 0);
+            // пока план ещё не наступил (сегодня раньше начала — todayOnTask=0), отставания
+            // (красного) не бывает: работу ещё рано было начинать, а факт вне графика уже
+            // есть — просто красим зелёным от начала полосы. Как только план начался — как
+            // раньше, зелёный/красный относительно доли прошедшего времени.
+            const cap = todayOnTask > 0 ? todayOnTask : factOnTask;
+            const greenW = Math.min(factOnTask, cap);
+            const redW   = Math.max(cap - factOnTask, 0);
             if(greenW > 0) inner += `<div style="position:absolute;top:0;left:0;width:${(greenW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#4FB783,#2E8C5D);pointer-events:none;"></div>`;
             if(redW   > 0) inner += `<div style="position:absolute;top:0;left:${(greenW/barW*100).toFixed(2)}%;width:${(redW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#E36A66,#C43F3F);pointer-events:none;"></div>`;
           }
