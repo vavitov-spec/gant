@@ -28,6 +28,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
   .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
   .gantt-fact-early-empty{outline-color:rgba(134,239,172,0.35)!important;}
+  .gantt-fact-late{background:rgba(251,191,36,0.18)!important;color:#FCD34D!important;outline-color:rgba(251,191,36,0.55)!important;}
+  .gantt-fact-late-empty{outline-color:rgba(251,191,36,0.35)!important;}
 }
 .layout{max-width:none;height:100vh;margin:0 auto;display:flex;flex-direction:column;gap:3px;padding:0 8px;}
 .sidebar{width:100%;flex-shrink:0;background:var(--bg);border-radius:var(--rad-lg) var(--rad-lg) 0 0;border:0.5px solid var(--border);border-bottom:none;overflow:visible;display:flex;flex-direction:row;align-items:center;position:sticky;top:0;}
@@ -103,7 +105,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-mode-chart .gantt-vol-label,
 .gantt-mode-chart .gantt-fact-bg,
 .gantt-mode-chart .gantt-fact-vol,
-.gantt-mode-chart .gantt-fact-early { display:none !important; }
+.gantt-mode-chart .gantt-fact-early,
+.gantt-mode-chart .gantt-fact-late { display:none !important; }
 .gantt-mode-chart .bar-wrap { height:28px !important; }
 /* линии связи мешают читать цифры в режиме «Данные» — показываем их только в режиме «График»;
    сам svg не скрываем, чтобы оставалась видна временная линия при перетаскивании новой связи */
@@ -210,6 +213,12 @@ body.readonly .th-edit-btn{display:none!important;}
 .gantt-fact-early-empty{background:transparent;outline:1px dashed rgba(34,197,94,0.35);outline-offset:-1px;color:var(--text3);}
 .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;}
 .gantt-fact-early-hint{color:var(--text3)!important;}
+/* факт после графика: сроки по плану прошли, а факт ещё не набрал объём — тот же язык, но
+   янтарным цветом, чтобы визуально отличать от «начали раньше» (зелёный) */
+.gantt-fact-late{background:rgba(217,119,6,0.14);color:#B45309;outline:1px dashed rgba(217,119,6,0.55);outline-offset:-1px;border-radius:3px;}
+.gantt-fact-late-empty{background:transparent;outline:1px dashed rgba(217,119,6,0.35);outline-offset:-1px;color:var(--text3);}
+.gantt-fact-late-empty:hover{background:rgba(217,119,6,0.12)!important;}
+.gantt-fact-late-hint{color:var(--text3)!important;}
 /* оверлеи «сверхсрочной» зоны — периоды за датой завершения проекта */
 .overtime-band{position:absolute;background:rgba(234,88,12,0.10);z-index:1;pointer-events:none;}
 .project-end-line{position:absolute;width:2px;background:#EA580C;z-index:5;pointer-events:none;opacity:0.9;}
@@ -1822,7 +1831,7 @@ function preStartWorkingDayIdxs(t){
 // окончания, а не только внутри уже начавшегося планового периода.
 function factProjection(t){
   const dayFacts = (t.factOverrides && t.factOverrides['day']) || {};
-  const combinedWD = preStartWorkingDayIdxs(t).concat(taskWorkingDayIdxs(t));
+  const combinedWD = preStartWorkingDayIdxs(t).concat(taskWorkingDayIdxs(t)).concat(postEndWorkingDayIdxs(t));
   const entered = new Set();
   let sumEntered = 0;
   for(const idx of combinedWD){
@@ -1991,6 +2000,180 @@ function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
       if(raw===''){ clearEarlyFactOverride(taskId,periodKey); return; }
       const v=parseFloat(raw);
       if(!isNaN(v)){ setEarlyFactOverride(taskId,periodKey,v); return; }
+    }
+    refreshTaskRow(taskId);
+  };
+  el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
+  inp.focus(); inp.select();
+}
+
+// ─── факт после графика: план по датам завершился, но введённый факт не дотягивает до
+// общего объёма — зеркало «факта вне графика», только по другую сторону работы. Точки
+// входа и логика дозаполнения полностью аналогичны preStart*/earlyFact* (см. выше).
+
+// рабочие дни ПОСЛЕ планового конца, входящие в открытую зону факта после графика — нужны
+// и для отрисовки ячеек (postEndPeriods), и для общего пула проекции остатка (factProjection)
+function postEndWorkingDayIdxs(t){
+  if((t.volume||0)<=0 || (t.factVol||0) >= t.volume) return []; // объём уже полностью закрыт факт — дозаполнять нечего
+  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1; // первый день СТРОГО после планового конца
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const enteredAfter = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx>=endIdx);
+  const p = activeProject();
+  const allDays = periodDates();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
+  let zoneEnd = -Infinity;
+  if(todayIdx >= endIdx) zoneEnd = todayIdx;
+  if(enteredAfter.length) zoneEnd = Math.max(zoneEnd, ...enteredAfter);
+  if(!isFinite(zoneEnd) || zoneEnd < endIdx) return [];
+  zoneEnd = Math.min(zoneEnd, allDays.length-1);
+  const idxs = [];
+  for(let i=endIdx;i<=zoneEnd;i++){ const d=allDays[i]; if(d && isWorkingDay(d,p)) idxs.push(i); }
+  return idxs;
+}
+
+// периоды ПОСЛЕ планового конца работы, которые нужно показать как «факт после графика»
+function postEndPeriods(t){
+  if(ganttScale==='month') return [];
+  if((t.volume||0)<=0 || (t.factVol||0) >= t.volume) return [];
+  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
+  if(todayIdx < endIdx) return []; // план ещё не закончился — обычного факта достаточно
+  const todayKey = calendarPeriodKey(todayIdx);
+  const todayPeriodStart = parseInt(todayKey.slice(1));
+
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx>=endIdx);
+
+  if(!enteredIdxs.length){
+    // ничего не внесено после плана — точки входа: сегодняшний период и период
+    // предыдущего рабочего дня (если он всё ещё после планового конца)
+    const p = activeProject();
+    const allDays = periodDates();
+    const keys = [];
+    const prevIdx = prevWorkingDayIdx(todayIdx, p, allDays);
+    if(prevIdx >= endIdx){
+      const prevKey = calendarPeriodKey(prevIdx);
+      if(calendarPeriodWorkingDayIdxs(prevKey).filter(idx=>idx>=endIdx).length) keys.push(prevKey);
+    }
+    if(calendarPeriodWorkingDayIdxs(todayKey).filter(idx=>idx>=endIdx).length){
+      if(!keys.includes(todayKey)) keys.push(todayKey);
+    }
+    return keys.sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
+  }
+
+  // уже есть более поздние записи — открываем весь промежуток от плана до самой поздней из них
+  const latestEntered = Math.max(...enteredIdxs);
+  let zoneEndKeyIdx = Math.max(parseInt(calendarPeriodKey(latestEntered).slice(1)), todayPeriodStart);
+
+  const keys = [];
+  let i = parseInt(calendarPeriodKey(endIdx).slice(1));
+  // если endIdx попал в середину недели (масштаб «Неделя»), начнём с её начала — лишние
+  // дни ДО endIdx отфильтруются ниже через idx>=endIdx
+  while(i <= zoneEndKeyIdx){
+    const key = calendarPeriodKey(i);
+    if(calendarPeriodWorkingDayIdxs(key).filter(idx=>idx>=endIdx).length) keys.push(key);
+    i += (key.startsWith('w') ? periodKeyGeom(key).width / SCALE_DAY_PX[ganttScale] : 1);
+  }
+  return keys;
+}
+
+// значение факта после графика в этом периоде — та же семантика {value,isHint}/null, что и у earlyFactValueForPeriod
+function lateFactValueForPeriod(t, periodKey){
+  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const idxs = calendarPeriodWorkingDayIdxs(periodKey).filter(idx=>idx>=endIdx);
+  if(!idxs.length) return null;
+  const entered = idxs.filter(idx=>dayOv['d'+idx]!==undefined);
+  if(entered.length) return { value: Math.round(entered.reduce((s,idx)=>s+(dayOv['d'+idx]||0),0)), isHint:false };
+  const { hasAnyEntry, share } = factProjection(t);
+  if(!hasAnyEntry) return null;
+  return { value: Math.round(share*idxs.length), isHint:true };
+}
+
+// HTML ячеек факта после графика — своим цветом, без привязки к плановым периодам работы.
+// Как и у факта вне графика, редактировать можно только уже прошедшие и сегодняшний день.
+function lateFactCellsHtml(t){
+  const keys = postEndPeriods(t);
+  if(!keys.length) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayIdx = dayIndexOfDate(today);
+  return keys.map(key=>{
+    const res = lateFactValueForPeriod(t, key);
+    const isEmpty = res===null;
+    if(isEmpty && !canEdit) return '';
+    const isFuture = parseInt(key.slice(1)) > todayIdx;
+    const canEditThis = canEdit && !isFuture;
+    const isHint = !isEmpty && res.isHint;
+    const {left,width} = periodKeyGeom(key);
+    const shown = isEmpty ? '' : res.value.toLocaleString('ru');
+    const clickVal = isEmpty ? 0 : res.value;
+    const title = isFuture
+      ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — доступно для ввода со дня наступления`
+      : isEmpty
+        ? 'План по срокам завершён, а факт не дотягивает до объёма — нажмите, чтобы внести факт после графика'
+        : isHint
+          ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
+          : `Факт после графика: ${res.value.toLocaleString('ru')} (сроки прошли, объём ещё не набран) — нажмите для изменения`;
+    const cls = 'gantt-fact-late'+(isEmpty?' gantt-fact-late-empty':'')+(isHint?' gantt-fact-late-hint':'');
+    return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEditThis?'cursor:pointer;':''}"${canEditThis?` tabindex="0" role="button" onclick="event.stopPropagation();editLateFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editLateFactPeriod(${t.id},'${key}',${clickVal},this)}"`:''} title="${title}">${shown}</span>`;
+  }).join('');
+}
+
+function setLateFactOverride(taskId, periodKey, newVol){
+  if(isReadOnly()) return;
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  newVol = Math.max(0, Math.round(Number(newVol)||0));
+  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
+  const idxs = calendarPeriodWorkingDayIdxs(periodKey).filter(idx=>idx>=endIdx);
+  if(!idxs.length) return;
+  if(!t.factOverrides) t.factOverrides = {};
+  if(!t.factOverrides['day']) t.factOverrides['day'] = {};
+  const dayOv = t.factOverrides['day'];
+  let oldSum = 0;
+  for(const idx of idxs){ if(dayOv['d'+idx]!==undefined){ oldSum += dayOv['d'+idx]||0; delete dayOv['d'+idx]; } }
+  const r = newVol/idxs.length;
+  let s = 0;
+  for(let i=0;i<idxs.length-1;i++){ const v=Math.round((i+1)*r)-Math.round(i*r); dayOv['d'+idxs[i]]=v; s+=v; }
+  dayOv['d'+idxs[idxs.length-1]] = Math.max(0, newVol-s);
+  t.factVol = Math.max(0, (t.factVol||0) - oldSum + newVol);
+  t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
+  refreshTaskRow(taskId);
+  saveState();
+}
+
+function clearLateFactOverride(taskId, periodKey){
+  if(isReadOnly()) return;
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t || !t.factOverrides || !t.factOverrides['day']){ refreshTaskRow(taskId); return; }
+  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
+  const idxs = calendarPeriodWorkingDayIdxs(periodKey).filter(idx=>idx>=endIdx);
+  const dayOv = t.factOverrides['day'];
+  let oldSum = 0;
+  for(const idx of idxs){ if(dayOv['d'+idx]!==undefined){ oldSum += dayOv['d'+idx]||0; delete dayOv['d'+idx]; } }
+  if(oldSum){
+    t.factVol = Math.max(0, (t.factVol||0) - oldSum);
+    t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
+  }
+  refreshTaskRow(taskId);
+  saveState();
+}
+
+function editLateFactPeriod(taskId, periodKey, currentVol, el){
+  if(isReadOnly()) return;
+  const inp = document.createElement('input');
+  inp.type='text'; inp.inputMode='numeric'; inp.value=currentVol;
+  inp.style.cssText='font-size:9px;width:100%;height:10px;box-sizing:border-box;border:1px solid #D97706;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
+  inp.onclick=e=>e.stopPropagation();
+  inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
+  inp.onblur=()=>{
+    if(!inp.dataset.cancel){
+      const raw = inp.value.trim();
+      if(raw===''){ clearLateFactOverride(taskId,periodKey); return; }
+      const v=parseFloat(raw);
+      if(!isNaN(v)){ setLateFactOverride(taskId,periodKey,v); return; }
     }
     refreshTaskRow(taskId);
   };
@@ -2568,6 +2751,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
         ${periodGridLinesHtml()}
         <div class="bar-wrap">
         ${earlyFactCellsHtml(t)}
+        ${lateFactCellsHtml(t)}
         ${(()=>{
           const barLeft = parseFloat(m.left);
           const barW    = parseFloat(m.width);
