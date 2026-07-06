@@ -90,15 +90,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* Gantt */
 .gantt-wrap{flex:1;min-height:0;overflow:auto;position:relative;}
 .bar-plan{
-  cursor:grab;position:absolute;height:8px;top:3px;border-radius:4px;overflow:hidden;
+  cursor:grab;position:absolute;height:9px;top:3px;border-radius:4px;overflow:hidden;
   background:linear-gradient(180deg,#D9ECFC 0%,#A8CFF1 100%);
   box-shadow:0 1px 2px rgba(20,80,140,0.22), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(20,80,140,0.08);
   transition:box-shadow .15s ease,filter .15s ease;
 }
 .bar-plan:hover{filter:brightness(1.035);box-shadow:0 2px 6px rgba(20,80,140,0.32), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(20,80,140,0.08);}
 .bar-plan-accent{position:absolute;left:0;top:0;bottom:0;width:3px;z-index:3;pointer-events:none;}
-.gantt-fact-bg{position:absolute;top:14px;height:8px;border-radius:4px;background:linear-gradient(180deg, rgba(140,140,140,0.06), rgba(140,140,140,0.13));border:0.5px solid rgba(140,140,140,0.22);}
-.gantt-fact-strip{position:absolute;top:11px;height:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);}
+.gantt-fact-bg{position:absolute;top:17px;height:10px;border-radius:4px;background:linear-gradient(180deg, rgba(140,140,140,0.06), rgba(140,140,140,0.13));border:0.5px solid rgba(140,140,140,0.22);}
+.gantt-fact-strip{position:absolute;top:13px;height:3px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);}
 .gantt-fact-strip.cap-left{border-radius:2px 0 0 2px;}
 .gantt-fact-strip.cap-right{border-radius:0 2px 2px 0;}
 .gantt-vol-label:focus-visible,.gantt-fact-vol:focus-visible{outline:1.5px solid #185FA5;outline-offset:1px;z-index:5;}
@@ -107,12 +107,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gantt-mode-chart .gantt-fact-strip,
 .gantt-mode-chart .gantt-fact-bg,
 .gantt-mode-chart .gantt-fact-vol { display:none !important; }
-.gantt-mode-chart .bar-wrap { height:20px !important; }
+.gantt-mode-chart .bar-wrap { height:30px !important; }
 /* линии связи мешают читать цифры в режиме «Данные» — показываем их только в режиме «График»;
    сам svg не скрываем, чтобы оставалась видна временная линия при перетаскивании новой связи */
 #ganttLinksGroup{ display:none; }
 .gantt-mode-chart #ganttLinksGroup{ display:block; }
-.gantt-mode-chart .bar-plan { height:10px !important; top:5px !important; border-radius:5px !important; }
+.gantt-mode-chart .bar-plan { height:11px !important; top:4px !important; border-radius:5px !important; }
 /* ── переключатель данные/график ── */
 /* view-toggle (Данные/График) — тот же стиль и размер, что у переключателя масштаба */
 .view-toggle{display:flex;align-items:center;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;background:var(--bg);}
@@ -201,7 +201,7 @@ body.readonly .th-edit-btn{display:none!important;}
 .task-indent{color:var(--text3);}
 .cbadge{font-size:10px;padding:1px 6px;border-radius:3px;white-space:nowrap;}
 .bar-cell{min-width:420px;padding:1px 10px;}
-.bar-wrap{position:relative;height:24px;width:100%;overflow:hidden;}
+.bar-wrap{position:relative;height:30px;width:100%;overflow:hidden;}
 .today-line{position:absolute;top:0;bottom:0;width:1px;background:#E24B4A;z-index:4;pointer-events:none;opacity:0.75;}
 /* пустая (без введённого факта) ячейка периода: числа нет, но при наведении подсвечиваем — можно кликнуть и ввести */
 .gantt-fact-empty:hover{background:rgba(24,95,165,0.12)!important;}
@@ -1925,7 +1925,7 @@ function earlyFactCellsHtml(t){
         ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
         : `Факт вне графика: ${res.value.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
     const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'')+(isHint?' gantt-fact-early-hint':'');
-    return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
+    return `<span class="${cls}" style="position:absolute;top:17px;height:12px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEdit?'cursor:pointer;':''}"${canEdit?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}" title="${title}"`:''}>${shown}</span>`;
   }).join('');
 }
 
@@ -1976,7 +1976,7 @@ function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
   if(isReadOnly()) return;
   const inp = document.createElement('input');
   inp.type='text'; inp.inputMode='numeric'; inp.value=currentVol;
-  inp.style.cssText='font-size:9px;width:100%;height:8px;box-sizing:border-box;border:1px solid #16A34A;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
+  inp.style.cssText='font-size:9px;width:100%;height:12px;box-sizing:border-box;border:1px solid #16A34A;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
   inp.onclick=e=>e.stopPropagation();
   inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
   inp.onblur=()=>{
@@ -2122,7 +2122,7 @@ function editFactPeriod(taskId, periodKey, currentVol, planVol, el){
   if(isReadOnly()) return;
   const inp = document.createElement('input');
   inp.type='text'; inp.inputMode='numeric'; inp.value=currentVol;
-  inp.style.cssText='font-size:9px;width:100%;height:8px;box-sizing:border-box;border:1px solid #888;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
+  inp.style.cssText='font-size:9px;width:100%;height:10px;box-sizing:border-box;border:1px solid #888;border-radius:2px;background:#fff;color:#333;text-align:center;padding:0;outline:none;';
   inp.onclick=e=>e.stopPropagation();
   inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
   inp.onblur=()=>{
@@ -2526,7 +2526,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
           const accent = `<div class="bar-plan-accent" style="background:${c.color};"></div>`;
           return `<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь">${accent}${inner}</div>`;
         })()}
-        ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:500;color:#2A4A66;text-shadow:0 1px 1px rgba(255,255,255,.5);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:2;${editable?'cursor:pointer;text-decoration:underline dotted rgba(42,74,102,0.4);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
+        ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:9px;line-height:9px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:500;color:#2A4A66;text-shadow:0 1px 1px rgba(255,255,255,.5);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:2;${editable?'cursor:pointer;text-decoration:underline dotted rgba(42,74,102,0.4);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
         <div class="gantt-fact-bg" style="left:${m.left}${m.unit};width:${m.width}${m.unit};"></div>
         ${(()=>{
           if(!t.volume) return '';
@@ -2553,7 +2553,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
           const clickVal = isEmpty ? 0 : factVol;
           const title=isEnterable?(isEdited?`Факт: ${factVol.toLocaleString('ru')} / план: ${planVol.toLocaleString('ru')} — нажмите для изменения`:'Нажмите для ввода факта'):'';
           const cls = 'gantt-fact-vol'+(isEmpty?' gantt-fact-empty':'');
-          return `<span class="${cls}" style="position:absolute;top:14px;height:8px;line-height:8px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEdited?600:400};color:${color};background:${bg};border-radius:3px;white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isEnterable?'cursor:pointer;':''}"${isEnterable?` tabindex="0" role="button" onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)}" title="${title}"`:''}>${shown}</span>`;
+          return `<span class="${cls}" style="position:absolute;top:17px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEdited?600:400};color:${color};background:${bg};border-radius:3px;white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isEnterable?'cursor:pointer;':''}"${isEnterable?` tabindex="0" role="button" onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)}" title="${title}"`:''}>${shown}</span>`;
         }).join('')}
       </div>
       </td>`;
