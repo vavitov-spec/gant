@@ -1790,19 +1790,30 @@ function periodKeyGeom(key, clipBeforeIdx){
 // рабочие дни ДО планового начала, входящие в открытую зону факта вне графика (см. preStartPeriods) —
 // день-уровневый список независимо от масштаба, нужен только для расчёта общей проекции остатка
 // (factProjection), чтобы «дозаполнение» после факта вне графика училось и в обычной части графика
+// последний рабочий день СТРОГО ДО указанного индекса (перебор назад по календарю проекта)
+function prevWorkingDayIdx(beforeIdx, p, allDays){
+  let i = beforeIdx - 1;
+  while(i >= 0 && !(allDays[i] && isWorkingDay(allDays[i], p))) i--;
+  return i; // -1, если не нашли
+}
+
 function preStartWorkingDayIdxs(t){
   const startIdx = dayIndexOfDate(taskStartDate(t));
   const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
   const enteredBefore = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx<startIdx);
+  const p = activeProject();
+  const allDays = periodDates();
   const today = new Date(); today.setHours(0,0,0,0);
   const todayIdx = dayIndexOfDate(today);
   let zoneStart = Infinity;
-  if(todayIdx < startIdx) zoneStart = todayIdx;
+  if(todayIdx < startIdx){
+    // без введённых данных точка входа — сегодня И предыдущий рабочий день (а не только сегодня)
+    const prevIdx = prevWorkingDayIdx(todayIdx, p, allDays);
+    zoneStart = prevIdx >= 0 ? prevIdx : todayIdx;
+  }
   if(enteredBefore.length) zoneStart = Math.min(zoneStart, ...enteredBefore);
   if(!isFinite(zoneStart) || zoneStart >= startIdx) return [];
   zoneStart = Math.max(0, zoneStart);
-  const p = activeProject();
-  const allDays = periodDates();
   const idxs = [];
   for(let i=zoneStart;i<startIdx;i++){ const d=allDays[i]; if(d && isWorkingDay(d,p)) idxs.push(i); }
   return idxs;
@@ -1841,17 +1852,28 @@ function preStartPeriods(t){
   const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx<startIdx);
 
   if(!enteredIdxs.length){
-    // ничего не внесено раньше плана — доступна только одна точка входа: текущий период
-    // (сегодня), а если сегодня выходной (в нём самом нет рабочих дней) — откатываемся
-    // на ближайший предыдущий период с рабочими днями («прошлый период»)
+    // ничего не внесено раньше плана — точки входа: сегодняшний период и период
+    // предыдущего рабочего дня (а если сегодня выходной — откатываемся на ближайший
+    // предыдущий период с рабочими днями вместо «сегодня»)
     if(todayPeriodStart >= startIdx) return [];
+    const p = activeProject();
+    const allDays = periodDates();
+    const keys = [];
+    const prevIdx = prevWorkingDayIdx(todayIdx, p, allDays);
+    if(prevIdx >= 0 && prevIdx < startIdx){
+      const prevKey = calendarPeriodKey(prevIdx);
+      if(calendarPeriodWorkingDayIdxs(prevKey, startIdx).length) keys.push(prevKey);
+    }
     let idx = todayIdx;
     while(idx >= 0){
       const key = calendarPeriodKey(idx);
-      if(calendarPeriodWorkingDayIdxs(key, startIdx).length) return [key];
+      if(calendarPeriodWorkingDayIdxs(key, startIdx).length){
+        if(!keys.includes(key)) keys.push(key);
+        break;
+      }
       idx = parseInt(key.slice(1)) - 1;
     }
-    return [];
+    return keys.sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
   }
 
   // уже есть более ранние записи — открываем весь промежуток от самой ранней из них до плана
