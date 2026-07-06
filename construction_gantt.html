@@ -102,7 +102,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ── режим «только график» ── */
 .gantt-mode-chart .gantt-vol-label,
 .gantt-mode-chart .gantt-fact-bg,
-.gantt-mode-chart .gantt-fact-vol { display:none !important; }
+.gantt-mode-chart .gantt-fact-vol,
+.gantt-mode-chart .gantt-fact-early { display:none !important; }
 .gantt-mode-chart .bar-wrap { height:28px !important; }
 /* линии связи мешают читать цифры в режиме «Данные» — показываем их только в режиме «График»;
    сам svg не скрываем, чтобы оставалась видна временная линия при перетаскивании новой связи */
@@ -2122,6 +2123,54 @@ function setFactOverride(taskId, periodKey, newVol){
   saveState();
 }
 
+// полностью убрать факт за этот плановый период (в отличие от setFactOverride(...,0), которое
+// ЗАПИСЫВАЕТ 0 на каждый рабочий день — здесь дни удаляются из factOverrides, и ячейка
+// возвращается в исходное незаполненное состояние
+function clearFactOverride(taskId, periodKey){
+  if(isReadOnly()) return;
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t || !t.factOverrides || !t.factOverrides['day']){ refreshTaskRow(taskId); return; }
+
+  const p = activeProject();
+  const startDate = taskStartDate(t);
+  const endExcl = new Date(taskEndDate(t).getTime() + 86400000);
+  const allDays = periodDates();
+
+  let calIdxs = [];
+  if(periodKey.startsWith('d')){
+    calIdxs = [parseInt(periodKey.slice(1))];
+  } else if(periodKey.startsWith('w')){
+    const wi = parseInt(periodKey.slice(1));
+    if(wi < allDays.length){
+      const wd0 = allDays[wi].getDay();
+      const span = Math.min(wd0===0?1:(8-wd0), allDays.length-wi);
+      for(let j=0;j<span;j++) calIdxs.push(wi+j);
+    }
+  } else if(periodKey.startsWith('m')){
+    const mi = parseInt(periodKey.slice(1));
+    const ps = (p && p.periodStart) ? p.periodStart : {year:2025, month:0};
+    const mS = new Date(ps.year, ps.month+mi, 1);
+    const mE = new Date(ps.year, ps.month+mi+1, 1);
+    allDays.forEach((d,idx)=>{ if(d>=mS && d<mE) calIdxs.push(idx); });
+  }
+
+  const dayOv = t.factOverrides['day'];
+  let oldSum = 0;
+  for(const idx of calIdxs){
+    const d = allDays[idx];
+    if(d && d>=startDate && d<endExcl){
+      const k = 'd'+idx;
+      if(dayOv[k]!==undefined){ oldSum += dayOv[k]||0; delete dayOv[k]; }
+    }
+  }
+  if(oldSum){
+    t.factVol = Math.max(0, (t.factVol||0) - oldSum);
+    t.factPct = t.volume>0 ? Math.round(t.factVol/t.volume*100) : 0;
+  }
+  refreshTaskRow(taskId);
+  saveState();
+}
+
 function editFactPeriod(taskId, periodKey, currentVol, planVol, el){
   if(isReadOnly()) return;
   const inp = document.createElement('input');
@@ -2130,7 +2179,12 @@ function editFactPeriod(taskId, periodKey, currentVol, planVol, el){
   inp.onclick=e=>e.stopPropagation();
   inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.dataset.cancel='1';inp.blur();}};
   inp.onblur=()=>{
-    if(!inp.dataset.cancel){const v=parseFloat(inp.value);if(!isNaN(v)){setFactOverride(taskId,periodKey,v);return;}}
+    if(!inp.dataset.cancel){
+      const raw = inp.value.trim();
+      if(raw===''){ clearFactOverride(taskId,periodKey); return; }
+      const v=parseFloat(raw);
+      if(!isNaN(v)){ setFactOverride(taskId,periodKey,v); return; }
+    }
     refreshTaskRow(taskId);
   };
   el.style.overflow='visible'; el.innerHTML=''; el.appendChild(inp);
@@ -2530,7 +2584,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
           const accent = `<div class="bar-plan-accent" style="background:${c.color};"></div>`;
           return `<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь">${accent}${inner}</div>`;
         })()}
-        ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:9px;line-height:9px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:500;color:#2A4A66;text-shadow:0 1px 1px rgba(255,255,255,.5);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:2;${editable?'cursor:pointer;text-decoration:underline dotted rgba(42,74,102,0.4);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
+        ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:9px;line-height:9px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:600;color:#152736;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px rgba(255,255,255,.9);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:4;${editable?'cursor:pointer;text-decoration:underline dotted rgba(21,39,54,0.5);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
         <div class="gantt-fact-bg" style="left:${m.left}${m.unit};width:${m.width}${m.unit};"></div>
         ${factPeriodVolumes(t).map(({left,width,factVol,planVol,key,isPast,isEnterable,isEdited})=>{
           const isEmpty = factVol===null;
