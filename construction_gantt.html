@@ -1831,7 +1831,7 @@ function preStartWorkingDayIdxs(t){
 // окончания, а не только внутри уже начавшегося планового периода.
 function factProjection(t){
   const dayFacts = (t.factOverrides && t.factOverrides['day']) || {};
-  const combinedWD = preStartWorkingDayIdxs(t).concat(taskWorkingDayIdxs(t)).concat(postEndWorkingDayIdxs(t));
+  const combinedWD = preStartWorkingDayIdxs(t).concat(taskWorkingDayIdxs(t));
   const entered = new Set();
   let sumEntered = 0;
   for(const idx of combinedWD){
@@ -2079,6 +2079,19 @@ function postEndPeriods(t){
   return keys;
 }
 
+// прогноз факта ПОСЛЕ графика — в отличие от общей factProjection (равная доля остатка на
+// все незаполненные дни), здесь берём дневное значение последнего ВВЕДЁННОГО дня в этой же
+// зоне и просто продолжаем им вперёд (по аналогии с последним днём, а не средним по остатку) —
+// так подсказка отражает фактический темп работ, а не искусственно ровный остаток
+function lateFactDailyRate(t){
+  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const enteredIdxs = postEndWorkingDayIdxs(t).filter(idx=>dayOv['d'+idx]!==undefined);
+  if(!enteredIdxs.length) return null;
+  const lastIdx = Math.max(...enteredIdxs);
+  return dayOv['d'+lastIdx] || 0;
+}
+
 // значение факта после графика в этом периоде — та же семантика {value,isHint}/null, что и у earlyFactValueForPeriod
 function lateFactValueForPeriod(t, periodKey){
   const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
@@ -2087,9 +2100,9 @@ function lateFactValueForPeriod(t, periodKey){
   if(!idxs.length) return null;
   const entered = idxs.filter(idx=>dayOv['d'+idx]!==undefined);
   if(entered.length) return { value: Math.round(entered.reduce((s,idx)=>s+(dayOv['d'+idx]||0),0)), isHint:false };
-  const { hasAnyEntry, share } = factProjection(t);
-  if(!hasAnyEntry) return null;
-  return { value: Math.round(share*idxs.length), isHint:true };
+  const dailyRate = lateFactDailyRate(t);
+  if(dailyRate===null) return null;
+  return { value: Math.round(dailyRate*idxs.length), isHint:true };
 }
 
 // HTML ячеек факта после графика — своим цветом, без привязки к плановым периодам работы.
