@@ -4934,7 +4934,105 @@ function openGraphSettings(){
   }).join('');
 
   renderGSSections();
+  document.getElementById('inviteContractorSelect').innerHTML = contractorsList.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  renderProjectMembers();
+  renderInvitesList();
   document.getElementById('graphSettingsOverlay').classList.add('open');
+}
+
+// ─── участники графика (роли) и ссылки-приглашения ───────────────────────────
+function currentGraphMeta(){ return myGraphs.find(g=>g.appStateId===currentAppStateId); }
+
+async function renderProjectMembers(){
+  const el = document.getElementById('projectMembersList');
+  if(!el || !sb) return;
+  const g = currentGraphMeta();
+  if(!g){ el.innerHTML = '<div class="dir-empty">Не удалось определить график.</div>'; return; }
+  el.innerHTML = '<div style="color:var(--text3);font-size:12px;">Загрузка…</div>';
+  const { data, error } = await sb.from('project_members')
+    .select('id, user_id, role, contractor_name, user_email')
+    .eq('project_id', g.projectId)
+    .order('id');
+  if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
+  const roleLabel = {admin:'Администратор', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
+  const isAdmin = currentRole==='admin';
+  el.innerHTML = (data||[]).map(m=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.user_email||m.user_id)}</div>
+        <div style="font-size:11px;color:var(--text3);">${roleLabel[m.role]||m.role}${m.contractor_name?' · '+escapeHtml(m.contractor_name):''}</div>
+      </div>
+      ${isAdmin ? `
+        <select onchange="changeMemberRole(${m.id}, this.value)" style="font-size:12px;padding:3px 5px;border:0.5px solid var(--border2);border-radius:6px;background:var(--bg2);color:var(--text);">
+          ${Object.keys(roleLabel).map(r=>`<option value="${r}" ${r===m.role?'selected':''}>${roleLabel[r]}</option>`).join('')}
+        </select>
+        <button class="btn" style="padding:4px 8px;border-color:var(--text-danger);color:var(--text-danger);" onclick="removeMember(${m.id})" title="Убрать из графика"><i class="ti ti-x"></i></button>
+      ` : ''}
+    </div>
+  `).join('') || '<div class="dir-empty">Участников нет.</div>';
+}
+
+async function changeMemberRole(memberId, newRole){
+  const { error } = await sb.from('project_members').update({ role:newRole }).eq('id', memberId);
+  if(error){ alert('Не удалось изменить роль: ' + error.message); }
+  await renderProjectMembers();
+}
+
+async function removeMember(memberId){
+  if(!confirm('Убрать участника из этого графика?')) return;
+  const { error } = await sb.from('project_members').delete().eq('id', memberId);
+  if(error){ alert('Не удалось убрать участника: ' + error.message); return; }
+  await renderProjectMembers();
+}
+
+async function createInviteLink(){
+  const g = currentGraphMeta();
+  if(!g){ alert('Не удалось определить график.'); return; }
+  const role = document.getElementById('inviteRoleSelect').value;
+  const contractorName = role==='contractor' ? document.getElementById('inviteContractorSelect').value : null;
+  const { data, error } = await sb.from('project_invites')
+    .insert({ project_id:g.projectId, role, contractor_name:contractorName, created_by:currentUser.id })
+    .select('token').single();
+  if(error){ alert('Не удалось создать приглашение: ' + error.message); return; }
+  const url = location.origin + location.pathname + '?invite=' + data.token;
+  try{
+    await navigator.clipboard.writeText(url);
+    alert('Ссылка-приглашение скопирована в буфер обмена:\n' + url);
+  }catch(e){
+    prompt('Скопируйте ссылку-приглашение:', url);
+  }
+  await renderInvitesList();
+}
+
+async function renderInvitesList(){
+  const el = document.getElementById('invitesList');
+  if(!el || !sb) return;
+  const g = currentGraphMeta();
+  if(!g){ el.innerHTML = ''; return; }
+  const { data, error } = await sb.from('project_invites')
+    .select('token, role, contractor_name, expires_at, used_at')
+    .eq('project_id', g.projectId)
+    .is('used_at', null)
+    .order('expires_at', { ascending:false });
+  if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
+  const roleLabel = {admin:'Администратор', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
+  if(!data || !data.length){ el.innerHTML = '<div class="dir-empty">Неиспользованных приглашений нет.</div>'; return; }
+  el.innerHTML = data.map(inv=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);">
+      <div style="flex:1;min-width:0;font-size:12px;color:var(--text2);">
+        ${roleLabel[inv.role]||inv.role}${inv.contractor_name?' · '+escapeHtml(inv.contractor_name):''}
+        <span style="color:var(--text3);"> · до ${new Date(inv.expires_at).toLocaleDateString('ru')}</span>
+      </div>
+      <button class="btn" style="padding:4px 8px;border-color:var(--text-danger);color:var(--text-danger);" onclick="revokeInvite('${inv.token}')" title="Отозвать"><i class="ti ti-trash"></i></button>
+    </div>
+  `).join('');
+}
+
+async function revokeInvite(token){
+  if(!confirm('Отозвать эту ссылку-приглашение?')) return;
+  const { error } = await sb.from('project_invites').delete().eq('token', token);
+  if(error){ alert('Не удалось отозвать: ' + error.message); return; }
+  await renderInvitesList();
 }
 
 function closeGraphSettings(){
@@ -5568,12 +5666,26 @@ async function openGraph(graphMeta){
 
 // вызывается сразу после успешного входа/регистрации: подтягиваем роль и открываем график
 let isSystemOwner = false;
+// ссылка-приглашение (?invite=token) — принимаем сразу после входа, один раз
+function getInviteTokenFromURL(){
+  try{ return new URLSearchParams(location.search).get('invite'); }catch(e){ return null; }
+}
+async function acceptInviteFromURL(){
+  const token = getInviteTokenFromURL();
+  if(!token) return null;
+  try{ history.replaceState(null, '', location.pathname); }catch(e){} // не пытаться принять повторно при обновлении
+  const { data: appStateId, error } = await sb.rpc('accept_invite', { p_token: token });
+  if(error){ alert('Не удалось принять приглашение: ' + error.message); return null; }
+  return appStateId;
+}
+
 async function afterLogin(user){
   currentUser = { id:user.id, email:user.email };
   try{
     const { data, error } = await sb.rpc('is_system_owner');
     isSystemOwner = !error && data === true;
   }catch(e){ isSystemOwner = false; }
+  const invitedAppStateId = await acceptInviteFromURL();
   await loadMyGraphs();
   if(!myGraphs.length){
     renderProjectsList();
@@ -5582,8 +5694,11 @@ async function afterLogin(user){
     applyEditMode();
     return;
   }
-  const savedId = parseInt(localStorage.getItem('gantt_last_project_id')||'', 10);
-  const target = myGraphs.find(g=>g.projectId===savedId) || myGraphs[0];
+  let target = invitedAppStateId ? myGraphs.find(g=>g.appStateId===invitedAppStateId) : null;
+  if(!target){
+    const savedId = parseInt(localStorage.getItem('gantt_last_project_id')||'', 10);
+    target = myGraphs.find(g=>g.projectId===savedId) || myGraphs[0];
+  }
   await openGraph(target);
   startRealtimeSync();
   setInterval(cloudCheck, CLOUD_POLL_MS);
@@ -5821,6 +5936,9 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item" onclick="switchGSTab('sections',this)">
           <i class="ti ti-list-tree"></i> Разделы графика
         </div>
+        <div class="modal-sidebar-item" onclick="switchGSTab('members',this)">
+          <i class="ti ti-users-group"></i> Участники
+        </div>
       </nav>
       <div class="modal-content">
 
@@ -5857,6 +5975,31 @@ window.addEventListener('resize', ()=>{
           <div class="np-field">
             <div class="np-label"><i class="ti ti-list-tree"></i> Разделы и подразделы</div>
             <div class="tree-wrap" id="gsSections"></div>
+          </div>
+        </div>
+
+        <div id="gs-members" class="modal-section">
+          <div class="np-field">
+            <div class="np-label"><i class="ti ti-users-group"></i> Участники этого графика</div>
+            <div id="projectMembersList"></div>
+          </div>
+
+          <div class="np-field" id="gsInviteBlock" style="margin-top:16px;">
+            <div class="np-label"><i class="ti ti-link"></i> Пригласить по ссылке</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+              <select class="np-input" id="inviteRoleSelect" style="flex:1;" onchange="document.getElementById('inviteContractorWrap').style.display=this.value==='contractor'?'block':'none';">
+                <option value="member">Участник проекта</option>
+                <option value="contractor">Подрядчик</option>
+                <option value="client">Заказчик</option>
+                <option value="admin">Администратор</option>
+              </select>
+              <button class="btn btn-primary" onclick="createInviteLink()"><i class="ti ti-link-plus"></i> Создать ссылку</button>
+            </div>
+            <div id="inviteContractorWrap" style="display:none;margin-bottom:8px;">
+              <select class="np-input" id="inviteContractorSelect"></select>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Ссылка одноразовая — сгорает после первого использования, действует 30 дней.</div>
+            <div id="invitesList"></div>
           </div>
         </div>
 
