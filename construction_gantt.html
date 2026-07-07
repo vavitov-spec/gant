@@ -4,12 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Генподрядный график</title>
+<script>
+// применяем сохранённый выбор темы ДО отрисовки страницы — чтобы не было мигания
+// системной темой перед переключением на сохранённую пользователем
+(function(){
+  try{
+    var saved = localStorage.getItem('gantt_theme');
+    if(saved==='light' || saved==='dark') document.documentElement.setAttribute('data-theme', saved);
+  }catch(e){}
+})();
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#111;height:100vh;overflow:hidden;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:var(--text);height:100vh;overflow:hidden;}
 :root{
   --bg:#fff;--bg2:#f5f5f5;--bg-info:#E6F1FB;--bg-danger:#FCEBEB;--bg-warning:#FAEEDA;--bg-success:#EAF3DE;
   --text:#111;--text2:#666;--text3:#aaa;--text-info:#185FA5;--text-danger:#A32D2D;--text-warning:#854F0B;--text-success:#3B6D11;
@@ -24,6 +34,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .cat-row td{background:#2E3338!important;}
   .cat-row:hover td,.cat-row.selected td{background:#353E48!important;}
   .cat-row .cat-row-label,.cat-row .row-num,.cat-row td.col-start,.cat-row td.col-dur,.cat-row td.col-end{color:#D8E6F5;}
+  .task-name-label{color:#D8E6F5;}
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
   .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
@@ -31,6 +42,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .gantt-fact-late{background:rgba(251,191,36,0.18)!important;color:#FCD34D!important;outline-color:rgba(251,191,36,0.55)!important;}
   .gantt-fact-late-empty{outline-color:rgba(251,191,36,0.35)!important;}
 }
+/* ручной переключатель темы (кнопка в шапке) — переопределяет системную тему выше;
+   без него всё управляется через prefers-color-scheme */
+:root[data-theme="dark"]{
+  --bg:#242424;--bg2:#2e2e2e;--bg-info:#0C2A45;--bg-danger:#3D1010;--bg-warning:#3A200A;--bg-success:#1A2E08;
+  --text:#e8e8e8;--text2:#aaa;--text3:#666;--text-info:#85B7EB;--text-danger:#F09595;--text-warning:#FAC775;--text-success:#C0DD97;
+  --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
+}
+html[data-theme="dark"] body{background:#181818;}
+[data-theme="dark"] .cat-row td{background:#2E3338!important;}
+[data-theme="dark"] .cat-row:hover td,[data-theme="dark"] .cat-row.selected td{background:#353E48!important;}
+[data-theme="dark"] .cat-row .cat-row-label,[data-theme="dark"] .cat-row .row-num,[data-theme="dark"] .cat-row td.col-start,[data-theme="dark"] .cat-row td.col-dur,[data-theme="dark"] .cat-row td.col-end{color:#D8E6F5;}
+[data-theme="dark"] .task-name-label{color:#D8E6F5;}
+[data-theme="dark"] .cat-row .ti{color:#85B7EB;}
+[data-theme="dark"] .cat-row .ti-chevron-right,[data-theme="dark"] .cat-row .ti-chevron-down{color:#7A95AC!important;}
+[data-theme="dark"] .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
+[data-theme="dark"] .gantt-fact-early-empty{outline-color:rgba(134,239,172,0.35)!important;}
+[data-theme="dark"] .gantt-fact-late{background:rgba(251,191,36,0.18)!important;color:#FCD34D!important;outline-color:rgba(251,191,36,0.55)!important;}
+[data-theme="dark"] .gantt-fact-late-empty{outline-color:rgba(251,191,36,0.35)!important;}
+
+:root[data-theme="light"]{
+  --bg:#fff;--bg2:#f5f5f5;--bg-info:#E6F1FB;--bg-danger:#FCEBEB;--bg-warning:#FAEEDA;--bg-success:#EAF3DE;
+  --text:#111;--text2:#666;--text3:#aaa;--text-info:#185FA5;--text-danger:#A32D2D;--text-warning:#854F0B;--text-success:#3B6D11;
+  --border:rgba(0,0,0,0.11);--border2:rgba(0,0,0,0.2);
+}
+html[data-theme="light"] body{background:#f0f2f5;}
+[data-theme="light"] .cat-row td{background:#CFE2F3!important;}
+[data-theme="light"] .cat-row:hover td,[data-theme="light"] .cat-row.selected td{background:#B9D5EC!important;}
+[data-theme="light"] .cat-row .cat-row-label,[data-theme="light"] .cat-row .row-num,[data-theme="light"] .cat-row td.col-start,[data-theme="light"] .cat-row td.col-dur,[data-theme="light"] .cat-row td.col-end{color:#15324F!important;}
+[data-theme="light"] .cat-row .ti{color:#185FA5!important;}
+[data-theme="light"] .cat-row .ti-chevron-right,[data-theme="light"] .cat-row .ti-chevron-down{color:#6B92B8!important;}
+[data-theme="light"] .gantt-fact-early{background:rgba(34,197,94,0.14)!important;color:#15803D!important;outline-color:rgba(34,197,94,0.55)!important;}
+[data-theme="light"] .gantt-fact-early-empty{outline-color:rgba(34,197,94,0.35)!important;}
+[data-theme="light"] .gantt-fact-late{background:rgba(217,119,6,0.14)!important;color:#B45309!important;outline-color:rgba(217,119,6,0.55)!important;}
+[data-theme="light"] .gantt-fact-late-empty{outline-color:rgba(217,119,6,0.35)!important;}
 .layout{max-width:none;height:100vh;margin:0 auto;display:flex;flex-direction:column;gap:3px;padding:0 8px;}
 .sidebar{width:100%;flex-shrink:0;background:var(--bg);border-radius:var(--rad-lg) var(--rad-lg) 0 0;border:0.5px solid var(--border);border-bottom:none;overflow:visible;display:flex;flex-direction:row;align-items:center;position:sticky;top:0;}
 .sidebar-head{padding:6px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;border-right:0.5px solid var(--border);}
@@ -215,12 +260,17 @@ body.readonly .th-edit-btn{display:none!important;}
 .gantt-fact-early-empty{background:transparent;outline:1px dashed rgba(34,197,94,0.35);outline-offset:-1px;color:var(--text3);}
 .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;}
 .gantt-fact-early-hint{color:var(--text3)!important;}
+.gantt-fact-early.gantt-fact-early-hint{background:transparent!important;outline-color:var(--border2)!important;}
 /* факт после графика: сроки по плану прошли, а факт ещё не набрал объём — тот же язык, но
    янтарным цветом, чтобы визуально отличать от «начали раньше» (зелёный) */
 .gantt-fact-late{background:rgba(217,119,6,0.14);color:#B45309;outline:1px dashed rgba(217,119,6,0.55);outline-offset:-1px;border-radius:3px;}
 .gantt-fact-late-empty{background:transparent;outline:1px dashed rgba(217,119,6,0.35);outline-offset:-1px;color:var(--text3);}
 .gantt-fact-late-empty:hover{background:rgba(217,119,6,0.12)!important;}
 .gantt-fact-late-hint{color:var(--text3)!important;}
+/* прогноз (ещё не реальный факт) — тот же серый, что и у обычного планового факта
+   (var(--text3), прозрачный фон), а не насыщенный янтарный — чтобы не путать с уже
+   реально введённым фактом после графика */
+.gantt-fact-late.gantt-fact-late-hint{background:transparent!important;outline-color:var(--border2)!important;}
 /* оверлеи «сверхсрочной» зоны — периоды за датой завершения проекта */
 .overtime-band{position:absolute;background:rgba(234,88,12,0.10);z-index:1;pointer-events:none;}
 .project-end-line{position:absolute;width:2px;background:#EA580C;z-index:5;pointer-events:none;opacity:0.9;}
@@ -429,7 +479,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
 @media print{
   .no-print{display:none!important;}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
-  body{height:auto!important;overflow:visible!important;background:#fff!important;}
+  body{height:auto!important;overflow:visible!important;background:#fff!important;color:#111!important;}
   .layout{height:auto!important;padding:0!important;gap:0!important;}
   .app{border:none!important;border-radius:0!important;overflow:visible!important;height:auto!important;box-shadow:none!important;}
   .panel.active{overflow:visible!important;height:auto!important;flex:none!important;}
@@ -443,6 +493,14 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   .modal-overlay{display:none!important;}
   @page{ size: landscape; margin: 10mm; }
 }
+/* подсказки факта (прогноз, ещё не реальные данные) — скрыта только сама цифра (текст),
+   очертания ячейки (фон/пунктирная рамка — например у «факта вне графика») остаются
+   видимыми всегда; цифра появляется при наведении на строку или её выделении.
+   Правило специально в самом конце таблицы стилей, чтобы перебить цвет у более ранних
+   .gantt-fact-early-hint/.gantt-fact-late-hint (та же специфичность, но раньше в файле) */
+.fact-hint-num{color:transparent!important;transition:color .12s;}
+.task-row:hover .fact-hint-num,
+.task-row.selected .fact-hint-num{color:var(--text3)!important;}
 </style>
 </head>
 <body>
@@ -456,6 +514,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     <div class="sidebar-list" id="projectsList"></div>
     <button class="sidebar-add" onclick="openNewProject()" title="Создать график" style="flex-shrink:0;margin:0 6px;"><i class="ti ti-plus"></i></button>
     <div class="sidebar-footer">
+      <button class="sidebar-footer-btn no-print" id="themeToggleBtn" onclick="toggleTheme()" title="Тёмная тема"><i class="ti ti-moon"></i></button>
       <button class="sidebar-footer-btn no-print" id="editLockBtn" onclick="unlockEdit()" title="Ввести пароль для редактирования"><i class="ti ti-lock"></i> Только чтение</button>
       <button class="sidebar-footer-btn no-print" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
       <button class="sidebar-footer-btn th-edit-btn" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
@@ -733,6 +792,28 @@ function applyEditMode(){
     btn.title = canEdit ? 'Выйти в режим просмотра' : 'Ввести пароль для редактирования';
   }
   if(typeof renderGantt === 'function') try{ renderGantt(); }catch(e){}
+}
+
+// ─── ручное переключение темы (кнопка в шапке) ────────────────────────────────
+// без выбора пользователя тема следует системной (prefers-color-scheme, см. CSS);
+// как только пользователь один раз переключил — выбор запоминается в localStorage
+function effectiveTheme(){
+  const override = document.documentElement.getAttribute('data-theme');
+  if(override) return override;
+  return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+}
+function updateThemeToggleBtn(){
+  const btn = document.getElementById('themeToggleBtn');
+  if(!btn) return;
+  const isDark = effectiveTheme() === 'dark';
+  btn.innerHTML = isDark ? '<i class="ti ti-sun"></i>' : '<i class="ti ti-moon"></i>';
+  btn.title = isDark ? 'Светлая тема' : 'Тёмная тема';
+}
+function toggleTheme(){
+  const next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('gantt_theme', next); }catch(e){}
+  updateThemeToggleBtn();
 }
 
 function setGanttScale(scale){
@@ -1958,7 +2039,7 @@ function earlyFactCellsHtml(t){
         : isHint
           ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
           : `Факт вне графика: ${res.value.toLocaleString('ru')} (начали раньше плана) — нажмите для изменения`;
-    const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'')+(isHint?' gantt-fact-early-hint':'');
+    const cls = 'gantt-fact-early'+(isEmpty?' gantt-fact-early-empty':'')+(isHint?' gantt-fact-early-hint fact-hint-num':'');
     return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEditThis?'cursor:pointer;':''}"${canEditThis?` tabindex="0" role="button" onclick="event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editEarlyFactPeriod(${t.id},'${key}',${clickVal},this)}"`:''} title="${title}">${shown}</span>`;
   }).join('');
 }
@@ -2155,7 +2236,7 @@ function lateFactCellsHtml(t){
         : isHint
           ? `Прогноз остатка при текущем темпе: ${res.value.toLocaleString('ru')} — нажмите, чтобы внести фактическое значение`
           : `Факт после графика: ${res.value.toLocaleString('ru')} (сроки прошли, объём ещё не набран) — нажмите для изменения`;
-    const cls = 'gantt-fact-late'+(isEmpty?' gantt-fact-late-empty':'')+(isHint?' gantt-fact-late-hint':'');
+    const cls = 'gantt-fact-late'+(isEmpty?' gantt-fact-late-empty':'')+(isHint?' gantt-fact-late-hint fact-hint-num':'');
     return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEmpty||isHint?400:600};white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${canEditThis?'cursor:pointer;':''}"${canEditThis?` tabindex="0" role="button" onclick="event.stopPropagation();editLateFactPeriod(${t.id},'${key}',${clickVal},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editLateFactPeriod(${t.id},'${key}',${clickVal},this)}"`:''} title="${title}">${shown}</span>`;
   }).join('');
 }
@@ -2830,7 +2911,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
           const bg=(isEmpty||!isEdited)?'transparent':factVol<planVol?'var(--bg-danger)':factVol>planVol?'var(--bg-success)':'var(--bg-info)';
           const clickVal = isEmpty ? 0 : factVol;
           const title=isEnterable?(isEdited?`Факт: ${factVol.toLocaleString('ru')} / план: ${planVol.toLocaleString('ru')} — нажмите для изменения`:'Нажмите для ввода факта'):'';
-          const cls = 'gantt-fact-vol'+(isEmpty?' gantt-fact-empty':'');
+          const cls = 'gantt-fact-vol'+(isEmpty?' gantt-fact-empty':'')+((!isEmpty && !isEdited)?' fact-hint-num':'');
           return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEdited?600:400};color:${color};background:${bg};border-radius:3px;white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isEnterable?'cursor:pointer;':''}"${isEnterable?` tabindex="0" role="button" onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)}" title="${title}"`:''}>${shown}</span>`;
         }).join('')}
       </div>
@@ -5345,6 +5426,7 @@ function firstRender(){
   renderGantt();
   renderProjectsList();
   applyEditMode(); // выставить режим (чтение/редактирование) и подпись кнопки-замка
+  updateThemeToggleBtn();
 }
 
 // ─── вход по паролю (Supabase Auth) ──────────────────────────────────────────
