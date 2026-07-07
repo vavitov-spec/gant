@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);}
   .cat-row td{background:#2E3338!important;}
   .cat-row:hover td,.cat-row.selected td{background:#353E48!important;}
-  .cat-row .cat-row-label{color:#D8E6F5;}
+  .cat-row .cat-row-label,.cat-row .row-num,.cat-row td.col-start,.cat-row td.col-dur,.cat-row td.col-end{color:#D8E6F5;}
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
   .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
@@ -132,23 +132,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* закреплённые (не прокручивающиеся по горизонтали) столбцы слева от диаграммы —
    при горизонтальной прокрутке двигается только сама диаграмма (bar-cell) */
 .gantt-table th:first-child,.gantt-table td:first-child,.gantt-table td.sticky-col-cat{position:sticky;left:0;background:var(--bg);}
-.gantt-table th.col-contractor,.gantt-table td.col-contractor{position:sticky;left:230px;background:var(--bg);}
-.gantt-table th.col-start,.gantt-table td.col-start{position:sticky;left:340px;background:var(--bg);text-align:right;}
-.gantt-table th.col-dur,.gantt-table td.col-dur{position:sticky;left:calc(348px + 8ch);background:var(--bg);text-align:right;}
-.gantt-table th.col-end,.gantt-table td.col-end{position:sticky;left:calc(356px + 15ch);background:var(--bg);text-align:right;}
-.gantt-table th.col-volume,.gantt-table td.col-volume{position:sticky;left:calc(364px + 23ch);background:var(--bg);}
-.gantt-table th.col-unit,.gantt-table td.col-unit{position:sticky;left:calc(410px + 23ch);background:var(--bg);}
-.gantt-table th.col-factplan,.gantt-table td.col-factplan{position:sticky;left:calc(450px + 23ch);background:var(--bg);}
-.gantt-table th.col-pct,.gantt-table td.col-pct{position:sticky;left:calc(530px + 23ch);background:var(--bg);}
+.gantt-table th.col-type,.gantt-table td.col-type{position:sticky;left:230px;background:var(--bg);text-align:center;}
+.gantt-table th.col-contractor,.gantt-table td.col-contractor{position:sticky;left:286px;background:var(--bg);}
+.gantt-table th.col-start,.gantt-table td.col-start{position:sticky;left:396px;background:var(--bg);text-align:right;}
+.gantt-table th.col-dur,.gantt-table td.col-dur{position:sticky;left:calc(404px + 8ch);background:var(--bg);text-align:right;}
+.gantt-table th.col-end,.gantt-table td.col-end{position:sticky;left:calc(412px + 15ch);background:var(--bg);text-align:right;}
+.gantt-table th.col-volume,.gantt-table td.col-volume{position:sticky;left:calc(420px + 23ch);background:var(--bg);}
+.gantt-table th.col-unit,.gantt-table td.col-unit{position:sticky;left:calc(466px + 23ch);background:var(--bg);}
+.gantt-table th.col-factplan,.gantt-table td.col-factplan{position:sticky;left:calc(506px + 23ch);background:var(--bg);}
+.gantt-table th.col-pct,.gantt-table td.col-pct{position:sticky;left:calc(586px + 23ch);background:var(--bg);}
 /* колонка «План на сегодня» — только для мобильного (третий свайп-экран), на десктопе скрыта */
 .gantt-table th.col-plantoday,.gantt-table td.col-plantoday{display:none;}
-.gantt-table th:first-child,.gantt-table th.col-contractor,.gantt-table th.col-start,.gantt-table th.col-dur,.gantt-table th.col-end,.gantt-table th.col-volume,.gantt-table th.col-unit,.gantt-table th.col-factplan,.gantt-table th.col-pct{z-index:9;}
-.gantt-table td:first-child,.gantt-table td.col-contractor,.gantt-table td.col-start,.gantt-table td.col-dur,.gantt-table td.col-end,.gantt-table td.col-volume,.gantt-table td.col-unit,.gantt-table td.col-factplan,.gantt-table td.col-pct,.gantt-table td.sticky-col-cat{z-index:5;}
+.gantt-table th:first-child,.gantt-table th.col-contractor,.gantt-table th.col-start,.gantt-table th.col-dur,.gantt-table th.col-end,.gantt-table th.col-volume,.gantt-table th.col-unit,.gantt-table th.col-factplan,.gantt-table th.col-pct,.gantt-table th.col-type{z-index:9;}
+.gantt-table td:first-child,.gantt-table td.col-contractor,.gantt-table td.col-start,.gantt-table td.col-dur,.gantt-table td.col-end,.gantt-table td.col-volume,.gantt-table td.col-unit,.gantt-table td.col-factplan,.gantt-table td.col-pct,.gantt-table td.col-type,.gantt-table td.sticky-col-cat{z-index:5;}
 .gantt-table td.sticky-col-cat{overflow:visible;z-index:6;}
-.cat-row td{background:#EFF4F9!important;font-weight:600;border-left:3px solid #185FA5;padding:5px 10px 5px 9px!important;}
+.cat-row td{background:#CFE2F3!important;font-weight:600;border-left:3px solid #185FA5;padding:5px 10px 5px 9px!important;}
 .cat-row td + td{border-left:none!important;}
-.cat-row:hover td,.cat-row.selected td{background:#E1EAF3!important;}
-.cat-row .cat-row-label{color:#15324F;font-size:13px;letter-spacing:.01em;}
+.cat-row:hover td,.cat-row.selected td{background:#B9D5EC!important;}
+.cat-row .cat-row-label,.cat-row .row-num,.cat-row td.col-start,.cat-row td.col-dur,.cat-row td.col-end{color:#15324F;}
+.cat-row .cat-row-label{font-size:13px;letter-spacing:.01em;}
 .cat-row .ti{color:#185FA5;}
 .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#6B92B8!important;}
 
@@ -396,6 +398,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
      листаются пальцем: сначала Дата начала / Длит. / Дата оконч.,
      свайп → Общ. объём / Ед. / Факт-План / %. Подрядчик и полосу Ганта пока прячем. */
   .gantt-table th.col-contractor,.gantt-table td.col-contractor,
+  .gantt-table th.col-type,.gantt-table td.col-type,
   .gantt-table th.bar-cell,.gantt-table td.bar-cell{display:none!important;}
   #ganttTodayLine,#ganttLinksSvg{display:none!important;} /* относятся к скрытой полосе */
   /* колонки-данные больше не «липкие» — свободно скроллятся вправо за именем */
@@ -515,6 +518,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
               </span>
             </div>
           </th>
+          <th class="col-type" style="width:56px">Тип</th>
           <th class="col-contractor" style="width:110px">Подрядчик</th>
           <th class="col-start tight-col" style="width:calc(8ch + 8px);line-height:1.2;">Дата<br>начала</th>
           <th class="col-dur tight-col" style="width:calc(7ch + 8px);line-height:1.2;">Длит.</th>
@@ -596,7 +600,7 @@ const WEEKDAY_LABEL_TO_GETDAY = [1,2,3,4,5,6,0]; // соответствие п�
 let ganttScale = 'week';
 let factplanMode = 'cur'; // 'cur' — по прошедшим периодам, 'tot' — общий факт/объём
 function setFactplanMode(m){ factplanMode=m; renderGantt(); }
-let ganttFilters = { hideCompleted: false, showOnlyCurrent: false, showOnlyCurrentMonth: false };
+let ganttFilters = { hideCompleted: false, showOnlyCurrent: false, showOnlyCurrentMonth: false, types: { design: true, work: true, materials: true } };
 function isTaskCurrentWeek(t){
   const today = new Date();
   const mon = new Date(today); mon.setDate(today.getDate()-((today.getDay()||7)-1)); mon.setHours(0,0,0,0);
@@ -621,16 +625,31 @@ function toggleFilterMenu(btn){
   dd.innerHTML = `
     <div class="filter-item" onclick="toggleFilter('hideCompleted')"><span style="flex:1;">Скрыть завершённые работы</span><div class="filter-toggle${ganttFilters.hideCompleted?' on':''}" id="ftoggle-hideCompleted"></div></div>
     <div class="filter-item" onclick="toggleFilter('showOnlyCurrent')"><span style="flex:1;">Только текущие (есть план на эту неделю)</span><div class="filter-toggle${ganttFilters.showOnlyCurrent?' on':''}" id="ftoggle-showOnlyCurrent"></div></div>
-    <div class="filter-item" onclick="toggleFilter('showOnlyCurrentMonth')"><span style="flex:1;">Только текущие (есть план на этот месяц)</span><div class="filter-toggle${ganttFilters.showOnlyCurrentMonth?' on':''}" id="ftoggle-showOnlyCurrentMonth"></div></div>`;
+    <div class="filter-item" onclick="toggleFilter('showOnlyCurrentMonth')"><span style="flex:1;">Только текущие (есть план на этот месяц)</span><div class="filter-toggle${ganttFilters.showOnlyCurrentMonth?' on':''}" id="ftoggle-showOnlyCurrentMonth"></div></div>
+    <div style="height:1px;background:var(--border);margin:5px 0;"></div>
+    <div style="padding:4px 14px 3px;font-size:11px;color:var(--text3);">Тип работ</div>
+    ${TASK_TYPES.map(ty=>`<div class="filter-item" onclick="toggleTypeFilter('${ty.value}')"><span style="flex:1;">${ty.label}</span><div class="filter-toggle${ganttFilters.types[ty.value]?' on':''}" id="ftoggle-type-${ty.value}"></div></div>`).join('')}`;
   document.body.appendChild(dd);
   setTimeout(()=>{ document.addEventListener('click', function h(e){ if(!dd.contains(e.target)&&e.target!==btn){ dd.remove(); document.removeEventListener('click',h); } }); }, 0);
+}
+function anyGanttFilterActive(){
+  return ganttFilters.hideCompleted || ganttFilters.showOnlyCurrent || ganttFilters.showOnlyCurrentMonth
+    || TASK_TYPES.some(ty=>!ganttFilters.types[ty.value]);
 }
 function toggleFilter(key){
   ganttFilters[key] = !ganttFilters[key];
   const tog = document.getElementById('ftoggle-'+key);
   if(tog) tog.classList.toggle('on', ganttFilters[key]);
   const btn = document.getElementById('btnFilter');
-  if(btn) btn.classList.toggle('active', Object.values(ganttFilters).some(Boolean));
+  if(btn) btn.classList.toggle('active', anyGanttFilterActive());
+  renderGantt();
+}
+function toggleTypeFilter(value){
+  ganttFilters.types[value] = !ganttFilters.types[value];
+  const tog = document.getElementById('ftoggle-type-'+value);
+  if(tog) tog.classList.toggle('on', ganttFilters.types[value]);
+  const btn = document.getElementById('btnFilter');
+  if(btn) btn.classList.toggle('active', anyGanttFilterActive());
   renderGantt();
 }
 const SCALE_DAY_PX = { day: 32, week: 12 };
@@ -2011,27 +2030,6 @@ function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
 // общего объёма — зеркало «факта вне графика», только по другую сторону работы. Точки
 // входа и логика дозаполнения полностью аналогичны preStart*/earlyFact* (см. выше).
 
-// рабочие дни ПОСЛЕ планового конца, входящие в открытую зону факта после графика — нужны
-// и для отрисовки ячеек (postEndPeriods), и для общего пула проекции остатка (factProjection)
-function postEndWorkingDayIdxs(t){
-  if((t.volume||0)<=0 || (t.factVol||0) >= t.volume) return []; // объём уже полностью закрыт факт — дозаполнять нечего
-  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1; // первый день СТРОГО после планового конца
-  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
-  const enteredAfter = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx>=endIdx);
-  const p = activeProject();
-  const allDays = periodDates();
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayIdx = dayIndexOfDate(today);
-  let zoneEnd = -Infinity;
-  if(todayIdx >= endIdx) zoneEnd = todayIdx;
-  if(enteredAfter.length) zoneEnd = Math.max(zoneEnd, ...enteredAfter);
-  if(!isFinite(zoneEnd) || zoneEnd < endIdx) return [];
-  zoneEnd = Math.min(zoneEnd, allDays.length-1);
-  const idxs = [];
-  for(let i=endIdx;i<=zoneEnd;i++){ const d=allDays[i]; if(d && isWorkingDay(d,p)) idxs.push(i); }
-  return idxs;
-}
-
 // периоды ПОСЛЕ планового конца работы, которые нужно показать как «факт после графика»
 function postEndPeriods(t){
   if(ganttScale==='month') return [];
@@ -2046,50 +2044,77 @@ function postEndPeriods(t){
   const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
   const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx>=endIdx);
 
+  const keySet = new Set();
   if(!enteredIdxs.length){
     // ничего не внесено после плана — точки входа: сегодняшний период и период
     // предыдущего рабочего дня (если он всё ещё после планового конца)
     const p = activeProject();
     const allDays = periodDates();
-    const keys = [];
     const prevIdx = prevWorkingDayIdx(todayIdx, p, allDays);
     if(prevIdx >= endIdx){
       const prevKey = calendarPeriodKey(prevIdx);
-      if(calendarPeriodWorkingDayIdxs(prevKey).filter(idx=>idx>=endIdx).length) keys.push(prevKey);
+      if(calendarPeriodWorkingDayIdxs(prevKey).filter(idx=>idx>=endIdx).length) keySet.add(prevKey);
     }
-    if(calendarPeriodWorkingDayIdxs(todayKey).filter(idx=>idx>=endIdx).length){
-      if(!keys.includes(todayKey)) keys.push(todayKey);
+    if(calendarPeriodWorkingDayIdxs(todayKey).filter(idx=>idx>=endIdx).length) keySet.add(todayKey);
+  } else {
+    // уже есть более поздние записи — открываем весь промежуток от плана до самой поздней из них
+    const latestEntered = Math.max(...enteredIdxs);
+    const zoneEndKeyIdx = Math.max(parseInt(calendarPeriodKey(latestEntered).slice(1)), todayPeriodStart);
+    let i = parseInt(calendarPeriodKey(endIdx).slice(1));
+    // если endIdx попал в середину недели (масштаб «Неделя»), начнём с её начала — лишние
+    // дни ДО endIdx отфильтруются ниже через idx>=endIdx
+    while(i <= zoneEndKeyIdx){
+      const key = calendarPeriodKey(i);
+      if(calendarPeriodWorkingDayIdxs(key).filter(idx=>idx>=endIdx).length) keySet.add(key);
+      i += (key.startsWith('w') ? periodKeyGeom(key).width / SCALE_DAY_PX[ganttScale] : 1);
     }
-    return keys.sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
   }
 
-  // уже есть более поздние записи — открываем весь промежуток от плана до самой поздней из них
-  const latestEntered = Math.max(...enteredIdxs);
-  let zoneEndKeyIdx = Math.max(parseInt(calendarPeriodKey(latestEntered).slice(1)), todayPeriodStart);
+  // прогноз ВПЕРЁД от последней реальной записи — рабочие дни, на которые хватает текущего
+  // темпа, чтобы добрать остаток объёма (см. lateFactHints); показываем их как будущие
+  // ячейки-подсказки, а не только сегодняшний день
+  Object.keys(lateFactHints(t)).map(Number).filter(idx=>idx>todayIdx).forEach(idx=>{ keySet.add(calendarPeriodKey(idx)); });
 
-  const keys = [];
-  let i = parseInt(calendarPeriodKey(endIdx).slice(1));
-  // если endIdx попал в середину недели (масштаб «Неделя»), начнём с её начала — лишние
-  // дни ДО endIdx отфильтруются ниже через idx>=endIdx
-  while(i <= zoneEndKeyIdx){
-    const key = calendarPeriodKey(i);
-    if(calendarPeriodWorkingDayIdxs(key).filter(idx=>idx>=endIdx).length) keys.push(key);
-    i += (key.startsWith('w') ? periodKeyGeom(key).width / SCALE_DAY_PX[ganttScale] : 1);
-  }
-  return keys;
+  return Array.from(keySet).sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
 }
 
 // прогноз факта ПОСЛЕ графика — в отличие от общей factProjection (равная доля остатка на
-// все незаполненные дни), здесь берём дневное значение последнего ВВЕДЁННОГО дня в этой же
-// зоне и просто продолжаем им вперёд (по аналогии с последним днём, а не средним по остатку) —
+// все незаполненные дни), здесь берём дневное значение последнего ВВЕДЁННОГО дня по всей
+// работе (не только среди дней уже «после графика» — последний день самого плана тоже
+// годится) и продолжаем им вперёд (по аналогии с последним днём, а не средним по остатку) —
 // так подсказка отражает фактический темп работ, а не искусственно ровный остаток
 function lateFactDailyRate(t){
-  const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
   const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
-  const enteredIdxs = postEndWorkingDayIdxs(t).filter(idx=>dayOv['d'+idx]!==undefined);
+  const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx));
   if(!enteredIdxs.length) return null;
   const lastIdx = Math.max(...enteredIdxs);
   return dayOv['d'+lastIdx] || 0;
+}
+
+// подсказки по дням в зоне «после графика»: продолжаем темпом последнего введённого дня
+// (lateFactDailyRate) день за днём, начиная СРАЗУ ПОСЛЕ последней реальной записи (а не
+// назад в пропуски), пока не наберём остаток объёма — как только остаток исчерпан,
+// дальше дни вообще не добавляются (а не остаются с нулевым значением)
+function lateFactHints(t){
+  const dailyRate = lateFactDailyRate(t);
+  const hints = {};
+  if(!dailyRate) return hints;
+  const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
+  const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx));
+  if(!enteredIdxs.length) return hints;
+  const lastEnteredIdx = Math.max(...enteredIdxs);
+  const p = activeProject();
+  const allDays = periodDates();
+  let remaining = Math.max(0, (t.volume||0) - (t.factVol||0));
+  let i = lastEnteredIdx;
+  while(remaining > 0 && i < allDays.length-1){
+    i++;
+    if(!(allDays[i] && isWorkingDay(allDays[i], p))) continue;
+    const v = Math.min(dailyRate, remaining);
+    hints[i] = v;
+    remaining -= v;
+  }
+  return hints;
 }
 
 // значение факта после графика в этом периоде — та же семантика {value,isHint}/null, что и у earlyFactValueForPeriod
@@ -2100,9 +2125,10 @@ function lateFactValueForPeriod(t, periodKey){
   if(!idxs.length) return null;
   const entered = idxs.filter(idx=>dayOv['d'+idx]!==undefined);
   if(entered.length) return { value: Math.round(entered.reduce((s,idx)=>s+(dayOv['d'+idx]||0),0)), isHint:false };
-  const dailyRate = lateFactDailyRate(t);
-  if(dailyRate===null) return null;
-  return { value: Math.round(dailyRate*idxs.length), isHint:true };
+  const hints = lateFactHints(t);
+  if(!idxs.some(idx=>hints[idx]!==undefined)) return null;
+  const sum = idxs.reduce((s,idx)=> s + (hints[idx]||0), 0);
+  return { value: Math.round(sum), isHint:true };
 }
 
 // HTML ячеек факта после графика — своим цветом, без привязки к плановым периодам работы.
@@ -2550,7 +2576,7 @@ function renderGantt(){
   let hiddenChain = [];
 
   // предварительно вычисляем разделы с хотя бы одной видимой задачей (для фильтров)
-  const filtersActive = ganttFilters.hideCompleted || ganttFilters.showOnlyCurrent || ganttFilters.showOnlyCurrentMonth;
+  const filtersActive = anyGanttFilterActive();
   const sectionsWithVisible = new Set();
   if(filtersActive){
     let catId = null;
@@ -2560,7 +2586,8 @@ function renderGantt(){
       const ok1 = !ganttFilters.hideCompleted || t.factPct!==100;
       const ok2 = !ganttFilters.showOnlyCurrent || isTaskCurrentWeek(t);
       const ok3 = !ganttFilters.showOnlyCurrentMonth || isTaskCurrentMonth(t);
-      if(ok1&&ok2&&ok3) sectionsWithVisible.add(catId);
+      const ok4 = !!ganttFilters.types[t.type||'work'];
+      if(ok1&&ok2&&ok3&&ok4) sectionsWithVisible.add(catId);
     });
   }
 
@@ -2597,7 +2624,7 @@ function renderGantt(){
         selectedTaskId = null;
         toggleGanttSection(t.id);
       });
-      const catNumHtml = `<span class="row-num" style="color:var(--text3);font-weight:600;flex-shrink:0;">${secCounter}.</span>`;
+      const catNumHtml = `<span class="row-num" style="font-weight:600;flex-shrink:0;">${secCounter}.</span>`;
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
@@ -2605,9 +2632,9 @@ function renderGantt(){
       // сводную полосу и агрегированный факт/план — только при свёрнутом разделе, чтобы не
       // дублировать то, что и так видно по развёрнутым работам
       const dateCells = sectionDateCellsHtml(t.id);
-      const startTd = dateCells ? `<td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.startHtml}</td>` : `<td class="col-start"></td>`;
-      const durTd   = dateCells ? `<td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.durHtml}</td>` : `<td class="col-dur"></td>`;
-      const endTd   = dateCells ? `<td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateCells.endHtml}</td>` : `<td class="col-end"></td>`;
+      const startTd = dateCells ? `<td class="col-start tight-col" style="font-size:12px;white-space:nowrap;">${dateCells.startHtml}</td>` : `<td class="col-start"></td>`;
+      const durTd   = dateCells ? `<td class="col-dur tight-col" style="font-size:12px;white-space:nowrap;">${dateCells.durHtml}</td>` : `<td class="col-dur"></td>`;
+      const endTd   = dateCells ? `<td class="col-end tight-col" style="font-size:12px;white-space:nowrap;">${dateCells.endHtml}</td>` : `<td class="col-end"></td>`;
       const rollupCells = currentCollapsed ? sectionFactPlanCellsHtml(t.id) : null;
       const factplanTd = rollupCells
         ? `<td class="col-factplan" style="text-align:center;font-size:12px;white-space:nowrap;" title="Свод по разделу">${rollupCells.factplanHtml}</td>`
@@ -2626,7 +2653,7 @@ function renderGantt(){
           ${isEditingCat?'':`<button class="add-work-btn-inline" onclick="event.stopPropagation();showAddTask(${t.id})" title="Добавить работу в этот раздел">
             <i class="ti ti-plus" style="font-size:11px;"></i> Работы
           </button>`}
-        </span></td><td class="col-contractor"></td>${startTd}${durTd}${endTd}<td class="col-volume"></td><td class="col-unit"></td>${factplanTd}${pctTd}<td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}${barCellHtml}</td>`;
+        </span></td><td class="col-type"></td><td class="col-contractor"></td>${startTd}${durTd}${endTd}<td class="col-volume"></td><td class="col-unit"></td>${factplanTd}${pctTd}<td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}${barCellHtml}</td>`;
       body.appendChild(tr);
       return;
     }
@@ -2654,6 +2681,7 @@ function renderGantt(){
     if(ganttFilters.hideCompleted && t.factPct===100){ return; }
     if(ganttFilters.showOnlyCurrent && !isTaskCurrentWeek(t)){ return; }
     if(ganttFilters.showOnlyCurrentMonth && !isTaskCurrentMonth(t)){ return; }
+    if(!ganttFilters.types[t.type||'work']){ return; }
 
     workCounter++;
     const numLabel = secCounter+'.'+workCounter;
@@ -2704,6 +2732,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
     const isEditingDur = editingDurTaskId===t.id;
     const isEditingVol = editingVolTaskId===t.id;
     const isEditingUnit = editingUnitTaskId===t.id;
+    const isEditingType = editingTypeTaskId===t.id;
     const dateHtml = isEditingDate
       ? `<input id="taskDateInput-${t.id}" type="text" inputmode="numeric" maxlength="8" placeholder="ДД.ММ.ГГ" value="${formatDateDDMMYY(taskStartDate(t))}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:72px;" onclick="event.stopPropagation();" oninput="maskDateInput(this)" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDate(${t.id}, this.value, this.dataset.cancel)">`
       : `<span ondblclick="event.stopPropagation();startEditTaskDate(${t.id})" title="Двойной клик — изменить дату начала">${formatDateDDMMYY(taskStartDate(t))}</span>`;
@@ -2722,6 +2751,10 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
     const numHtml = numLabel ? `<span class="row-num" style="color:var(--text3);flex-shrink:0;">${numLabel}</span>` : '';
     tr.innerHTML=`
       <td><div class="task-indent-wrap" style="display:flex;align-items:flex-start;gap:3px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}${level>0?'<span class="task-indent">∟</span>':''}${numHtml}${nameHtml}${deleteBtnHtml}</div></td>
+      <td class="col-type" style="font-size:12px;color:var(--text3);">${isEditingType
+        ? `<select id="taskTypeSelect-${t.id}" onclick="event.stopPropagation();" onchange="commitTaskType(${t.id},this.value)" onblur="if(editingTypeTaskId===${t.id}){editingTypeTaskId=null;renderGantt();}" style="font:inherit;font-size:12px;padding:2px 3px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;">${TASK_TYPES.map(ty=>`<option value="${ty.value}"${(t.type||'work')===ty.value?' selected':''}>${ty.label}</option>`).join('')}</select>`
+        : `<span ondblclick="event.stopPropagation();startEditTaskType(${t.id})" title="Двойной клик — изменить тип (${taskTypeInfo(t.type).label})" style="cursor:default;">${taskTypeInfo(t.type).short}</span>`
+      }</td>
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${t.contractor}</span></td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
@@ -2809,7 +2842,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
 // При активных фильтрах или изменении длины шкалы строка может влиять на соседей —
 // тогда честно перерисовываем всё.
 function refreshTaskRow(taskId){
-  const filtersActive = ganttFilters.hideCompleted || ganttFilters.showOnlyCurrent || ganttFilters.showOnlyCurrentMonth;
+  const filtersActive = anyGanttFilterActive();
   const idx = tasks.findIndex(x=>x.id===taskId);
   const old = document.querySelector('#ganttBody tr[data-task-id="'+taskId+'"]');
   if(filtersActive || idx<0 || !old){ renderGantt(); return; }
@@ -2853,7 +2886,7 @@ function applyStickyColumnOffsets(){
   const table = document.querySelector('.gantt-table');
   const headerRow = table && table.querySelector('thead tr');
   if(!table || !headerRow) return;
-  const stickyClasses = ['col-contractor','col-start','col-dur','col-end','col-volume','col-unit','col-factplan','col-pct'];
+  const stickyClasses = ['col-type','col-contractor','col-start','col-dur','col-end','col-volume','col-unit','col-factplan','col-pct'];
   table.querySelectorAll('td:first-child, td.sticky-col-cat').forEach(td=>{ td.style.left = '0px'; });
   const firstTh = headerRow.querySelector('th:first-child');
   let acc = firstTh ? firstTh.offsetWidth : 0;
@@ -3273,7 +3306,7 @@ let editingTaskId = null;
 function showAddTask(catId){
   if(noStructureEdit()) return;
   const newId=Math.max(0,...tasks.map(t=>t.id))+1;
-  const newTask={id:newId,name:'',contractor:'Не указан',unit:'%',volume:100,start:Math.max(0,Math.min(dateToOffset(new Date()),TOTAL-1)),dur:10,factPct:0,factVol:0,factOverrides:{}};
+  const newTask={id:newId,name:'',contractor:'Не указан',unit:'%',type:'work',volume:100,start:Math.max(0,Math.min(dateToOffset(new Date()),TOTAL-1)),dur:10,factPct:0,factVol:0,factOverrides:{}};
 
   if(catId!==undefined){
     ganttCollapsed[catId] = false; // если раздел был свёрнут — раскрываем, чтобы новая работа была видна
@@ -3328,6 +3361,7 @@ let editingDateTaskId = null;
 let editingDurTaskId = null;
 let editingVolTaskId = null;
 let editingUnitTaskId = null;
+let editingTypeTaskId = null;
 
 // оставляет в поле только цифры, ограничивая их количество maxLen (для длительности)
 function maskDigitsInput(el, maxLen){
@@ -3404,6 +3438,21 @@ function commitTaskUnit(id, val){
   editingUnitTaskId = null;
   const t = tasks.find(x=>x.id===id); if(!t) return;
   t.unit = val;
+  renderGantt(); saveState();
+}
+
+function startEditTaskType(id){
+  if(noStructureEdit()) return;
+  editingTypeTaskId = id;
+  renderGantt();
+  const sel = document.getElementById('taskTypeSelect-'+id);
+  if(sel){ sel.focus(); }
+}
+
+function commitTaskType(id, val){
+  editingTypeTaskId = null;
+  const t = tasks.find(x=>x.id===id); if(!t) return;
+  t.type = val;
   renderGantt(); saveState();
 }
 
@@ -4645,18 +4694,18 @@ function createProject(){
         if(!checkedSubWorks.length) return;
         // подраздел становится работой верхнего уровня — «контейнером» для своих подработ
         newTasks.push({
-          id:taskId++, name:w.name, contractor:'Не назначен', unit:'%',
+          id:taskId++, name:w.name, contractor:'Не назначен', unit:'%', type:'work',
           volume:100, start:0, dur:10, factPct:0, factVol:0
         });
         checkedSubWorks.forEach(sw=>{
           newTasks.push({
-            id:taskId++, name:sw, contractor:'Не назначен', unit:'—',
+            id:taskId++, name:sw, contractor:'Не назначен', unit:'—', type:'work',
             volume:0, start:0, dur:10, factPct:0, factVol:0, level:1
           });
         });
       } else if(wsel){
         newTasks.push({
-          id:taskId++, name:w, contractor:'Не назначен', unit:'%',
+          id:taskId++, name:w, contractor:'Не назначен', unit:'%', type:'work',
           volume:100, start:0, dur:10, factPct:0, factVol:0
         });
       }
@@ -4731,9 +4780,17 @@ function activeGraphType(){ return graphTypes.find(g=>g.id===activeGraphTypeId) 
 
 let contractorsList = Object.keys(CONTRACTORS);
 let unitsList = ['%', 'м²', 'м³', 'м.п.', 'шт.'];
+// типы строк графика: значение — что хранится в t.type, short — как показываем в свёрнутом виде на полосе
+const TASK_TYPES = [
+  {value:'design',    label:'ПИР',      short:'ПИР'},
+  {value:'work',      label:'СМР',      short:'СМР'},
+  {value:'materials', label:'Поставка', short:'Пост.'}
+];
+function taskTypeInfo(val){ return TASK_TYPES.find(x=>x.value===val) || TASK_TYPES[0]; }
 
 // ─── настройки конкретного графика (шестерёнка в шапке таблицы) ─────────────
 const GS_COLUMNS = [
+  {key:'type', label:'Тип'},
   {key:'contractor', label:'Подрядчик'},
   {key:'start', label:'Дата начала'},
   {key:'dur', label:'Длительность'},
@@ -4745,7 +4802,7 @@ const GS_COLUMNS = [
 ];
 
 function projectColumns(p){
-  if(!p.columns) p.columns = {contractor:true,start:true,dur:true,end:true,volume:true,unit:true,factplan:true,pct:true};
+  if(!p.columns) p.columns = {contractor:true,start:true,dur:true,end:true,volume:true,unit:true,factplan:true,pct:true,type:true};
   return p.columns;
 }
 
