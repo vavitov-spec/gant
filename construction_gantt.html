@@ -38,9 +38,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
   .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
-  .gantt-fact-early-empty{outline-color:rgba(134,239,172,0.35)!important;}
+  .gantt-fact-early-empty{background:transparent!important;outline-color:transparent!important;}
+  .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(134,239,172,0.35)!important;}
   .gantt-fact-late{background:rgba(251,191,36,0.18)!important;color:#FCD34D!important;outline-color:rgba(251,191,36,0.55)!important;}
-  .gantt-fact-late-empty{outline-color:rgba(251,191,36,0.35)!important;}
+  .gantt-fact-late-empty{background:transparent!important;outline-color:rgba(251,191,36,0.35)!important;}
 }
 /* ручной переключатель темы (кнопка в шапке) — переопределяет системную тему выше;
    без него всё управляется через prefers-color-scheme */
@@ -57,9 +58,10 @@ html[data-theme="dark"] body{background:#181818;}
 [data-theme="dark"] .cat-row .ti{color:#85B7EB;}
 [data-theme="dark"] .cat-row .ti-chevron-right,[data-theme="dark"] .cat-row .ti-chevron-down{color:#7A95AC!important;}
 [data-theme="dark"] .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
-[data-theme="dark"] .gantt-fact-early-empty{outline-color:rgba(134,239,172,0.35)!important;}
+[data-theme="dark"] .gantt-fact-early-empty{background:transparent!important;outline-color:transparent!important;}
+[data-theme="dark"] .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(134,239,172,0.35)!important;}
 [data-theme="dark"] .gantt-fact-late{background:rgba(251,191,36,0.18)!important;color:#FCD34D!important;outline-color:rgba(251,191,36,0.55)!important;}
-[data-theme="dark"] .gantt-fact-late-empty{outline-color:rgba(251,191,36,0.35)!important;}
+[data-theme="dark"] .gantt-fact-late-empty{background:transparent!important;outline-color:rgba(251,191,36,0.35)!important;}
 
 :root[data-theme="light"]{
   --bg:#fff;--bg2:#f5f5f5;--bg-info:#E6F1FB;--bg-danger:#FCEBEB;--bg-warning:#FAEEDA;--bg-success:#EAF3DE;
@@ -73,9 +75,10 @@ html[data-theme="light"] body{background:#f0f2f5;}
 [data-theme="light"] .cat-row .ti{color:#185FA5!important;}
 [data-theme="light"] .cat-row .ti-chevron-right,[data-theme="light"] .cat-row .ti-chevron-down{color:#6B92B8!important;}
 [data-theme="light"] .gantt-fact-early{background:rgba(34,197,94,0.14)!important;color:#15803D!important;outline-color:rgba(34,197,94,0.55)!important;}
-[data-theme="light"] .gantt-fact-early-empty{outline-color:rgba(34,197,94,0.35)!important;}
+[data-theme="light"] .gantt-fact-early-empty{background:transparent!important;outline-color:transparent!important;}
+[data-theme="light"] .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(34,197,94,0.35)!important;}
 [data-theme="light"] .gantt-fact-late{background:rgba(217,119,6,0.14)!important;color:#B45309!important;outline-color:rgba(217,119,6,0.55)!important;}
-[data-theme="light"] .gantt-fact-late-empty{outline-color:rgba(217,119,6,0.35)!important;}
+[data-theme="light"] .gantt-fact-late-empty{background:transparent!important;outline-color:rgba(217,119,6,0.35)!important;}
 .layout{max-width:none;height:100vh;margin:0 auto;display:flex;flex-direction:column;gap:3px;padding:0 8px;}
 .sidebar{width:100%;flex-shrink:0;background:var(--bg);border-radius:var(--rad-lg) var(--rad-lg) 0 0;border:0.5px solid var(--border);border-bottom:none;overflow:visible;display:flex;flex-direction:row;align-items:center;position:sticky;top:0;}
 .sidebar-head{padding:6px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;border-right:0.5px solid var(--border);}
@@ -257,8 +260,8 @@ body.readonly .th-edit-btn{display:none!important;}
 /* outline вместо border — контур не отнимает место у контента, поэтому ячейка остаётся
    ровно того же размера, что и обычная ячейка факта, а цифры не обрезаются рамкой */
 .gantt-fact-early{background:rgba(34,197,94,0.14);color:#15803D;outline:1px dashed rgba(34,197,94,0.55);outline-offset:-1px;border-radius:3px;}
-.gantt-fact-early-empty{background:transparent;outline:1px dashed rgba(34,197,94,0.35);outline-offset:-1px;color:var(--text3);}
-.gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;}
+.gantt-fact-early-empty{background:transparent;outline:1px dashed transparent;outline-offset:-1px;color:var(--text3);}
+.gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(34,197,94,0.35);}
 .gantt-fact-early-hint{color:var(--text3)!important;}
 .gantt-fact-early.gantt-fact-early-hint{background:transparent!important;outline-color:var(--border2)!important;}
 /* факт после графика: сроки по плану прошли, а факт ещё не набрал объём — тот же язык, но
