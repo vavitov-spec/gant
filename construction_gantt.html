@@ -4491,10 +4491,6 @@ function npPickGraphType(id){
 
 function openNewProject(){
   if(isReadOnly()) return;
-  // создание нового графика теперь требует одобрения (заявки) — сама заявка ещё не подключена
-  // к этому UI (следующий этап); пока временно сообщаем об этом вместо открытия мастера
-  alert('Создание новых графиков временно на паузе — добавляю заявки на создание с одобрением. Скоро будет доступно.');
-  return;
   npRangeStart = null;
   npRangeEnd = null;
   npGraphTypeId = graphTypes.length ? graphTypes[0].id : null;
@@ -4725,7 +4721,7 @@ function updateNPSummary(){
     : `Выбрано разделов: ${sectionsCount} · видов работ: ${worksCount}`;
 }
 
-function createProject(){
+async function createProject(){
   const name = document.getElementById('npName').value.trim();
   if(!name){ alert('Укажите название графика'); document.getElementById('npName').focus(); return; }
   if(npGraphTypeId === null){ alert('Выберите вид графика'); return; }
@@ -4738,8 +4734,7 @@ function createProject(){
   }
 
   const months = npMonthsCount();
-  const color = PROJECT_COLORS[projects.length % PROJECT_COLORS.length];
-  const newId = Math.max(0,...projects.map(p=>p.id)) + 1;
+  const color = PROJECT_COLORS[Math.floor(Math.random()*PROJECT_COLORS.length)];
   const sections = npCurrentSections();
 
   // строим пустую структуру задач (категории + виды работ, без сроков/объёмов)
@@ -4776,11 +4771,8 @@ function createProject(){
     });
   });
 
-  // сохраняем текущее состояние активного проекта перед переключением
-  saveActiveProjectState();
-
   const newProject = {
-    id:newId, name,
+    id:1, name,
     icon:'ti-building', color,
     total: months,
     current: 0, // новый проект, факт ещё не вносился — "сегодня" в начале периода
@@ -4788,22 +4780,46 @@ function createProject(){
     workingDays: (()=>{ const wd=Array(7).fill(false); document.querySelectorAll('#npWorkingDays .wd-btn').forEach(b=>{ wd[parseInt(b.dataset.day)]=b.classList.contains('active'); }); return wd; })(),
     tasks:newTasks, links: []
   };
-  projects.push(newProject);
 
   closeNewProject();
 
-  // сразу переключаемся на только что созданный график
-  activeProjectId = newId;
-  tasks = newProject.tasks;
-  links = newProject.links;
-  TOTAL = newProject.total;
-  CURRENT = newProject.current;
-  document.getElementById('projBadge').textContent = projectMeta(newProject);
+  // сохраняем несохранённые правки прежнего графика перед переключением на новый
+  saveActiveProjectState();
+  if(_cloudSaveTimer){ clearTimeout(_cloudSaveTimer); _cloudSaveTimer=null; }
+  if(_cloudDirty) await cloudSave(buildPayload());
 
-  renderProjectsList();
-  renderGantt();
-  switchTab('gantt', document.querySelectorAll('.tab')[0]);
-  saveState();
+  // создание нового графика — через заявку; если создающий и есть владелец системы,
+  // она одобряется сразу же следующим вызовом (см. request_create_project/
+  // decide_create_project_request — НАСТРОЙКА_РОЛЕЙ.md)
+  const { data: reqId, error: reqErr } = await sb.rpc('request_create_project', { p_name: name });
+  if(reqErr){ alert('Не удалось создать заявку: ' + reqErr.message); return; }
+
+  const { data: newAppStateId, error: decErr } = await sb.rpc('decide_create_project_request', { p_request_id: reqId, p_approve: true });
+  if(decErr){
+    // не владелец системы — это ожидаемо: заявка создана и ждёт одобрения
+    alert('Заявка на создание графика «' + name + '» отправлена. Как только её одобрят — график появится в списке слева.');
+    return;
+  }
+
+  // владелец — график создан сразу же (пустой), заполняем его содержимым мастера
+  const payload = {
+    projects:[newProject], activeProjectId:newProject.id, graphTypes, activeGraphTypeId,
+    contractorsList, contractorColors:CONTRACTORS, unitsList, updatedAt:Date.now()
+  };
+  const { error: fillErr } = await sb.from('app_state')
+    .update({ data: payload, updated_at: new Date().toISOString() })
+    .eq('id', newAppStateId);
+  if(fillErr){ alert('График создан, но не удалось заполнить его данными: ' + fillErr.message); }
+
+  await loadMyGraphs();
+  const newGraph = myGraphs.find(g=>g.appStateId===newAppStateId);
+  if(newGraph){
+    await openGraph(newGraph);
+    startRealtimeSync();
+    switchTab('gantt', document.querySelectorAll('.tab')[0]);
+  } else {
+    renderProjectsList();
+  }
 }
 
 function addProject(){
@@ -5038,7 +5054,44 @@ function openSettings(){
   renderSMRList();
   renderContractorsList();
   renderUnitsList();
+  renderCreationRequests();
   document.getElementById('settingsOverlay').classList.add('open');
+}
+
+async function renderCreationRequests(){
+  const el = document.getElementById('creationRequestsList');
+  if(!el || !sb) return;
+  el.innerHTML = '<div style="color:var(--text3);font-size:12px;">Загрузка…</div>';
+  const { data, error } = await sb.from('project_creation_requests')
+    .select('id, project_name, status, requested_at')
+    .order('requested_at', { ascending:false });
+  if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
+  if(!data || !data.length){ el.innerHTML = '<div class="dir-empty">Заявок нет.</div>'; return; }
+  const statusLabel = { pending:'Ожидает одобрения', approved:'Одобрена', rejected:'Отклонена' };
+  const statusColor = { pending:'var(--text-warning)', approved:'var(--text-success)', rejected:'var(--text-danger)' };
+  el.innerHTML = data.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;">${escapeHtml(r.project_name)}</div>
+        <div style="font-size:11px;color:${statusColor[r.status]||'var(--text3)'};">${statusLabel[r.status]||r.status} · ${new Date(r.requested_at).toLocaleString('ru')}</div>
+      </div>
+      ${isSystemOwner && r.status==='pending' ? `
+        <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;" onclick="decideCreationRequest(${r.id}, true, this)">Одобрить</button>
+        <button class="btn" style="padding:5px 10px;font-size:12px;" onclick="decideCreationRequest(${r.id}, false, this)">Отклонить</button>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+async function decideCreationRequest(requestId, approve, btnEl){
+  const row = btnEl ? btnEl.closest('div') : null;
+  if(row) row.querySelectorAll('button').forEach(b=>b.disabled=true);
+  const { data: newAppStateId, error } = await sb.rpc('decide_create_project_request', { p_request_id: requestId, p_approve: approve });
+  if(error){ alert('Не удалось обработать заявку: ' + error.message); await renderCreationRequests(); return; }
+  await renderCreationRequests();
+  if(approve && newAppStateId){
+    alert('График создан (пустой) — появится в списке слева у того, кто его запрашивал, при следующем входе/обновлении.');
+  }
 }
 function closeSettings(){
   document.getElementById('settingsOverlay').classList.remove('open');
@@ -5480,6 +5533,19 @@ async function loadMyGraphs(){
 }
 
 // открывает график по его строке app_state (загружает данные из облака и отображает)
+// пустая заготовка для только что одобренного (но ещё не настроенного) графика —
+// без нового значения tasks/globals остались бы данные ПРЕЖНЕГО открытого графика
+function blankProjectSeed(name){
+  const y = new Date().getFullYear();
+  return {
+    id:1, name: name || 'Новый график', icon:'ti-building', color:'#185FA5',
+    total:12, current:0,
+    periodStart:{year:y,month:0}, periodEnd:{year:y,month:11},
+    workingDays: DEFAULT_WORKING_DAYS.slice(),
+    tasks: [], links: []
+  };
+}
+
 async function openGraph(graphMeta){
   currentAppStateId = graphMeta.appStateId;
   currentRole = graphMeta.role;
@@ -5489,14 +5555,25 @@ async function openGraph(graphMeta){
   if(res && res.payload && Array.isArray(res.payload.projects) && res.payload.projects.length){
     applyPayload(res.payload);
     _lastCloudStamp = res.stamp;
-  } // иначе — только что созданный пустой график: оставляем стартовую заготовку (projects[0])
+  } else {
+    // только что одобренная заявка — график пуст, ещё не настроен; показываем чистую заготовку
+    // вместо данных ПРЕЖДЕ открытого графика (иначе они бы просто остались в globals)
+    const seed = blankProjectSeed(graphMeta.name);
+    projects = [seed];
+    activeProjectId = seed.id;
+  }
   firstRender();
   setCloudStatus('saved');
 }
 
 // вызывается сразу после успешного входа/регистрации: подтягиваем роль и открываем график
+let isSystemOwner = false;
 async function afterLogin(user){
   currentUser = { id:user.id, email:user.email };
+  try{
+    const { data, error } = await sb.rpc('is_system_owner');
+    isSystemOwner = !error && data === true;
+  }catch(e){ isSystemOwner = false; }
   await loadMyGraphs();
   if(!myGraphs.length){
     renderProjectsList();
@@ -5643,6 +5720,9 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item" onclick="switchSettingsTab('data',this)">
           <i class="ti ti-database"></i> Данные
         </div>
+        <div class="modal-sidebar-item" onclick="switchSettingsTab('requests',this)">
+          <i class="ti ti-clipboard-list"></i> Заявки на графики
+        </div>
       </nav>
       <div class="modal-content">
 
@@ -5713,6 +5793,12 @@ window.addEventListener('resize', ()=>{
             <div style="font-size:11.5px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Удалит все графики, виды графика и внесённые фактические объёмы без возможности восстановления.</div>
             <button class="btn" style="border-color:var(--text-danger);color:var(--text-danger);" onclick="resetAllData()"><i class="ti ti-trash"></i> Удалить всё и начать заново</button>
           </div>
+        </div>
+
+        <div id="settings-requests" class="modal-section">
+          <div class="settings-section-title">Заявки на создание графика</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Создание нового графика требует одобрения владельца системы. Здесь — статус ваших заявок; владельцу дополнительно видны кнопки одобрения.</div>
+          <div id="creationRequestsList"></div>
         </div>
 
       </div>
