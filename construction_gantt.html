@@ -2689,13 +2689,16 @@ function renderGantt(){
     });
   }
 
-  // двухуровневая нумерация: раздел — сквозной порядковый номер; работа — «номер раздела.порядковый»
-  // внутри раздела (без учёта отступа-вложенности). Считаем по факту отображаемых строк —
-  // скрытые фильтром/настройками разделы и работы номер не занимают. Карты нужны и для
-  // точечного обновления одной строки (refreshTaskRow) без полной перерисовки.
+  // многоуровневая нумерация: раздел — сквозной порядковый номер; работа — «номер раздела.N[.N...]»,
+  // с уровнем вложенности, отражающим фактический отступ работы (levelCounters[L] — счётчик работ
+  // на уровне L под текущим предком; при переходе на более глубокий уровень счётчики глубже сбрасываются,
+  // при возврате на уровень выше — сохраняются и продолжают расти для следующего родственника).
+  // Считаем по факту отображаемых строк — скрытые фильтром/настройками разделы и работы номер не занимают.
+  // Карты нужны и для точечного обновления одной строки (refreshTaskRow) без полной перерисовки.
   _sectionNumOf = new Map();
   _workNumOf = new Map();
-  let secCounter = 0, workCounter = 0;
+  let secCounter = 0;
+  let levelCounters = [];
 
   tasks.forEach((t,idx)=>{
     if(t.cat){
@@ -2706,7 +2709,7 @@ function renderGantt(){
       hiddenChain = [];
       if(currentSectionHidden){ return; } // раздел выключен из отображения в настройках графика
       if(filtersActive && !sectionsWithVisible.has(t.id)){ return; } // все задачи раздела скрыты фильтром
-      secCounter++; workCounter = 0;
+      secCounter++; levelCounters = [];
       _sectionNumOf.set(t.id, secCounter);
       tr.className='cat-row'+(selectedCatId===t.id?' selected':'');
       const isEditingCat = editingCatId===t.id;
@@ -2782,8 +2785,9 @@ function renderGantt(){
     if(!ganttFilters.types[t.type||'work']){ return; }
     if(ganttFilters.onlyMyWorks && currentContractorName && t.contractor!==currentContractorName){ return; }
 
-    workCounter++;
-    const numLabel = secCounter+'.'+workCounter;
+    levelCounters.length = level + 1; // сбрасывает счётчики более глубоких уровней, счётчик текущего уровня сохраняется
+    levelCounters[level] = (levelCounters[level]||0) + 1;
+    const numLabel = secCounter + '.' + levelCounters.join('.');
     _workNumOf.set(t.id, numLabel);
     body.appendChild(buildTaskRow(t, idx, weekendHtml, numLabel));
   });
