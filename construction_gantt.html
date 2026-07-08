@@ -5726,7 +5726,7 @@ async function doSignup(){
   errEl.textContent = '';
   if(!sb){ errEl.textContent = 'Нет связи с базой данных'; return; }
   if(pass.length < 6){ errEl.textContent = 'Пароль должен быть не короче 6 символов'; return; }
-  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { emailRedirectTo: location.origin + location.pathname } });
   if(error){ errEl.textContent = error.message || 'Не удалось зарегистрироваться'; return; }
   if(!data.session){
     // сначала переключаем форму на вход (toggleAuthMode очищает поле сообщения), потом пишем подсказку
