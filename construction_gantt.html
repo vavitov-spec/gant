@@ -698,7 +698,23 @@ function toggleFilterMenu(btn){
     <div style="padding:4px 14px 3px;font-size:11px;color:var(--text3);">Тип работ</div>
     ${TASK_TYPES.map(ty=>`<div class="filter-item" onclick="toggleTypeFilter('${ty.value}')"><span style="flex:1;">${ty.label}</span><div class="filter-toggle${ganttFilters.types[ty.value]?' on':''}" id="ftoggle-type-${ty.value}"></div></div>`).join('')}`;
   document.body.appendChild(dd);
-  setTimeout(()=>{ document.addEventListener('click', function h(e){ if(!dd.contains(e.target)&&e.target!==btn){ dd.remove(); document.removeEventListener('click',h); } }); }, 0);
+
+  // закрываем и по клику вне окна, и само по себе, если увести курсор с окна фильтра
+  // (небольшая задержка — чтобы не закрывалось от случайного мгновенного пересечения края)
+  let closeTimer = null;
+  function closeDropdown(){
+    clearTimeout(closeTimer);
+    dd.removeEventListener('mouseleave', onLeave);
+    dd.removeEventListener('mouseenter', onEnter);
+    document.removeEventListener('click', onClickOutside);
+    dd.remove();
+  }
+  function onLeave(){ closeTimer = setTimeout(closeDropdown, 250); }
+  function onEnter(){ clearTimeout(closeTimer); }
+  function onClickOutside(e){ if(!dd.contains(e.target) && e.target!==btn) closeDropdown(); }
+  dd.addEventListener('mouseleave', onLeave);
+  dd.addEventListener('mouseenter', onEnter);
+  setTimeout(()=>{ document.addEventListener('click', onClickOutside); }, 0);
 }
 function anyGanttFilterActive(){
   return ganttFilters.hideCompleted || ganttFilters.showOnlyCurrent || ganttFilters.showOnlyCurrentMonth
