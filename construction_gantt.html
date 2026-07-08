@@ -719,6 +719,7 @@ const SCALE_DAY_PX = { day: 32, week: 12 };
 // цвета «сверхсрочных» периодов (за датой завершения проекта)
 const OVERTIME_TEXT = '#C2410C';
 const OVERTIME_BG   = 'rgba(234,88,12,0.10)';
+const TODAY_BG      = 'rgba(226,75,74,0.10)'; // тот же красный, что у линии "сегодня" (#E24B4A), лёгкая заливка
 const MONTH_COL_PX_BASE = 90; // базовая ширина колонки месяца в режиме "Месяц"
 let MONTH_COL_PX = 90;        // текущая ширина колонки месяца — растягивается, если график влезает в область просмотра
 let monthBufferPx = 820;      // запас справа под закреплённые столбцы; уменьшается, когда график растянут по ширине
@@ -1098,14 +1099,16 @@ function _renderMonthHeaderInto(headerId, barThId, tableEl, bufferPx){
   if(tableEl){ tableEl.style.tableLayout='auto'; tableEl.style.width='max-content'; }
   let html = '';
   if(ganttScale==='day'){
+    const todayIdx = dayIndexOfDate(new Date(new Date().setHours(0,0,0,0)));
     days.forEach((d,idx)=>{
       const isFirstOfMonth = d.getDate()===1;
       const isWeekStart = d.getDay()===1; // понедельник — начало недели
       const weekend = !isWorkingDay(d,p);
       const over = idx>=overtimeDayIdx; // день за сроком проекта
+      const isToday = idx===todayIdx;
       const dowLabel = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][d.getDay()];
       const borderLeft = isFirstOfMonth ? '1px solid var(--border2)' : (isWeekStart ? '1px solid var(--border)' : 'none');
-      html += `<div style="flex:0 0 ${dayPx}px;width:${dayPx}px;font-size:9.5px;text-align:center;color:${over?OVERTIME_TEXT:(weekend?'var(--text3)':'var(--text2)')};${over?`background:${OVERTIME_BG};`:''}border-left:${borderLeft};display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;">
+      html += `<div style="flex:0 0 ${dayPx}px;width:${dayPx}px;font-size:9.5px;text-align:center;color:${over?OVERTIME_TEXT:(weekend?'var(--text3)':'var(--text2)')};${over?`background:${OVERTIME_BG};`:(isToday?`background:${TODAY_BG};`:'')}border-left:${borderLeft};display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;">
         ${isFirstOfMonth?`<div style="font-size:7px;color:var(--text3);">${MONTHS_SHORT[d.getMonth()]}</div>`:''}
         <div>${d.getDate()}</div>
         <div style="font-size:7px;">${dowLabel}</div>
@@ -2644,6 +2647,18 @@ function periodGridLinesHtml(){
   return html;
 }
 
+// лёгкая красная заливка колонки "сегодня" — только в режиме "День" (в остальных масштабах
+// колонка одного дня визуально не выделена, там для этого есть только линия "сегодня")
+function todayBandHtml(){
+  if(ganttScale!=='day') return '';
+  const PAD = 10;
+  const dayPx = SCALE_DAY_PX.day;
+  const todayIdx = dayIndexOfDate(new Date(new Date().setHours(0,0,0,0)));
+  if(todayIdx<0 || todayIdx>=periodDates().length) return '';
+  const left = todayIdx*dayPx+PAD;
+  return `<div style="position:absolute;top:0;bottom:0;left:${left}px;width:${dayPx}px;background:${TODAY_BG};pointer-events:none;"></div>`;
+}
+
 // нумерация разделов/работ текущего полного рендера: id раздела → номер; id работы → "раздел.работа".
 // Используется и точечным обновлением строки (refreshTaskRow), чтобы не считать заново.
 let _sectionNumOf = new Map();
@@ -2660,7 +2675,7 @@ function renderGantt(){
   ['cur','tot'].forEach(m=>{const b=document.getElementById('fpBtn-'+m);if(b)b.classList.toggle('active',factplanMode===m);});
   const body = document.getElementById('ganttBody');
   body.innerHTML='';
-  const weekendHtml = weekendBandsHtml();
+  const weekendHtml = weekendBandsHtml() + todayBandHtml();
   let currentCollapsed = false;
   let currentSectionHidden = false;
   // collapsedChain[L] = true, если ветка на уровне L свёрнута — это скрывает все более глубокие уровни
@@ -2942,7 +2957,7 @@ function refreshTaskRow(taskId){
   const idx = tasks.findIndex(x=>x.id===taskId);
   const old = document.querySelector('#ganttBody tr[data-task-id="'+taskId+'"]');
   if(filtersActive || idx<0 || !old){ renderGantt(); return; }
-  old.replaceWith(buildTaskRow(tasks[idx], idx, weekendBandsHtml(), _workNumOf.get(taskId)));
+  old.replaceWith(buildTaskRow(tasks[idx], idx, weekendBandsHtml()+todayBandHtml(), _workNumOf.get(taskId)));
   renderStats();
   applyColumnVisibility();
   applyStickyColumnOffsets();
