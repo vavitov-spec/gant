@@ -2526,6 +2526,7 @@ function _renderTodayLineFor(wrapEl, barThId, lineId){
 function renderTodayLine(){ _renderTodayLineFor(document.getElementById('ganttWrap'),'ganttBarTh','ganttTodayLine'); }
 
 // прокрутка диаграммы к сегодняшнему дню так, чтобы слева оставался виден ровно один предыдущий период
+// (в режиме "День" — 4 предыдущих дня, чтобы сегодня оказалось 5-й колонкой, а не 2-й)
 function scrollGanttToToday(){
   const wrap = document.getElementById('ganttWrap');
   if(!wrap) return;
@@ -2534,7 +2535,7 @@ function scrollGanttToToday(){
     let periodPx;
     if(ganttScale==='month') periodPx = MONTH_COL_PX;
     else if(ganttScale==='week') periodPx = 7*SCALE_DAY_PX.week;
-    else periodPx = SCALE_DAY_PX.day;
+    else periodPx = 4*SCALE_DAY_PX.day;
     // 10px — внутренний отступ колонки диаграммы (см. todayMarkerLeft/_renderTodayLineFor)
     wrap.scrollLeft = Math.max(0, todayPx - periodPx + 10);
   });
