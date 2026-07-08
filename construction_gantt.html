@@ -160,6 +160,7 @@ html[data-theme="light"] body{background:#f0f2f5;}
    сам svg не скрываем, чтобы оставалась видна временная линия при перетаскивании новой связи */
 #ganttLinksGroup{ display:none; }
 .gantt-mode-chart #ganttLinksGroup{ display:block; }
+.links-hidden #ganttLinksGroup{ display:none!important; }
 .gantt-mode-chart .bar-plan { height:11px !important; top:4px !important; border-radius:5px !important; }
 /* ── переключатель данные/график ── */
 /* view-toggle (Данные/График) — тот же стиль и размер, что у переключателя масштаба */
@@ -551,6 +552,9 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
       <div class="view-toggle" id="ganttViewToggle">
         <div class="view-toggle-btn" onclick="setGanttViewMode('data',this)">Данные</div>
         <div class="view-toggle-btn active" onclick="setGanttViewMode('chart',this)">График</div>
+      </div>
+      <div class="view-toggle" id="ganttLinksToggleWrap" title="Скрыть/показать линии связей между работами">
+        <div class="view-toggle-btn" id="linksToggleBtn" onclick="toggleGanttLinks()">Связи</div>
       </div>
     </div>
   </div>
@@ -4047,6 +4051,16 @@ function setGanttViewMode(mode, el){
   renderTodayLine();
   renderProjectEndOverlay();
   scrollGanttToToday();
+}
+
+// ─── скрыть/показать связи между работами (просто визуально, данные связей не трогаем) ───
+let ganttLinksHidden = false;
+function toggleGanttLinks(){
+  ganttLinksHidden = !ganttLinksHidden;
+  const btn = document.getElementById('linksToggleBtn');
+  if(btn) btn.classList.toggle('active', ganttLinksHidden);
+  const panel = document.getElementById('panel-gantt');
+  if(panel) panel.classList.toggle('links-hidden', ganttLinksHidden);
 }
 
 // ─── tabs ─────────────────────────────────────────────────────────────────────
