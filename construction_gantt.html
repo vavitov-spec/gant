@@ -2820,6 +2820,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
   // по вложенным работам, как у обычного раздела
   const rollup = showCollapseToggle ? taskRollup(t.id) : null;
   const dateRollupCells = rollup ? dateCellsHtmlFromRollup(rollup) : null;
+  const isDesignType = (t.type||'work')==='design';
   const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const dm = durMonthUnits(t);
     const m = barMetrics(t);
@@ -2868,7 +2869,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
       : `<span ondblclick="event.stopPropagation();startEditTaskVol(${t.id})" title="Двойной клик — изменить общий объём">${(t.volume||0).toLocaleString('ru')}</span>`;
     const nameHtml = isEditingName
       ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
-      : `<span class="task-name-label" ondblclick="event.stopPropagation();startEditTaskName(${t.id})" title="Двойной клик — переименовать работу" style="cursor:text;">${escapeHtml(t.name)}</span>`;
+      : `<span class="task-name-label" ondblclick="event.stopPropagation();startEditTaskName(${t.id})" title="Двойной клик — переименовать работу" style="cursor:text;${isDesignType?`color:${DESIGN_TEXT};`:''}">${escapeHtml(t.name)}</span>`;
     const deleteBtnHtml = (isSelected && !isEditingName)
       ? `<button class="task-del-btn" onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
@@ -2942,7 +2943,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
             if(redW   > 0) inner += `<div style="position:absolute;top:0;left:${(greenW/barW*100).toFixed(2)}%;width:${(redW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#E36A66,#C43F3F);pointer-events:none;"></div>`;
           }
           const accent = `<div class="bar-plan-accent" style="background:${c.color};"></div>`;
-          return `<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь">${accent}${inner}</div>`;
+          return `<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};${isDesignType?`background:${DESIGN_BAR_BG};`:''}" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь">${accent}${inner}</div>`;
         })()}
         ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:9px;line-height:9px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:600;color:#152736;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px rgba(255,255,255,.9);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:4;${editable?'cursor:pointer;text-decoration:underline dotted rgba(21,39,54,0.5);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
         <div class="gantt-fact-bg" style="left:${m.left}${m.unit};width:${m.width}${m.unit};"></div>
@@ -4972,6 +4973,10 @@ const TASK_TYPES = [
   {value:'materials', label:'Поставка', short:'Пост.'}
 ];
 function taskTypeInfo(val){ return TASK_TYPES.find(x=>x.value===(val||'work')) || TASK_TYPES[0]; }
+// работы типа ПИР («design») визуально выделяются лёгким жёлтым оттенком — текст названия
+// и фон полосы на диаграмме (сама заливка факта/плана поверх остаётся прежней)
+const DESIGN_TEXT    = '#A6821C';
+const DESIGN_BAR_BG  = 'linear-gradient(180deg,#FCEFC0 0%,#EFD076 100%)';
 
 // ─── настройки конкретного графика (шестерёнка в шапке таблицы) ─────────────
 const GS_COLUMNS = [
