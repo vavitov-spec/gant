@@ -2501,12 +2501,23 @@ function todayMarkerLeft(){
   return {unit:'px', value:(dayIndexOfDate(today)*dayPx).toFixed(1)};
 }
 
+// временно отключены по просьбе пользователя (2026-07-08) — осталась только заливка колонки (todayBandHtml).
+// Чтобы вернуть линии, поставить true.
+const TODAY_LINES_ENABLED = false;
+
 // единая непрерывная линия "сегодня" поверх всего графика
 function _renderTodayLineFor(wrapEl, barThId, lineId){
   const th = document.getElementById(barThId);
   if(!wrapEl || !th) return;
   let line = document.getElementById(lineId);
   if(!line){ line = document.createElement('div'); line.id = lineId; line.className = 'today-line'; wrapEl.appendChild(line); }
+  if(!TODAY_LINES_ENABLED){
+    line.style.display = 'none';
+    const endLine = document.getElementById(lineId + 'End');
+    if(endLine) endLine.style.display = 'none';
+    return;
+  }
+  line.style.display = '';
   const wr = wrapEl.getBoundingClientRect();
   const tr = th.getBoundingClientRect();
   const baseX = tr.left - wr.left + wrapEl.scrollLeft + 10;
