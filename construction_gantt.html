@@ -531,6 +531,9 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
       <div class="logo"><i class="ti ti-building-skyscraper"></i></div>
       <span class="app-title">График производства работ:</span>
       <span class="badge" id="projBadge" style="font-size:14px;font-weight:600;">Новый график</span>
+      <button class="th-mini-btn th-edit-btn no-print" onclick="openGraphSettings()" title="Настройка графика" style="margin-left:-4px;">
+        <i class="ti ti-settings" style="font-size:12px;"></i>
+      </button>
     </div>
     <div class="stats-row" id="statsRow"></div>
   </div>
@@ -561,9 +564,6 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
             <div style="display:flex;align-items:center;gap:6px;">
               <span>Наименование работ</span>
               <span class="no-print" style="display:flex;align-items:center;gap:2px;margin-left:auto;">
-                <button class="th-mini-btn th-edit-btn" onclick="openGraphSettings()" title="Настройка графика">
-                  <i class="ti ti-settings" style="font-size:12px;"></i>
-                </button>
                 <button class="th-mini-btn" id="btnFilter" onclick="toggleFilterMenu(this)" title="Фильтр">
                   <i class="ti ti-filter" style="font-size:12px;"></i>
                 </button>
