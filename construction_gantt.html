@@ -168,6 +168,7 @@ html[data-theme="light"] body{background:#f0f2f5;}
 .view-toggle-btn{padding:4px 10px;font-size:11px;font-family:inherit;cursor:pointer;color:var(--text2);background:var(--bg);border:none;border-right:0.5px solid var(--border2);transition:background .15s,color .15s;}
 .view-toggle-btn:last-child{border-right:none;}
 .view-toggle-btn.active{background:#185FA5;color:#fff;}
+.view-toggle-btn.icon-only{width:27px;height:23px;padding:0;display:flex;align-items:center;justify-content:center;font-size:13px;}
 .bar-plan:active{cursor:grabbing;}
 .gantt-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .gantt-table th{font-size:11px;font-weight:500;color:var(--text2);padding:8px 10px;text-align:left;vertical-align:middle;border-bottom:0.5px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:8;}
@@ -554,7 +555,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
         <div class="view-toggle-btn active" onclick="setGanttViewMode('chart',this)">График</div>
       </div>
       <div class="view-toggle" id="ganttLinksToggleWrap" title="Скрыть/показать линии связей между работами">
-        <div class="view-toggle-btn" id="linksToggleBtn" onclick="toggleGanttLinks()">Связи</div>
+        <div class="view-toggle-btn icon-only" id="linksToggleBtn" onclick="toggleGanttLinks()"><i class="ti ti-link"></i></div>
       </div>
     </div>
   </div>
