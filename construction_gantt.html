@@ -2724,15 +2724,40 @@ function renderGantt(){
   }
 
   // многоуровневая нумерация: раздел — сквозной порядковый номер; работа — «номер раздела.N[.N...]»,
-  // с уровнем вложенности, отражающим фактический отступ работы (levelCounters[L] — счётчик работ
-  // на уровне L под текущим предком; при переходе на более глубокий уровень счётчики глубже сбрасываются,
-  // при возврате на уровень выше — сохраняются и продолжают расти для следующего родственника).
-  // Считаем по факту отображаемых строк — скрытые фильтром/настройками разделы и работы номер не занимают.
+  // с уровнем вложенности, отражающим фактический отступ работы. Считается ЗАРАНЕЕ отдельным
+  // проходом по ПОЛНОМУ списку задач, без учёта активных фильтров (ganttFilters) — фильтры влияют
+  // только на видимость строк, а не на их номер: спрятанная фильтром работа не должна "сдвигать"
+  // номера соседних видимых работ, будто её вообще нет в графике. Структурное скрытие по настройкам
+  // графика (t.hidden) — другое дело, оно и правда исключает работу/раздел из графика насовсем,
+  // поэтому номер по-прежнему не резервирует (как и скрытие всей цепочки предков через него).
   // Карты нужны и для точечного обновления одной строки (refreshTaskRow) без полной перерисовки.
   _sectionNumOf = new Map();
   _workNumOf = new Map();
-  let secCounter = 0;
-  let levelCounters = [];
+  {
+    let secCounterForNum = 0;
+    let levelCountersForNum = [];
+    let sectionHiddenForNum = false;
+    let hiddenChainForNum = [];
+    tasks.forEach(t=>{
+      if(t.cat){
+        sectionHiddenForNum = !!t.hidden;
+        hiddenChainForNum = [];
+        if(sectionHiddenForNum) return;
+        secCounterForNum++; levelCountersForNum = [];
+        _sectionNumOf.set(t.id, secCounterForNum);
+        return;
+      }
+      if(sectionHiddenForNum) return;
+      const level = t.level||0;
+      const hiddenByAncestorForNum = hiddenChainForNum.slice(0, level).some(Boolean);
+      hiddenChainForNum.length = level;
+      hiddenChainForNum[level] = !!t.hidden;
+      if(hiddenByAncestorForNum || t.hidden) return;
+      levelCountersForNum.length = level + 1;
+      levelCountersForNum[level] = (levelCountersForNum[level]||0) + 1;
+      _workNumOf.set(t.id, secCounterForNum + '.' + levelCountersForNum.join('.'));
+    });
+  }
 
   tasks.forEach((t,idx)=>{
     if(t.cat){
@@ -2743,8 +2768,6 @@ function renderGantt(){
       hiddenChain = [];
       if(currentSectionHidden){ return; } // раздел выключен из отображения в настройках графика
       if(filtersActive && !sectionsWithVisible.has(t.id)){ return; } // все задачи раздела скрыты фильтром
-      secCounter++; levelCounters = [];
-      _sectionNumOf.set(t.id, secCounter);
       tr.className='cat-row'+(selectedCatId===t.id?' selected':'');
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
@@ -2759,7 +2782,7 @@ function renderGantt(){
         selectedTaskId = null;
         toggleGanttSection(t.id);
       });
-      const catNumHtml = `<span class="row-num" style="font-weight:600;flex-shrink:0;">${secCounter}.</span>`;
+      const catNumHtml = `<span class="row-num" style="font-weight:600;flex-shrink:0;">${_sectionNumOf.get(t.id)}.</span>`;
       const catLabelHtml = isEditingCat
         ? `<input id="catNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название раздела" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitCatName(${t.id}, this.value)">`
         : `<span class="cat-row-label" ondblclick="event.stopPropagation();startEditCat(${t.id})" title="Двойной клик — переименовать раздел" style="cursor:text;">${t.name}</span>`;
@@ -2819,11 +2842,7 @@ function renderGantt(){
     if(!ganttFilters.types[t.type||'work']){ return; }
     if(ganttFilters.onlyMyWorks && currentContractorName && t.contractor!==currentContractorName){ return; }
 
-    levelCounters.length = level + 1; // сбрасывает счётчики более глубоких уровней, счётчик текущего уровня сохраняется
-    levelCounters[level] = (levelCounters[level]||0) + 1;
-    const numLabel = secCounter + '.' + levelCounters.join('.');
-    _workNumOf.set(t.id, numLabel);
-    body.appendChild(buildTaskRow(t, idx, weekendHtml, numLabel));
+    body.appendChild(buildTaskRow(t, idx, weekendHtml, _workNumOf.get(t.id)));
   });
 
   updateCollapseAllBtnState();
