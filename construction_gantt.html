@@ -1234,12 +1234,12 @@ function sectionChildren(catId){
   return out;
 }
 
-// сводные метрики раздела для свёрнутого состояния: общий диапазон дат (от самого раннего
-// начала до самого позднего окончания среди работ раздела) + суммарные план/факт.
-// Объёмы разных видов работ (разные ед. измерения) складываются приближённо — тем же
-// способом, что и общие показатели по всему проекту (overallFact/overallPlan).
-function sectionRollup(catId){
-  const children = sectionChildren(catId);
+// сводные метрики по списку работ: общий диапазон дат (от самого раннего начала до самого
+// позднего окончания среди работ) + суммарные план/факт. Объёмы разных видов работ (разные
+// ед. измерения) складываются приближённо — тем же способом, что и общие показатели по
+// всему проекту (overallFact/overallPlan). Общая функция для раздела (sectionRollup) и для
+// работы, ставшей подразделом после понижения в неё вложенных работ (taskRollup).
+function rollupOfTasks(children){
   if(!children.length) return null;
   let minStart=Infinity, maxEndOffset=-Infinity, minStartIdx=Infinity, maxEndIdxExcl=-Infinity;
   let planTot=0, factTot=0, planCur=0, factCur=0, startDate=null, endDate=null;
@@ -1276,9 +1276,15 @@ function sectionRollup(catId){
   return { left, width, planTot, factTot, planCur, factCur, startDate, endDate, durWD };
 }
 
+// раздел целиком — сводка по всем его работам (в т.ч. вложенным)
+function sectionRollup(catId){ return rollupOfTasks(sectionChildren(catId)); }
+// работа, ставшая подразделом (у неё есть вложенные работы после понижения уровня) — сводка
+// только по её собственным вложенным работам, аналогично sectionRollup для раздела
+function taskRollup(taskId){ return rollupOfTasks(getChildIds(taskId).map(id=>tasks.find(x=>x.id===id))); }
+
 // содержимое колонок «Дата начала» / «Длит.» / «Дата оконч.» для свёрнутого раздела
-function sectionDateCellsHtml(catId){
-  const r = sectionRollup(catId);
+// (или для работы-подраздела — см. taskRollup)
+function dateCellsHtmlFromRollup(r){
   if(!r || !r.startDate) return null;
   return {
     startHtml: formatDateDDMMYY(r.startDate),
@@ -1286,12 +1292,13 @@ function sectionDateCellsHtml(catId){
     endHtml: formatDateDDMMYY(r.endDate)
   };
 }
+function sectionDateCellsHtml(catId){ return dateCellsHtmlFromRollup(sectionRollup(catId)); }
 
 // сводная полоса раздела (план + факт/отставание до сегодня, в том же визуальном языке,
 // что и полосы отдельных работ) — используется только когда раздел свёрнут, чтобы не
-// дублировать информацию, уже видную по развёрнутым работам
-function sectionSummaryBarHtml(catId){
-  const r = sectionRollup(catId);
+// дублировать информацию, уже видную по развёрнутым работам. Та же логика — для
+// свёрнутой работы-подраздела.
+function summaryBarHtmlFromRollup(r){
   if(!r || r.width<=0) return '<div class="bar-wrap"></div>';
   const barLeft = r.left, barW = r.width;
   const todayAbs = parseFloat(todayMarkerLeft().value);
@@ -1316,11 +1323,11 @@ function sectionSummaryBarHtml(catId){
 
   return `<div class="bar-wrap">${barPlanHtml}${factBgHtml}</div>`;
 }
+function sectionSummaryBarHtml(catId){ return summaryBarHtmlFromRollup(sectionRollup(catId)); }
 
 // содержимое колонок «Факт/План» и «%» для свёрнутого раздела — то же правило тек./общ.,
 // что и в этих колонках у отдельных работ, только суммарно по работам раздела
-function sectionFactPlanCellsHtml(catId){
-  const r = sectionRollup(catId);
+function factPlanCellsHtmlFromRollup(r){
   if(!r) return { factplanHtml:'', pctHtml:'', cls:'' };
   let fact, plan;
   if(factplanMode==='tot'){ fact=r.factTot; plan=r.planTot; }
@@ -1331,6 +1338,7 @@ function sectionFactPlanCellsHtml(catId){
   const factplanHtml = `<span style="color:${plan>0?(ok?'var(--text-success)':'var(--text-danger)'):'var(--text3)'}">${fact.toLocaleString('ru')}</span> / ${plan.toLocaleString('ru')}`;
   return { factplanHtml, pctHtml: (plan>0 ? pct+'%' : '—'), cls };
 }
+function sectionFactPlanCellsHtml(catId){ return factPlanCellsHtmlFromRollup(sectionRollup(catId)); }
 
 // объём по каждому рабочему дню задачи с учётом дневных правок (Map: dayIndex → vol)
 function getDayVolumeMap(t){
@@ -2807,6 +2815,11 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
   const next = tasks[idx+1];
   const showCollapseToggle = !!(next && !next.cat && (next.level||0) > level);
   const isCollapsedNow = showCollapseToggle && !!workCollapsed[t.id];
+  // у работы есть вложенные работы (её понизили в неё другие работы) — она становится
+  // подразделом: свои объём/ед.изм/план-факт теряют смысл, вместо них показываем свод
+  // по вложенным работам, как у обычного раздела
+  const rollup = showCollapseToggle ? taskRollup(t.id) : null;
+  const dateRollupCells = rollup ? dateCellsHtmlFromRollup(rollup) : null;
   const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const dm = durMonthUnits(t);
     const m = barMetrics(t);
@@ -2836,13 +2849,21 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
     const isEditingVol = editingVolTaskId===t.id;
     const isEditingUnit = editingUnitTaskId===t.id;
     const isEditingType = editingTypeTaskId===t.id;
-    const dateHtml = isEditingDate
+    // работа-подраздел (rollup≠null): даты вычисляются по вложенным работам, не редактируются;
+    // объём/ед.изм у неё не показываются вовсе (как и у обычного раздела)
+    const dateHtml = rollup
+      ? `<span title="Дата начала вычисляется по вложенным работам">${dateRollupCells.startHtml}</span>`
+      : isEditingDate
       ? `<input id="taskDateInput-${t.id}" type="text" inputmode="numeric" maxlength="8" placeholder="ДД.ММ.ГГ" value="${formatDateDDMMYY(taskStartDate(t))}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:72px;" onclick="event.stopPropagation();" oninput="maskDateInput(this)" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDate(${t.id}, this.value, this.dataset.cancel)">`
       : `<span ondblclick="event.stopPropagation();startEditTaskDate(${t.id})" title="Двойной клик — изменить дату начала">${formatDateDDMMYY(taskStartDate(t))}</span>`;
-    const durHtml = isEditingDur
+    const durHtml = rollup
+      ? `<span title="Длительность вычисляется по вложенным работам">${dateRollupCells.durHtml}</span>`
+      : isEditingDur
       ? `<input id="taskDurInput-${t.id}" type="text" inputmode="numeric" maxlength="3" value="${t.dur}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:40px;" onclick="event.stopPropagation();" onfocus="this.select();" oninput="maskDigitsInput(this,3)" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskDur(${t.id}, this.value, this.dataset.cancel)"> дн.`
       : `<span ondblclick="event.stopPropagation();startEditTaskDur(${t.id})" title="Двойной клик — изменить длительность">${t.dur} дн.</span>`;
-    const volHtml = isEditingVol
+    const volHtml = rollup
+      ? ''
+      : isEditingVol
       ? `<input id="taskVolInput-${t.id}" type="text" inputmode="numeric" value="${t.volume||0}" style="font:inherit;font-size:12px;padding:2px 4px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:42px;text-align:right;" onclick="event.stopPropagation();" onfocus="this.select();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){this.dataset.cancel='1';event.target.blur();}" onblur="commitTaskVol(${t.id}, this.value, this.dataset.cancel)">`
       : `<span ondblclick="event.stopPropagation();startEditTaskVol(${t.id})" title="Двойной клик — изменить общий объём">${(t.volume||0).toLocaleString('ru')}</span>`;
     const nameHtml = isEditingName
@@ -2861,13 +2882,13 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
       <td class="col-contractor"><span class="cbadge" style="background:${c.bg};color:${c.color};">${escapeHtml(t.contractor)}</span></td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
-      <td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${formatDateDDMMYY(taskEndDate(t))}</td>
+      <td class="col-end tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${rollup ? dateRollupCells.endHtml : formatDateDDMMYY(taskEndDate(t))}</td>
       <td class="col-volume tight-col" style="text-align:right;font-size:12px;color:var(--text3);">${volHtml}</td>
-      <td class="col-unit" style="color:var(--text3);font-size:12px;">${isEditingUnit
+      <td class="col-unit" style="color:var(--text3);font-size:12px;">${rollup ? '' : isEditingUnit
         ? `<select id="taskUnitSelect-${t.id}" onclick="event.stopPropagation();" onchange="commitTaskUnit(${t.id},this.value)" onblur="if(editingUnitTaskId===${t.id}){editingUnitTaskId=null;renderGantt();}" style="font:inherit;font-size:12px;padding:2px 3px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;">${unitsList.map(u=>`<option value="${u}"${t.unit===u?' selected':''}>${u}</option>`).join('')}</select>`
         : `<span ondblclick="event.stopPropagation();startEditTaskUnit(${t.id})" title="Двойной клик — изменить единицу измерения" style="cursor:default;">${t.unit}</span>`
       }</td>
-      ${(()=>{
+      ${rollup ? `<td class="col-factplan"></td>` : (()=>{
         let fact, plan, title;
         if(factplanMode==='tot'){
           // «общ.»: выполнено к сегодня (без факта на будущие даты) / весь объём
@@ -2880,7 +2901,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
         const ok=fact>=plan;
         return `<td class="col-factplan" style="text-align:center;font-size:12px;white-space:nowrap;" title="${title}"><span style="color:${plan>0?(ok?'var(--text-success)':'var(--text-danger)'):'var(--text3)'}">${fact.toLocaleString('ru')}</span> / ${plan.toLocaleString('ru')}</td>`;
       })()}
-      ${(()=>{
+      ${rollup ? `<td class="col-pct"></td>` : (()=>{
         let pct, cls2;
         if(factplanMode==='tot'){
           // «общ.»: процент от всего объёма по выполненному к сегодня
@@ -2894,11 +2915,11 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
         }
         return `<td class="col-pct ${cls2}" style="font-size:12px;font-weight:500;">${pct!==undefined?pct+'%':'—'}</td>`;
       })()}
-      <td class="col-plantoday" style="font-size:12px;color:var(--text2);white-space:nowrap;text-align:right;">${(()=>{const pl=Math.round(planAndFactToDate(t).plan);return pl.toLocaleString('ru')+' '+escapeHtml(t.unit||'');})()}</td>
+      <td class="col-plantoday" style="font-size:12px;color:var(--text2);white-space:nowrap;text-align:right;">${rollup ? '' : (()=>{const pl=Math.round(planAndFactToDate(t).plan);return pl.toLocaleString('ru')+' '+escapeHtml(t.unit||'');})()}</td>
       <td class="bar-cell" style="position:relative;">
         ${weekendHtml}
         ${periodGridLinesHtml()}
-        <div class="bar-wrap">
+        ${rollup ? (isCollapsedNow ? summaryBarHtmlFromRollup(rollup) : '<div class="bar-wrap"></div>') : `<div class="bar-wrap">
         ${earlyFactCellsHtml(t)}
         ${lateFactCellsHtml(t)}
         ${(()=>{
@@ -2936,7 +2957,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
           const cls = 'gantt-fact-vol'+(isEmpty?' gantt-fact-empty':'')+((!isEmpty && !isEdited)?' fact-hint-num':'');
           return `<span class="${cls}" style="position:absolute;top:16px;height:10px;line-height:10px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:${isEdited?600:400};color:${color};background:${bg};border-radius:3px;white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:3;${isEnterable?'cursor:pointer;':''}"${isEnterable?` tabindex="0" role="button" onclick="event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editFactPeriod(${t.id},'${key}',${clickVal},${planVol},this)}" title="${title}"`:''}>${shown}</span>`;
         }).join('')}
-      </div>
+      </div>`}
       </td>`;
   return tr;
 }
