@@ -821,32 +821,11 @@ const CONTRACTORS = {
   'СтальМонтаж':    {color:'#71280B',bg:'#FAECE7'},
 };
 
-// ─── default project tasks (ЖК «Северная Звезда») ──────────────────────────────
-const DEFAULT_TASKS = [
-  {id:1,  cat:true, name:'Земляные работы', icon:'ti-shovel'},
-  {id:2,  name:'Разработка котлована',        contractor:'ЗемРаботы LLC', unit:'м³',  volume:12000, start:0, dur:59, factPct:100, factVol:12000},
-  {id:3,  name:'Водопонижение',               contractor:'ЗемРаботы LLC', unit:'мес', volume:3,     start:0, dur:90, factPct:100, factVol:3},
-  {id:4,  cat:true, name:'Фундаментные работы', icon:'ti-building'},
-  {id:5,  name:'Монолитный ростверк',         contractor:'МонолитСтрой',  unit:'м³',  volume:3200,  start:2, dur:92, factPct:85,  factVol:2720},
-  {id:6,  name:'Сваи буронабивные',           contractor:'ГрандФундамент',unit:'шт',  volume:480,   start:1, dur:59, factPct:100, factVol:480},
-  {id:7,  cat:true, name:'Каркас / надземная часть', icon:'ti-building-skyscraper'},
-  {id:8,  name:'Монолитные колонны и перекрытия', contractor:'МонолитСтрой', unit:'м³', volume:18400, start:4, dur:153, factPct:40, factVol:7360},
-  {id:9,  name:'Кирпичные стены / перегородки',   contractor:'АрмПро',       unit:'м²', volume:22000, start:5, dur:122, factPct:15, factVol:3300},
-  {id:10, name:'Металлоконструкции (покрытие)',    contractor:'СтальМонтаж',  unit:'т',  volume:340,   start:7, dur:61, factPct:0,  factVol:0},
-  {id:11, cat:true, name:'Инженерные сети', icon:'ti-circuit-switchboard'},
-  {id:12, name:'Электрика (кабельные трассы)', contractor:'ИнжСети-Про', unit:'м.п.', volume:14500, start:5, dur:122, factPct:20, factVol:2900},
-  {id:13, name:'Сантехника (трубопроводы)',    contractor:'ИнжСети-Про', unit:'м.п.', volume:8200,  start:5, dur:122, factPct:18, factVol:1476},
-  {id:14, name:'Вентиляция (воздуховоды)',     contractor:'ИнжСети-Про', unit:'м²',   volume:4100,  start:6, dur:92, factPct:0,  factVol:0},
-  {id:15, cat:true, name:'Кровля', icon:'ti-home'},
-  {id:16, name:'Пароизоляция и утепление',     contractor:'МонолитСтрой', unit:'м²', volume:3800, start:8, dur:61, factPct:0, factVol:0},
-  {id:17, name:'Мягкая кровля (ПВХ-мембрана)',contractor:'МонолитСтрой', unit:'м²', volume:3800, start:9, dur:31, factPct:0, factVol:0},
-  {id:18, cat:true, name:'Отделочные работы', icon:'ti-paint'},
-  {id:19, name:'Штукатурка стен',  contractor:'ОтделкаМастер', unit:'м²', volume:35000, start:8, dur:91, factPct:0, factVol:0},
-  {id:20, name:'Полы (стяжка)',    contractor:'ОтделкаМастер', unit:'м²', volume:18000, start:9, dur:61, factPct:0, factVol:0},
-  {id:21, cat:true, name:'Благоустройство', icon:'ti-trees'},
-  {id:22, name:'Асфальтирование и дорожки', contractor:'ЗемРаботы LLC', unit:'м²', volume:5200, start:10, dur:61, factPct:0, factVol:0},
-  {id:23, name:'Озеленение',                contractor:'ЗемРаботы LLC', unit:'м²', volume:3100, start:11, dur:31, factPct:0, factVol:0},
-];
+// ─── default project tasks ──────────────────────────────────────────────────────
+// стартовое состояние — пустой список: реальные данные приходят из облака или
+// localStorage. Демо-данные ЖК «Северная Звезда» убраны — они мелькали до загрузки
+// облака и оставались на экране, если облако недоступно.
+const DEFAULT_TASKS = [];
 // ВАЖНО: с этого момента t.dur у видов работ — длительность в днях (не в месяцах).
 // t.start остаётся смещением в месяцах от начала периода графика, но может быть
 // дробным — это позволяет дате начала попадать на любой день месяца (см. dateToOffset/offsetToDate).
@@ -1673,7 +1652,7 @@ function recomputeTaskDur(t){
 }
 
 function setPlanOverride(taskId, periodKey, newVol){
-  if(isReadOnly()) return;
+  if(noStructureEdit()) return; // правка плана — изменение структуры: подрядчику нельзя
   const t = tasks.find(x => x.id === taskId);
   if(!t) return;
 
@@ -1735,7 +1714,7 @@ function setPlanOverride(taskId, periodKey, newVol){
 }
 
 function editPlanPeriod(taskId, periodKey, currentVol, el){
-  if(isReadOnly()) return;
+  if(noStructureEdit()) return; // правка плана — изменение структуры: подрядчику нельзя
   const inp = document.createElement('input');
   inp.type = 'text'; inp.inputMode = 'numeric'; inp.value = currentVol;
   inp.style.cssText = 'font-size:9px;width:100%;height:10px;box-sizing:border-box;border:1px solid #185FA5;border-radius:2px;background:#fff;color:#1a3a6a;text-align:center;padding:0;outline:none;';
@@ -2305,7 +2284,19 @@ function editLateFactPeriod(taskId, periodKey, currentVol, el){
 
 // суммы план и факт по всем прошедшим периодам задачи (для колонки "План / Факт")
 // факт считается только по периодам с явно введёнными данными (isEdited)
+// кэш результатов planAndFactToDate: функция вызывается до трёх раз на каждую строку
+// при каждой перерисовке, а каждый вызов перебирает все дни периода — на больших
+// графиках это сотни тысяч лишних итераций. Кэш сбрасывается перед перерисовкой
+// (renderGantt/refreshTaskRow идут после любого изменения данных) и при смене дня.
+let _pfCache = new Map();
+let _pfCacheDay = null;
+function invalidatePlanFactCache(){ _pfCache.clear(); }
+
 function planAndFactToDate(t){
+  const dayKey = new Date().toDateString();
+  if(_pfCacheDay !== dayKey){ _pfCacheDay = dayKey; _pfCache.clear(); }
+  const hit = _pfCache.get(t.id);
+  if(hit) return hit;
   const today = new Date(); today.setHours(0,0,0,0);
   const allDays = periodDates();
 
@@ -2340,7 +2331,9 @@ function planAndFactToDate(t){
   }
   const fact = Math.max(0, (t.factVol || 0) - factFuture);
 
-  return { plan, fact };
+  const res = { plan, fact };
+  _pfCache.set(t.id, res);
+  return res;
 }
 
 function setFactOverride(taskId, periodKey, newVol){
@@ -2641,6 +2634,7 @@ let _sectionNumOf = new Map();
 let _workNumOf = new Map();
 
 function renderGantt(){
+  invalidatePlanFactCache();
   renderStats();
   recomputeMonthColPx();
   renderGanttMonthHeader();
@@ -2927,6 +2921,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
 // При активных фильтрах или изменении длины шкалы строка может влиять на соседей —
 // тогда честно перерисовываем всё.
 function refreshTaskRow(taskId){
+  invalidatePlanFactCache();
   const filtersActive = anyGanttFilterActive();
   const idx = tasks.findIndex(x=>x.id===taskId);
   const old = document.querySelector('#ganttBody tr[data-task-id="'+taskId+'"]');
@@ -4449,14 +4444,6 @@ function projectMeta(p){
   return p.name.replace(/«|»/g,'');
 }
 
-function projectFactPct(p){
-  const w = p.tasks.filter(t=>!t.cat);
-  if(!w.length) return 0;
-  const sp = w.reduce((a,t)=>a+(t.volume||0),0);
-  const sf = w.reduce((a,t)=>a+(t.factVol||0),0);
-  return sp ? Math.round(sf/sp*100) : 0;
-}
-
 function renderProjectsList(){
   const el = document.getElementById('projectsList');
   if(!myGraphs.length){ el.innerHTML='<div class="sidebar-empty">Пока нет графиков</div>'; return; }
@@ -5335,8 +5322,11 @@ function overlayClick(e){
   if(e.target===document.getElementById('settingsOverlay')) closeSettings();
 }
 function switchSettingsTab(name,el){
-  document.querySelectorAll('.modal-sidebar-item').forEach(i=>i.classList.remove('active'));
-  document.querySelectorAll('.modal-section').forEach(s=>s.classList.remove('active'));
+  // только внутри своего окна: глобальный селектор снимал подсветку вкладок
+  // и в соседнем окне настроек графика
+  const overlay = document.getElementById('settingsOverlay');
+  overlay.querySelectorAll('.modal-sidebar-item').forEach(i=>i.classList.remove('active'));
+  overlay.querySelectorAll('.modal-section').forEach(s=>s.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('settings-'+name).classList.add('active');
   if(name==='backups') renderBackupsList(); // список копий подгружаем при открытии вкладки
