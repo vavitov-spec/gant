@@ -680,6 +680,13 @@ function isTaskCurrentMonth(t){
   const mEnd   = new Date(today.getFullYear(), today.getMonth()+1, 0, 23, 59, 59, 999);
   return taskStartDate(t)<=mEnd && taskEndDate(t)>=mStart;
 }
+// уже просроченная по плану, но не выполненная в полном объёме работа — фильтры «только
+// текущие» (эта неделя/месяц) всегда должны её показывать, даже если по датам она уже
+// в прошлом: такую работу нельзя терять из вида, пока факт не введён полностью
+function isTaskOverdueIncomplete(t){
+  const today = new Date(); today.setHours(0,0,0,0);
+  return taskEndDate(t) < today && (t.factPct||0) < 100;
+}
 function toggleFilterMenu(btn){
   const existing = document.getElementById('filterDropdown');
   if(existing){ existing.remove(); return; }
@@ -2708,8 +2715,8 @@ function renderGantt(){
       if(t.cat){ catId=t.id; return; }
       if(catId===null) return;
       const ok1 = !ganttFilters.hideCompleted || t.factPct!==100;
-      const ok2 = !ganttFilters.showOnlyCurrent || isTaskCurrentWeek(t);
-      const ok3 = !ganttFilters.showOnlyCurrentMonth || isTaskCurrentMonth(t);
+      const ok2 = !ganttFilters.showOnlyCurrent || isTaskCurrentWeek(t) || isTaskOverdueIncomplete(t);
+      const ok3 = !ganttFilters.showOnlyCurrentMonth || isTaskCurrentMonth(t) || isTaskOverdueIncomplete(t);
       const ok4 = !!ganttFilters.types[t.type||'work'];
       const ok5 = !ganttFilters.onlyMyWorks || !currentContractorName || t.contractor===currentContractorName;
       if(ok1&&ok2&&ok3&&ok4&&ok5) sectionsWithVisible.add(catId);
@@ -2807,8 +2814,8 @@ function renderGantt(){
     hiddenChain[level] = !!t.hidden;
     if(t.hidden){ return; } // подраздел/работа выключена из отображения в настройках графика
     if(ganttFilters.hideCompleted && t.factPct===100){ return; }
-    if(ganttFilters.showOnlyCurrent && !isTaskCurrentWeek(t)){ return; }
-    if(ganttFilters.showOnlyCurrentMonth && !isTaskCurrentMonth(t)){ return; }
+    if(ganttFilters.showOnlyCurrent && !isTaskCurrentWeek(t) && !isTaskOverdueIncomplete(t)){ return; }
+    if(ganttFilters.showOnlyCurrentMonth && !isTaskCurrentMonth(t) && !isTaskOverdueIncomplete(t)){ return; }
     if(!ganttFilters.types[t.type||'work']){ return; }
     if(ganttFilters.onlyMyWorks && currentContractorName && t.contractor!==currentContractorName){ return; }
 
