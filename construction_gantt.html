@@ -4971,7 +4971,7 @@ const TASK_TYPES = [
   {value:'work',      label:'СМР',      short:'СМР'},
   {value:'materials', label:'Поставка', short:'Пост.'}
 ];
-function taskTypeInfo(val){ return TASK_TYPES.find(x=>x.value===val) || TASK_TYPES[0]; }
+function taskTypeInfo(val){ return TASK_TYPES.find(x=>x.value===(val||'work')) || TASK_TYPES[0]; }
 
 // ─── настройки конкретного графика (шестерёнка в шапке таблицы) ─────────────
 const GS_COLUMNS = [
