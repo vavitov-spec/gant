@@ -2876,7 +2876,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
     const numHtml = numLabel ? `<span class="row-num" style="color:var(--text3);flex-shrink:0;">${numLabel}</span>` : '';
     tr.innerHTML=`
       <td><div class="task-indent-wrap" style="display:flex;align-items:flex-start;gap:3px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}${level>0?'<span class="task-indent">∟</span>':''}${numHtml}${nameHtml}${deleteBtnHtml}</div></td>
-      <td class="col-type" style="font-size:12px;color:var(--text3);">${isEditingType
+      <td class="col-type" style="font-size:12px;color:${isDesignType?DESIGN_TEXT:'var(--text3)'};">${isEditingType
         ? `<select id="taskTypeSelect-${t.id}" onclick="event.stopPropagation();" onchange="commitTaskType(${t.id},this.value)" onblur="if(editingTypeTaskId===${t.id}){editingTypeTaskId=null;renderGantt();}" style="font:inherit;font-size:12px;padding:2px 3px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;">${TASK_TYPES.map(ty=>`<option value="${ty.value}"${(t.type||'work')===ty.value?' selected':''}>${ty.label}</option>`).join('')}</select>`
         : `<span ondblclick="event.stopPropagation();startEditTaskType(${t.id})" title="Двойной клик — изменить тип (${taskTypeInfo(t.type).label})" style="cursor:default;">${taskTypeInfo(t.type).short}</span>`
       }</td>
@@ -4975,8 +4975,8 @@ const TASK_TYPES = [
 function taskTypeInfo(val){ return TASK_TYPES.find(x=>x.value===(val||'work')) || TASK_TYPES[0]; }
 // работы типа ПИР («design») визуально выделяются лёгким жёлтым оттенком — текст названия
 // и фон полосы на диаграмме (сама заливка факта/плана поверх остаётся прежней)
-const DESIGN_TEXT    = '#A6821C';
-const DESIGN_BAR_BG  = 'linear-gradient(180deg,#FCEFC0 0%,#EFD076 100%)';
+const DESIGN_TEXT    = '#D4B94A';
+const DESIGN_BAR_BG  = 'linear-gradient(180deg,#FEF9E7 0%,#F6E9AE 100%)';
 
 // ─── настройки конкретного графика (шестерёнка в шапке таблицы) ─────────────
 const GS_COLUMNS = [
