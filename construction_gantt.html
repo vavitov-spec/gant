@@ -2501,22 +2501,14 @@ function todayMarkerLeft(){
   return {unit:'px', value:(dayIndexOfDate(today)*dayPx).toFixed(1)};
 }
 
-// временно отключены по просьбе пользователя (2026-07-08) — осталась только заливка колонки (todayBandHtml).
-// Чтобы вернуть линии, поставить true.
-const TODAY_LINES_ENABLED = false;
-
-// единая непрерывная линия "сегодня" поверх всего графика
+// единая непрерывная линия "сегодня" поверх всего графика — только в масштабах "Неделя"/"Месяц";
+// в режиме "День" сегодняшний день выделен заливкой колонки (todayBandHtml), линия там не нужна
 function _renderTodayLineFor(wrapEl, barThId, lineId){
   const th = document.getElementById(barThId);
   if(!wrapEl || !th) return;
   let line = document.getElementById(lineId);
   if(!line){ line = document.createElement('div'); line.id = lineId; line.className = 'today-line'; wrapEl.appendChild(line); }
-  if(!TODAY_LINES_ENABLED){
-    line.style.display = 'none';
-    const endLine = document.getElementById(lineId + 'End');
-    if(endLine) endLine.style.display = 'none';
-    return;
-  }
+  if(ganttScale === 'day'){ line.style.display = 'none'; return; }
   line.style.display = '';
   const wr = wrapEl.getBoundingClientRect();
   const tr = th.getBoundingClientRect();
@@ -2530,21 +2522,6 @@ function _renderTodayLineFor(wrapEl, barThId, lineId){
   line.style.top    = headerH + 'px';
   line.style.height = bodyH + 'px';
   line.style.bottom = 'auto';
-
-  // в режиме дня добавляем вторую линию справа от колонки "сегодня" (между сегодня и завтра),
-  // чтобы сегодняшний день был обрамлён с обеих сторон так же, как слева
-  const endLineId = lineId + 'End';
-  let endLine = document.getElementById(endLineId);
-  if(ganttScale === 'day'){
-    if(!endLine){ endLine = document.createElement('div'); endLine.id = endLineId; endLine.className = 'today-line'; wrapEl.appendChild(endLine); }
-    endLine.style.display = '';
-    endLine.style.left   = (x + SCALE_DAY_PX.day).toFixed(1) + 'px';
-    endLine.style.top    = headerH + 'px';
-    endLine.style.height = bodyH + 'px';
-    endLine.style.bottom = 'auto';
-  } else if(endLine){
-    endLine.style.display = 'none';
-  }
 }
 function renderTodayLine(){ _renderTodayLineFor(document.getElementById('ganttWrap'),'ganttBarTh','ganttTodayLine'); }
 
