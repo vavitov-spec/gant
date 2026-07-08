@@ -2506,7 +2506,8 @@ function _renderTodayLineFor(wrapEl, barThId, lineId){
   if(!line){ line = document.createElement('div'); line.id = lineId; line.className = 'today-line'; wrapEl.appendChild(line); }
   const wr = wrapEl.getBoundingClientRect();
   const tr = th.getBoundingClientRect();
-  const x = tr.left - wr.left + wrapEl.scrollLeft + 10 + parseFloat(todayMarkerLeft().value);
+  const baseX = tr.left - wr.left + wrapEl.scrollLeft + 10;
+  const x = baseX + parseFloat(todayMarkerLeft().value);
   const theadRow = wrapEl.querySelector('thead tr');
   const headerH = theadRow ? theadRow.getBoundingClientRect().height : 36;
   const tbody = wrapEl.querySelector('tbody');
@@ -2515,6 +2516,21 @@ function _renderTodayLineFor(wrapEl, barThId, lineId){
   line.style.top    = headerH + 'px';
   line.style.height = bodyH + 'px';
   line.style.bottom = 'auto';
+
+  // в режиме дня добавляем вторую линию справа от колонки "сегодня" (между сегодня и завтра),
+  // чтобы сегодняшний день был обрамлён с обеих сторон так же, как слева
+  const endLineId = lineId + 'End';
+  let endLine = document.getElementById(endLineId);
+  if(ganttScale === 'day'){
+    if(!endLine){ endLine = document.createElement('div'); endLine.id = endLineId; endLine.className = 'today-line'; wrapEl.appendChild(endLine); }
+    endLine.style.display = '';
+    endLine.style.left   = (x + SCALE_DAY_PX.day).toFixed(1) + 'px';
+    endLine.style.top    = headerH + 'px';
+    endLine.style.height = bodyH + 'px';
+    endLine.style.bottom = 'auto';
+  } else if(endLine){
+    endLine.style.display = 'none';
+  }
 }
 function renderTodayLine(){ _renderTodayLineFor(document.getElementById('ganttWrap'),'ganttBarTh','ganttTodayLine'); }
 
