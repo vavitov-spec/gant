@@ -1022,25 +1022,23 @@ function dayIndexOfDate(date){
 
 function workTasks(){ return tasks.filter(t=>!t.cat); }
 
+// готовность проекта = сумма объёмов всех работ — это 100% проекта. Плановая/фактическая
+// готовность считаются от того же знаменателя, суммируя план/факт «до сегодня» по каждой
+// работе — тот же точный, по дням, расчёт planAndFactToDate, что и в колонке «Факт/План»
+// у отдельных работ (учитывает реальное распределение объёма по рабочим дням и любые правки),
+// а не грубую линейную оценку по доле прошедшего времени задачи.
 function overallFact(){
   const w = workTasks();
-  const sumPlan = w.reduce((a,t)=>a+t.volume,0);
-  const sumFact = w.reduce((a,t)=>a+(t.factVol||0),0);
+  const sumPlan = w.reduce((a,t)=>a+(t.volume||0),0);
+  const sumFact = w.reduce((a,t)=>a+planAndFactToDate(t).fact,0);
   return sumPlan ? Math.round(sumFact/sumPlan*100) : 0;
 }
 
 function overallPlan(){
-  // weighted plan % up to CURRENT month
   const w = workTasks();
-  let sumPlan=0, sumExpected=0;
-  w.forEach(t=>{
-    const dm = durMonthUnits(t);
-    const elapsed = Math.min(Math.max(CURRENT-t.start,0), dm);
-    const expected = dm>0 ? elapsed/dm : 0;
-    sumPlan += t.volume;
-    sumExpected += t.volume * expected;
-  });
-  return sumPlan ? Math.round(sumExpected/sumPlan*100) : 0;
+  const sumPlan = w.reduce((a,t)=>a+(t.volume||0),0);
+  const sumPlanToDate = w.reduce((a,t)=>a+planAndFactToDate(t).plan,0);
+  return sumPlan ? Math.round(sumPlanToDate/sumPlan*100) : 0;
 }
 
 function pctClass(t){
