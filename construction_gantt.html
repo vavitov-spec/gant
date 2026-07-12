@@ -6337,9 +6337,6 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item" onclick="switchSettingsTab('backups',this)">
           <i class="ti ti-history"></i> Резервные копии
         </div>
-        <div class="modal-sidebar-item" onclick="switchSettingsTab('data',this)">
-          <i class="ti ti-database"></i> Данные
-        </div>
         <div class="modal-sidebar-item" onclick="switchSettingsTab('requests',this)">
           <i class="ti ti-clipboard-list"></i> Заявки на графики
         </div>
@@ -6389,19 +6386,6 @@ window.addEventListener('resize', ()=>{
             <button class="btn btn-primary" id="backupNowBtn" onclick="createBackupNow()"><i class="ti ti-device-floppy"></i> Создать копию сейчас</button>
           </div>
           <div id="backupsList"></div>
-        </div>
-
-        <div id="settings-data" class="modal-section">
-          <div class="settings-section-title">Данные</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px;padding:10px 12px;background:var(--bg2);border-radius:var(--rad);">
-            <i class="ti ti-info-circle" style="color:#185FA5;margin-right:5px;"></i>
-            Все графики, виды графика и фактические данные сохраняются автоматически в этом браузере. При обновлении страницы ничего не теряется.
-          </div>
-          <div style="border:0.5px solid var(--border-danger,rgba(200,40,40,0.3));border-radius:var(--rad);padding:14px;background:var(--bg-danger);">
-            <div style="font-size:12.5px;font-weight:500;color:var(--text-danger);margin-bottom:4px;">Очистить текущий график</div>
-            <div style="font-size:11.5px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Удалит работы, связи и внесённые фактические объёмы открытого графика без возможности восстановления. Другие графики и справочники не затрагиваются.</div>
-            <button class="btn" style="border-color:var(--text-danger);color:var(--text-danger);" onclick="resetAllData()"><i class="ti ti-trash"></i> Очистить график</button>
-          </div>
         </div>
 
         <div id="settings-requests" class="modal-section">
@@ -6523,7 +6507,10 @@ window.addEventListener('resize', ()=>{
       </div>
     </div>
     <div class="np-actions">
-      <button class="btn" style="border-color:var(--text-danger);color:var(--text-danger);" onclick="deleteGraphFromSettings()"><i class="ti ti-trash"></i> Удалить график</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="border-color:var(--text-danger);color:var(--text-danger);" onclick="resetAllData()" title="Стереть работы, связи и факт, оставив пустой график"><i class="ti ti-eraser"></i> Очистить график</button>
+        <button class="btn" style="border-color:var(--text-danger);color:var(--text-danger);" onclick="deleteGraphFromSettings()"><i class="ti ti-trash"></i> Удалить график</button>
+      </div>
       <div style="display:flex;gap:8px;">
         <button class="btn" onclick="closeGraphSettings()">Закрыть</button>
         <button class="btn btn-primary" onclick="saveGraphSettings()"><i class="ti ti-check"></i> Сохранить</button>
