@@ -784,7 +784,6 @@ function isNarrowView(){ return !!(window.matchMedia && window.matchMedia('(max-
 // работы» — отдельная доработка); client — только просмотр; нет роли/входа — тоже просмотр.
 let currentUser = null;   // {id, email} после входа
 let currentRole = null;   // 'admin'|'member'|'contractor'|'client' в текущем открытом графике
-let currentContractorName = null; // для роли contractor — имя подрядчика (t.contractor), которым он ограничен
 function isReadOnly(){ return !currentRole || currentRole==='client'; }
 function noStructureEdit(){ return !(currentRole==='admin'||currentRole==='member') || isNarrowView(); }
 // подрядчик вносит факт только по работам, где он назначен ответственным в work_assignments
@@ -794,6 +793,16 @@ function isMyAssignedWork(t){
   if(!t || typeof _waMap==='undefined' || !currentUser) return false;
   const a = _waMap['task:'+t.id];
   return !!(a && a.responsible_user_id===currentUser.id);
+}
+// компания-подрядчик, назначенная на работу: сначала прямое назначение на работу,
+// иначе — назначение на её раздел (work_assignments, Этап 6). null — если не назначена.
+function assignedWA(t){
+  if(!t || typeof _waMap==='undefined') return null;
+  const direct = _waMap['task:'+t.id];
+  if(direct) return direct;
+  let curSec = null;
+  for(const x of (tasks||[])){ if(x.cat) curSec = x.id; if(x.id===t.id) break; }
+  return (curSec!=null && _waMap['section:'+curSec]) || null;
 }
 function canEditTaskFact(t){
   if(isReadOnly()) return false;
@@ -849,16 +858,6 @@ function setGanttScale(scale){
   renderGantt();
   scrollGanttToToday();
 }
-
-const CONTRACTORS = {
-  'МонолитСтрой':   {color:'#185FA5',bg:'#E6F1FB'},
-  'ГрандФундамент': {color:'#3B6D11',bg:'#EAF3DE'},
-  'ИнжСети-Про':    {color:'#533AB7',bg:'#EEEDFE'},
-  'ОтделкаМастер':  {color:'#854F0B',bg:'#FAEEDA'},
-  'ЗемРаботы LLC':  {color:'#993556',bg:'#FBEAF0'},
-  'АрмПро':         {color:'#0F6E56',bg:'#E1F5EE'},
-  'СтальМонтаж':    {color:'#71280B',bg:'#FAECE7'},
-};
 
 // ─── default project tasks ──────────────────────────────────────────────────────
 // стартовое состояние — пустой список: реальные данные приходят из облака или
@@ -2876,7 +2875,6 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
   const rollup = showCollapseToggle ? taskRollup(t.id) : null;
   const dateRollupCells = rollup ? dateCellsHtmlFromRollup(rollup) : null;
   const isDesignType = (t.type||'work')==='design';
-  const c = CONTRACTORS[t.contractor]||{color:'#888',bg:'#eee'};
     const dm = durMonthUnits(t);
     const m = barMetrics(t);
     // isLate убран — просроченность видна по красным цифрам факта на полосе
@@ -2936,12 +2934,12 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
         : `<span ondblclick="event.stopPropagation();startEditTaskType(${t.id})" title="Двойной клик — изменить тип (${taskTypeInfo(t.type).label})" style="cursor:default;">${taskTypeInfo(t.type).short}</span>`
       }</td>
       <td class="col-contractor">${(()=>{
-        const wa = (typeof _waMap!=='undefined') ? _waMap['task:'+t.id] : null;
+        const wa = assignedWA(t);
         if(wa){
           const title = 'Подрядчик: '+wa.company_name+(wa.responsible_name?', ответственный: '+wa.responsible_name:'');
           return `<span class="cbadge" style="background:var(--bg-info);color:#185FA5;" title="${escapeHtml(title)}">${escapeHtml(wa.company_name)}</span>`;
         }
-        return `<span class="cbadge" style="background:${c.bg};color:${c.color};">${escapeHtml(t.contractor)}</span>`;
+        return `<span style="color:var(--text3);">—</span>`;
       })()}</td>
       <td class="col-start tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${dateHtml}</td>
       <td class="col-dur tight-col" style="font-size:12px;color:var(--text3);white-space:nowrap;">${durHtml}</td>
@@ -3004,7 +3002,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
             if(greenW > 0) inner += `<div style="position:absolute;top:0;left:0;width:${(greenW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#4FB783,#2E8C5D);pointer-events:none;"></div>`;
             if(redW   > 0) inner += `<div style="position:absolute;top:0;left:${(greenW/barW*100).toFixed(2)}%;width:${(redW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#E36A66,#C43F3F);pointer-events:none;"></div>`;
           }
-          const accent = `<div class="bar-plan-accent" style="background:${c.color};"></div>`;
+          const accent = `<div class="bar-plan-accent" style="background:#185FA5;"></div>`;
           return `<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};${isDesignType?`background:${DESIGN_BAR_BG};`:''}" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь">${accent}${inner}</div>`;
         })()}
         ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:9px;line-height:9px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:600;color:#152736;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px rgba(255,255,255,.9);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:4;${editable?'cursor:pointer;text-decoration:underline dotted rgba(21,39,54,0.5);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
@@ -3309,7 +3307,7 @@ function buildAnalysis(){
     issues.push({
       icon:'ti-alert-triangle',
       title:`${escapeHtml(t.name)}: просрочено (${t.factPct}% при плане 100%)`,
-      desc:`Подрядчик: ${escapeHtml(t.contractor)}. Работа должна была завершиться ${formatDateDDMMYY(taskEndDate(t))}. Фактический объём: ${(t.factVol||0).toLocaleString('ru')} из ${t.volume.toLocaleString('ru')} ${escapeHtml(t.unit)}.`,
+      desc:`${(()=>{const w=assignedWA(t);return w?'Подрядчик: '+escapeHtml(w.company_name)+'. ':'';})()}Работа должна была завершиться ${formatDateDDMMYY(taskEndDate(t))}. Фактический объём: ${(t.factVol||0).toLocaleString('ru')} из ${t.volume.toLocaleString('ru')} ${escapeHtml(t.unit)}.`,
       severity:'danger'
     });
   });
@@ -3318,7 +3316,7 @@ function buildAnalysis(){
     issues.push({
       icon:'ti-clock-exclamation',
       title:`${escapeHtml(t.name)}: риск отставания (${t.factPct}% при ожидаемых ${expected}%)`,
-      desc:`Подрядчик: ${escapeHtml(t.contractor)}. Отставание ${expected-t.factPct}% от ожидаемого прогресса. Необходим контроль.`,
+      desc:`${(()=>{const w=assignedWA(t);return w?'Подрядчик: '+escapeHtml(w.company_name)+'. ':'';})()}Отставание ${expected-t.factPct}% от ожидаемого прогресса. Необходим контроль.`,
       severity:'warning'
     });
   });
@@ -3344,15 +3342,20 @@ function buildAnalysis(){
     recs.push(`<strong>Подготовить ресурсы</strong> для предстоящих работ (${tasks.filter(t=>!t.cat&&Math.floor(t.start)===CURRENT).map(t=>escapeHtml(t.name)).join(', ')||'по плану'}).`);
   }
 
-  // contractor analysis
+  // рейтинг по назначенным компаниям-подрядчикам (work_assignments): учитываем только
+  // работы, у которых есть назначенная компания (на работу или её раздел)
   const contractorStats = {};
   workTasks().filter(t=>t.start<CURRENT).forEach(t=>{
-    if(!contractorStats[t.contractor]) contractorStats[t.contractor]={planned:0,fact:0,late:0};
+    const wa = assignedWA(t);
+    if(!wa) return;
+    const name = wa.company_name;
+    if(!contractorStats[name]) contractorStats[name]={planned:0,fact:0,late:0,count:0};
     const dm = durMonthUnits(t);
     const expected = Math.min((CURRENT-t.start)/dm,1)*100;
-    contractorStats[t.contractor].planned += expected;
-    contractorStats[t.contractor].fact += t.factPct;
-    contractorStats[t.contractor].late += (t.start+dm<=CURRENT&&t.factPct<100)?1:0;
+    contractorStats[name].planned += expected;
+    contractorStats[name].fact += t.factPct;
+    contractorStats[name].late += (t.start+dm<=CURRENT&&t.factPct<100)?1:0;
+    contractorStats[name].count++;
   });
 
   return {riskLevel, riskColor, fact, plan, diff, estDelay, issues, recs, contractorStats};
@@ -3405,12 +3408,12 @@ function renderAnalysis(){
       <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);">Просрочено</th>
     </tr></thead><tbody>`;
     entries.forEach(([name, s])=>{
-      const count = workTasks().filter(t=>t.contractor===name && t.start<CURRENT).length || 1;
+      const count = s.count || 1;
       const avgPlan = Math.round(s.planned/count);
       const avgFact = Math.round(s.fact/count);
       const d = avgFact - avgPlan;
       const cls = d>=0?'ok':d>=-10?'warn':'danger';
-      const c = CONTRACTORS[name]||{color:'#888',bg:'#eee'};
+      const c = {color:'#185FA5',bg:'var(--bg-info)'};
       html+=`<tr><td style="padding:7px 12px;border-bottom:0.5px solid var(--border);">
         <span class="cbadge" style="background:${c.bg};color:${c.color};">${escapeHtml(name)}</span>
       </td>
@@ -3494,7 +3497,7 @@ let editingTaskId = null;
 function showAddTask(catId){
   if(noStructureEdit()) return;
   const newId=Math.max(0,...tasks.map(t=>t.id))+1;
-  const newTask={id:newId,name:'',contractor:'Не указан',unit:'%',type:'work',volume:100,start:Math.max(0,Math.min(dateToOffset(new Date()),TOTAL-1)),dur:10,factPct:0,factVol:0,factOverrides:{}};
+  const newTask={id:newId,name:'',unit:'%',type:'work',volume:100,start:Math.max(0,Math.min(dateToOffset(new Date()),TOTAL-1)),dur:10,factPct:0,factVol:0,factOverrides:{}};
 
   if(catId!==undefined){
     ganttCollapsed[catId] = false; // если раздел был свёрнут — раскрываем, чтобы новая работа была видна
@@ -4203,8 +4206,7 @@ function setCloudStatus(s){
 function buildPayload(){
   saveActiveProjectState(); // подтягиваем актуальные tasks/total/current активного проекта
   return {
-    projects, activeProjectId, graphTypes, activeGraphTypeId, contractorsList,
-    contractorColors: CONTRACTORS, unitsList,
+    projects, activeProjectId, graphTypes, activeGraphTypeId, unitsList,
     updatedAt: Date.now() // метка времени: по ней выбираем более свежую версию (локальную или облачную)
   };
 }
@@ -4517,11 +4519,7 @@ function applyPayload(data){
     graphTypes = [{id:1, name:'Типовое жилое строительство', sections:data.smrList}];
     activeGraphTypeId = 1;
   }
-  if(Array.isArray(data.contractorsList)) contractorsList = data.contractorsList;
   if(Array.isArray(data.unitsList) && data.unitsList.length) unitsList = data.unitsList;
-  if(data.contractorColors){
-    Object.keys(data.contractorColors).forEach(name=>{ CONTRACTORS[name] = data.contractorColors[name]; });
-  }
   return true;
 }
 
@@ -4773,7 +4771,7 @@ function renderNPTree(){
     if(npGraphTypeId === 0){
       el.innerHTML='<div class="dir-empty" style="color:var(--text2);"><i class="ti ti-sparkles" style="margin-right:5px;"></i>Чистый график — разделы и работы добавляются вручную после создания.</div>';
     } else {
-      el.innerHTML='<div class="dir-empty">В выбранном виде графика пока нет разделов. Добавьте их в Настройках → Вид графика.</div>';
+      el.innerHTML='<div class="dir-empty">В выбранном виде графика пока нет разделов. Добавьте их в Настройках → Шаблоны графиков.</div>';
     }
     return;
   }
@@ -4940,18 +4938,18 @@ async function createProject(){
         if(!checkedSubWorks.length) return;
         // подраздел становится работой верхнего уровня — «контейнером» для своих подработ
         newTasks.push({
-          id:taskId++, name:w.name, contractor:'Не назначен', unit:'%', type:'work',
+          id:taskId++, name:w.name, unit:'%', type:'work',
           volume:100, start:0, dur:10, factPct:0, factVol:0
         });
         checkedSubWorks.forEach(sw=>{
           newTasks.push({
-            id:taskId++, name:sw, contractor:'Не назначен', unit:'—', type:'work',
+            id:taskId++, name:sw, unit:'—', type:'work',
             volume:0, start:0, dur:10, factPct:0, factVol:0, level:1
           });
         });
       } else if(wsel){
         newTasks.push({
-          id:taskId++, name:w, contractor:'Не назначен', unit:'%', type:'work',
+          id:taskId++, name:w, unit:'%', type:'work',
           volume:100, start:0, dur:10, factPct:0, factVol:0
         });
       }
@@ -4981,7 +4979,7 @@ async function createProject(){
   // следующим вызовом (см. request_create_project/decide_create_project_request)
   const newPayload = {
     projects:[newProject], activeProjectId:newProject.id, graphTypes, activeGraphTypeId,
-    contractorsList, contractorColors:CONTRACTORS, unitsList, updatedAt:Date.now()
+    unitsList, updatedAt:Date.now()
   };
   const { data: reqId, error: reqErr } = await sb.rpc('request_create_project', { p_name: name, p_payload: newPayload });
   if(reqErr){ alert('Не удалось создать заявку: ' + reqErr.message); return; }
@@ -5045,7 +5043,6 @@ function countSectionWorks(sec){
 
 function activeGraphType(){ return graphTypes.find(g=>g.id===activeGraphTypeId) || graphTypes[0]; }
 
-let contractorsList = Object.keys(CONTRACTORS);
 let unitsList = ['%', 'м²', 'м³', 'м.п.', 'шт.'];
 // типы строк графика: значение — что хранится в t.type, short — как показываем в свёрнутом виде на полосе
 const TASK_TYPES = [
@@ -5135,7 +5132,6 @@ function openGraphSettings(){
   }).join('');
 
   renderGSSections();
-  document.getElementById('inviteContractorSelect').innerHTML = contractorsList.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
   renderProjectMembers();
   renderInvitesList();
   document.getElementById('graphSettingsOverlay').classList.add('open');
@@ -5192,16 +5188,10 @@ async function changeMemberRole(memberId, newRole){
     await renderProjectMembers();
     return;
   }
-  // подрядчик без названия организации не сможет вносить факт ни по одной работе
-  let contractorName = null;
-  if(newRole==='contractor'){
-    const hint = contractorsList.length ? '\nПодрядчики из справочника: ' + contractorsList.join(', ') : '';
-    contractorName = prompt('Название подрядной организации этого участника — точно так, как оно указано у работ в колонке «Подрядчик»:'+hint, m.contractor_name||'');
-    contractorName = contractorName===null ? null : contractorName.trim();
-    if(!contractorName){ await renderProjectMembers(); return; }
-  }
+  // роль подрядчика ограничивается работами через назначения (work_assignments),
+  // отдельное название организации у участника больше не требуется
   const { error } = await sb.from('project_members')
-    .update({ role:newRole, contractor_name:contractorName }).eq('id', memberId);
+    .update({ role:newRole, contractor_name:null }).eq('id', memberId);
   if(error){ alert('Не удалось изменить роль: ' + error.message); }
   await renderProjectMembers();
   // изменили собственную роль — перечитываем страницу, чтобы применились новые права
@@ -5229,9 +5219,8 @@ async function createInviteLink(){
   const g = currentGraphMeta();
   if(!g){ alert('Не удалось определить график.'); return; }
   const role = document.getElementById('inviteRoleSelect').value;
-  const contractorName = role==='contractor' ? document.getElementById('inviteContractorSelect').value : null;
   const { data, error } = await sb.from('project_invites')
-    .insert({ project_id:g.projectId, role, contractor_name:contractorName, created_by:currentUser.id })
+    .insert({ project_id:g.projectId, role, contractor_name:null, created_by:currentUser.id })
     .select('token').single();
   if(error){ alert('Не удалось создать приглашение: ' + error.message); return; }
   const url = location.origin + location.pathname + '?invite=' + data.token;
@@ -5410,7 +5399,6 @@ function openSettings(){
   if(!graphTypes.some(g=>g.id===activeGraphTypeId) && graphTypes.length) activeGraphTypeId = graphTypes[0].id;
   renderGraphTypesList();
   renderSMRList();
-  renderContractorsList();
   renderUnitsList();
   renderCreationRequests();
   document.getElementById('settingsOverlay').classList.add('open');
@@ -5739,7 +5727,7 @@ async function waRemove(id, type, scopeId, companyId){
   renderGantt(); // обновить столбец «Подрядчик» в таблице
 }
 
-// ── список видов графика (левая колонка внутри раздела "Вид графика") ──────────
+// ── список видов графика (левая колонка внутри раздела "Шаблоны графиков") ──────────
 function renderGraphTypesList(){
   const el = document.getElementById('graphTypesList');
   if(!el) return;
@@ -6000,51 +5988,6 @@ function deleteSubWork(i,j,k){
   saveState();
 }
 
-function renderContractorsList(){
-  document.getElementById('contractors-count').textContent = contractorsList.length + ' записей';
-  const el = document.getElementById('contractorsList');
-  if(!contractorsList.length){ el.innerHTML='<div class="dir-empty">Список пуст</div>'; return; }
-  el.innerHTML = contractorsList.map((name,i)=>{
-    const c = CONTRACTORS[name]||{color:'#888',bg:'#eee'};
-    return `<div class="dir-item">
-      <div class="dir-item-left">
-        <span class="dir-item-num">${i+1}.</span>
-        <span class="cbadge" style="background:${c.bg};color:${c.color};">${escapeHtml(name)}</span>
-      </div>
-      <div class="dir-item-actions">
-        <button class="dir-btn del" onclick="deleteContractor(${i})" title="Удалить"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function addContractor(){
-  const inp = document.getElementById('contractorInput');
-  const val = inp.value.trim();
-  if(!val) return;
-  if(contractorsList.includes(val)){ alert('Подрядчик уже есть в списке'); return; }
-  contractorsList.push(val);
-  // добавляем в CONTRACTORS с автоцветом
-  const palette=[
-    {color:'#185FA5',bg:'#E6F1FB'},{color:'#3B6D11',bg:'#EAF3DE'},
-    {color:'#533AB7',bg:'#EEEDFE'},{color:'#854F0B',bg:'#FAEEDA'},
-    {color:'#993556',bg:'#FBEAF0'},{color:'#0F6E56',bg:'#E1F5EE'},
-    {color:'#71280B',bg:'#FAECE7'},{color:'#1A6B6B',bg:'#E0F5F5'},
-  ];
-  const idx = Object.keys(CONTRACTORS).length % palette.length;
-  CONTRACTORS[val] = palette[idx];
-  inp.value='';
-  renderContractorsList();
-  saveState();
-}
-
-function deleteContractor(i){
-  const name = contractorsList[i];
-  if(!confirm(`Удалить подрядчика «${name}»?`)) return;
-  contractorsList.splice(i,1);
-  renderContractorsList();
-  saveState();
-}
 
 function renderUnitsList(){
   document.getElementById('units-count').textContent = unitsList.length + ' записей';
@@ -6182,7 +6125,6 @@ function blankProjectSeed(name){
 async function openGraph(graphMeta){
   currentAppStateId = graphMeta.appStateId;
   currentRole = graphMeta.role;
-  currentContractorName = graphMeta.contractorName || null;
   // подрядчику по умолчанию включаем фильтр «только мои работы» (остальным ролям он не нужен)
   ganttFilters.onlyMyWorks = currentRole==='contractor';
   try{ localStorage.setItem('gantt_last_project_id', String(graphMeta.projectId)); }catch(e){}
@@ -6335,7 +6277,7 @@ window.addEventListener('resize', ()=>{
 
       <!-- Graph type dropdown -->
       <div class="np-field">
-        <div class="np-label"><i class="ti ti-sitemap"></i> Вид графика</div>
+        <div class="np-label"><i class="ti ti-sitemap"></i> Шаблон графика</div>
         <select class="np-input" id="npTypeSelect" onchange="npPickGraphType(parseInt(this.value))"></select>
       </div>
 
@@ -6387,10 +6329,7 @@ window.addEventListener('resize', ()=>{
     <div class="modal-body">
       <nav class="modal-sidebar">
         <div class="modal-sidebar-item active" onclick="switchSettingsTab('graphtypes',this)">
-          <i class="ti ti-sitemap"></i> Вид графика
-        </div>
-        <div class="modal-sidebar-item" onclick="switchSettingsTab('contractors',this)">
-          <i class="ti ti-users"></i> Подрядчики
+          <i class="ti ti-sitemap"></i> Шаблоны графиков
         </div>
         <div class="modal-sidebar-item" onclick="switchSettingsTab('units',this)">
           <i class="ti ti-ruler-measure"></i> Единицы измерения
@@ -6423,20 +6362,6 @@ window.addEventListener('resize', ()=>{
           <div class="dir-add-row">
             <input type="text" id="smrInput" placeholder="Название нового раздела..." onkeydown="if(event.key==='Enter')addSMR()">
             <button class="btn btn-primary" onclick="addSMR()"><i class="ti ti-plus"></i> Добавить раздел</button>
-          </div>
-        </div>
-
-        <div id="settings-contractors" class="modal-section">
-          <div class="settings-section-title">Подрядчики</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Общий справочник подрядчиков, доступный во всех графиках независимо от вида.</div>
-          <div class="dir-header">
-            <div class="dir-title">Подрядчики</div>
-            <div class="dir-count" id="contractors-count"></div>
-          </div>
-          <div class="dir-list" id="contractorsList"></div>
-          <div class="dir-add-row">
-            <input type="text" id="contractorInput" placeholder="Название подрядчика..." onkeydown="if(event.key==='Enter')addContractor()">
-            <button class="btn btn-primary" onclick="addContractor()"><i class="ti ti-plus"></i> Добавить</button>
           </div>
         </div>
 
@@ -6574,16 +6499,13 @@ window.addEventListener('resize', ()=>{
           <div class="np-field" id="gsInviteBlock" style="margin-top:16px;">
             <div class="np-label"><i class="ti ti-link"></i> Пригласить по ссылке</div>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-              <select class="np-input" id="inviteRoleSelect" style="flex:1;" onchange="document.getElementById('inviteContractorWrap').style.display=this.value==='contractor'?'block':'none';">
+              <select class="np-input" id="inviteRoleSelect" style="flex:1;">
                 <option value="member">Участник проекта</option>
                 <option value="contractor">Подрядчик</option>
                 <option value="client">Заказчик</option>
                 <option value="admin">Администратор</option>
               </select>
               <button class="btn btn-primary" onclick="createInviteLink()"><i class="ti ti-link-plus"></i> Создать ссылку</button>
-            </div>
-            <div id="inviteContractorWrap" style="display:none;margin-bottom:8px;">
-              <select class="np-input" id="inviteContractorSelect"></select>
             </div>
             <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Ссылка одноразовая — сгорает после первого использования, действует 30 дней.</div>
             <div id="invitesList"></div>
