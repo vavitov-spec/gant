@@ -325,6 +325,9 @@ tr.drag-over-bottom td{box-shadow:inset 0 -2px 0 #185FA5;}
 .modal-content{flex:1;overflow-y:auto;padding:16px 20px;}
 .modal-section{display:none;}.modal-section.active{display:block;}
 .settings-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px;}
+#acPhotoDelete{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:2;}
+#acPhotoDelete:hover{background:rgba(200,40,40,0.85);}
+#acPhotoFrame.has-photo:hover #acPhotoDelete{display:flex;}
 .dir-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .dir-title{font-size:13px;font-weight:500;color:var(--text);}
 .dir-count{font-size:11px;color:var(--text3);}
@@ -524,7 +527,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
       <button class="sidebar-footer-btn no-print" id="themeToggleBtn" onclick="toggleTheme()" title="Тёмная тема"><i class="ti ti-moon"></i></button>
       <button class="sidebar-footer-btn no-print" id="editLockBtn" onclick="unlockEdit()" title="Ввести пароль для редактирования"><i class="ti ti-lock"></i> Только чтение</button>
       <button class="sidebar-footer-btn no-print" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
-      <button class="sidebar-footer-btn th-edit-btn" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
+      <button class="sidebar-footer-btn no-print" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
     </div>
   </aside>
 
@@ -819,7 +822,7 @@ function applyEditMode(){
   document.body.classList.toggle('viewer-role', currentRole==='client' || currentRole==='contractor');
   const btn = document.getElementById('editLockBtn');
   if(btn){
-    const roleLabel = {admin:'Администратор', member:'Участник', contractor:'Подрядчик', client:'Заказчик'}[currentRole];
+    const roleLabel = {admin:'Рук. проекта', member:'Участник', contractor:'Подрядчик', client:'Заказчик'}[currentRole];
     if(roleLabel){
       btn.innerHTML = '<i class="ti ti-user"></i> ' + roleLabel;
       btn.title = 'Роль: ' + roleLabel + ' — выйти из аккаунта';
@@ -5098,7 +5101,7 @@ function openGraphSettings(){
   if(!p) return;
   const overlay = document.getElementById('graphSettingsOverlay');
   const items = overlay.querySelectorAll('.modal-sidebar-item');
-  // структурные вкладки (Общие/Разделы графика) — только Администратору/Участнику;
+  // структурные вкладки (Общие/Разделы графика) — только Руководителю проекта/Участнику;
   // Подрядчику/остальным без права структурных правок доступна только «Участники»
   const structural = !noStructureEdit();
   items[0].style.display = structural ? '' : 'none';
@@ -5151,7 +5154,7 @@ async function renderProjectMembers(){
     .eq('project_id', g.projectId)
     .order('id');
   if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
-  const roleLabel = {admin:'Администратор', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
+  const roleLabel = {admin:'Рук. проекта', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
   const isAdmin = currentRole==='admin';
   el.innerHTML = (data||[]).map(m=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);">
@@ -5169,7 +5172,7 @@ async function renderProjectMembers(){
   `).join('') || '<div class="dir-empty">Участников нет.</div>';
 }
 
-// есть ли в графике другой администратор, кроме указанного пользователя
+// есть ли в графике другой руководитель проекта, кроме указанного пользователя
 async function hasOtherAdmin(projectId, exceptUserId){
   const { data } = await sb.from('project_members').select('id')
     .eq('project_id', projectId).eq('role','admin').neq('user_id', exceptUserId).limit(1);
@@ -5182,9 +5185,9 @@ async function changeMemberRole(memberId, newRole){
     .select('id, user_id, role, contractor_name').eq('id', memberId).single();
   if(!g || !m){ alert('Не удалось получить данные участника.'); await renderProjectMembers(); return; }
   if(m.role === newRole){ return; }
-  // нельзя оставить график без администратора
+  // нельзя оставить график без руководителя проекта
   if(m.role==='admin' && !(await hasOtherAdmin(g.projectId, m.user_id))){
-    alert('Нельзя снять роль у единственного администратора графика — сначала назначьте администратором кого-то ещё.');
+    alert('Нельзя снять роль у единственного руководителя проекта — сначала назначьте руководителем проекта кого-то ещё.');
     await renderProjectMembers();
     return;
   }
@@ -5204,7 +5207,7 @@ async function removeMember(memberId){
     .select('id, user_id, role').eq('id', memberId).single();
   if(!g || !m){ alert('Не удалось получить данные участника.'); await renderProjectMembers(); return; }
   if(m.role==='admin' && !(await hasOtherAdmin(g.projectId, m.user_id))){
-    alert('Нельзя убрать единственного администратора графика — сначала назначьте администратором кого-то ещё.');
+    alert('Нельзя убрать единственного руководителя проекта — сначала назначьте руководителем проекта кого-то ещё.');
     return;
   }
   const self = currentUser && m.user_id===currentUser.id;
@@ -5244,7 +5247,7 @@ async function renderInvitesList(){
     .is('used_at', null)
     .order('expires_at', { ascending:false });
   if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
-  const roleLabel = {admin:'Администратор', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
+  const roleLabel = {admin:'Рук. проекта', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
   if(!data || !data.length){ el.innerHTML = '<div class="dir-empty">Неиспользованных приглашений нет.</div>'; return; }
   el.innerHTML = data.map(inv=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);">
@@ -5369,7 +5372,7 @@ async function deleteGraphFromSettings(){
   const p = activeProject();
   const g = currentGraphMeta();
   if(!p || !g) return;
-  if(currentRole!=='admin'){ alert('Удалить график может только администратор.'); return; }
+  if(currentRole!=='admin'){ alert('Удалить график может только руководитель проекта.'); return; }
   if(!sb){ alert('Нет связи с облаком — удаление графика недоступно.'); return; }
   if(myGraphs.length<=1){ alert('Нельзя удалить единственный график — должен остаться хотя бы один.'); return; }
   const name = p.name.replace(/«|»/g,'');
@@ -5393,15 +5396,33 @@ async function deleteGraphFromSettings(){
 }
 
 function openSettings(){
-  // заказчику/подрядчику общие настройки недоступны; новому пользователю (роль не
-  // задана) и admin/member — доступны (там «Моя компания» и «Заявки на графики»)
-  if(currentRole==='client' || currentRole==='contractor') return;
-  if(!graphTypes.some(g=>g.id===activeGraphTypeId) && graphTypes.length) activeGraphTypeId = graphTypes[0].id;
-  renderGraphTypesList();
-  renderSMRList();
-  renderUnitsList();
-  renderCreationRequests();
-  document.getElementById('settingsOverlay').classList.add('open');
+  if(!currentUser){ showAuth(); return; } // «Аккаунт» есть у каждого вошедшего
+  const overlay = document.getElementById('settingsOverlay');
+  // заказчик/подрядчик — «зрители»: им доступна ТОЛЬКО вкладка «Аккаунт» (свой профиль,
+  // пароль, фото, компании). Остальные вкладки — только admin/member.
+  const viewerOnly = (currentRole==='client' || currentRole==='contractor');
+  const items = [...overlay.querySelectorAll('.modal-sidebar-item')];
+  items.forEach(item=>{
+    const isAccount = /'account'/.test(item.getAttribute('onclick')||'');
+    item.style.display = (viewerOnly && !isAccount) ? 'none' : '';
+  });
+  if(viewerOnly){
+    // принудительно открываем «Аккаунт» (прочие вкладки скрыты)
+    items.forEach(i=>i.classList.remove('active'));
+    overlay.querySelectorAll('.modal-section').forEach(s=>s.classList.remove('active'));
+    const accItem = items.find(i=>/'account'/.test(i.getAttribute('onclick')||''));
+    if(accItem) accItem.classList.add('active');
+    document.getElementById('settings-account').classList.add('active');
+  }
+  renderAccount();
+  if(!viewerOnly){
+    if(!graphTypes.some(g=>g.id===activeGraphTypeId) && graphTypes.length) activeGraphTypeId = graphTypes[0].id;
+    renderGraphTypesList();
+    renderSMRList();
+    renderUnitsList();
+    renderCreationRequests();
+  }
+  overlay.classList.add('open');
 }
 
 async function renderCreationRequests(){
@@ -5454,7 +5475,7 @@ function switchSettingsTab(name,el){
   el.classList.add('active');
   document.getElementById('settings-'+name).classList.add('active');
   if(name==='backups') renderBackupsList(); // список копий подгружаем при открытии вкладки
-  if(name==='company') renderMyCompanies();
+  if(name==='account') renderAccount();
 }
 
 // ─── Компании (Этап 6) ───────────────────────────────────────────────────────
@@ -5471,6 +5492,139 @@ function innValidClient(inn){
     return n11===d[10] && n12===d[11];
   }
   return false;
+}
+
+// ─── Аккаунт (профиль пользователя) ──────────────────────────────────────────
+async function renderAccount(){
+  if(!sb || !currentUser) return;
+  const emailEl=document.getElementById('acEmail');
+  if(emailEl) emailEl.textContent = currentUser.email || '—';
+  // профиль читаем целиком (select *): колонка phone может ещё отсутствовать в БД
+  // до применения SQL — тогда data.phone просто undefined, вкладка не ломается
+  const { data, error } = await sb.from('profiles').select('*').eq('user_id', currentUser.id).single();
+  if(!error && data){
+    const idEl=document.getElementById('acPublicId');
+    const phoneEl=document.getElementById('acPhone');
+    if(idEl) idEl.textContent = data.public_id ? '№'+data.public_id : '—';
+    // full_name хранится одной строкой «Фамилия Имя Отчество» — раскладываем на поля
+    const parts = (data.full_name||'').trim().split(/\s+/).filter(Boolean);
+    const ln=document.getElementById('acLastName'), fn=document.getElementById('acFirstName'), mn=document.getElementById('acMiddleName');
+    if(ln) ln.value = parts[0] || '';
+    if(fn) fn.value = parts[1] || '';
+    if(mn) mn.value = parts.slice(2).join(' ');
+    if(phoneEl) phoneEl.value = data.phone || '';
+    _acAvatar = data.avatar || null;
+  } else {
+    _acAvatar = null;
+  }
+  acShowAvatar(_acAvatar);
+  renderMyCompanies();
+}
+
+// тихий статус сохранения вместо всплывающих окон (зелёный «Сохранено ✓» гаснет сам)
+let _acStatusTimer = null;
+function acStatus(msg, ok){
+  const el = document.getElementById('acSaveStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--text-success)' : 'var(--text-danger)';
+  clearTimeout(_acStatusTimer);
+  if(ok) _acStatusTimer = setTimeout(()=>{ if(el) el.textContent=''; }, 2000);
+}
+
+// автосохранение профиля: вызывается при потере фокуса/Enter в полях и при выборе фото.
+// ФИО пишем только если заполнены Фамилия и Имя (иначе не затираем прежнее); телефон и
+// фото сохраняем всегда. Если каких-то колонок ещё нет в БД — сохраняем остальное.
+async function autoSaveAccount(){
+  if(!sb || !currentUser) return;
+  const last=(document.getElementById('acLastName').value||'').trim();
+  const first=(document.getElementById('acFirstName').value||'').trim();
+  const middle=(document.getElementById('acMiddleName').value||'').trim();
+  const phone=(document.getElementById('acPhone').value||'').trim() || null;
+  const nameOk = !!(last && first);
+  const payload = { phone, avatar: _acAvatar };
+  if(nameOk) payload.full_name = [last, first, middle].filter(Boolean).join(' ');
+  const missing = [];
+  let error;
+  for(let i=0;i<3;i++){
+    ({ error } = await sb.from('profiles').update(payload).eq('user_id', currentUser.id));
+    if(!error) break;
+    const col = /avatar/i.test(error.message) ? 'avatar' : (/phone/i.test(error.message) ? 'phone' : null);
+    if(col && (col in payload)){ missing.push(col); delete payload[col]; continue; }
+    break;
+  }
+  if(error){ acStatus('Ошибка сохранения', false); console.warn('Не удалось сохранить профиль:', error); return; }
+  if(!nameOk){ acStatus('Укажите Фамилию и Имя', false); return; }
+  if(missing.length){
+    const names = missing.map(c=>c==='avatar'?'фото':'телефон').join(' и ');
+    acStatus('Нужен SQL для: '+names+' (см. НАСТРОЙКА_АККАУНТА.md)', false);
+    return;
+  }
+  acStatus('Сохранено ✓', true);
+}
+
+async function changeMyPassword(){
+  if(!sb){ alert('Облако недоступно.'); return; }
+  const inp = document.getElementById('acNewPass');
+  const pass = inp.value;
+  if(pass.length < 6){ alert('Пароль должен быть не короче 6 символов.'); return; }
+  const { error } = await sb.auth.updateUser({ password: pass });
+  if(error){ alert('Не удалось изменить пароль: '+error.message); return; }
+  inp.value = '';
+  alert('Пароль изменён.');
+}
+
+let _acAvatar = null; // фото профиля (сжатый data-URL) — сохраняется в profiles.avatar
+
+// показать/убрать фото в рамке
+function acShowAvatar(url){
+  const frame = document.getElementById('acPhotoFrame');
+  if(!frame) return;
+  if(url){
+    frame.classList.add('has-photo');
+    frame.style.backgroundImage = `url("${url}")`;
+    frame.style.backgroundSize = 'cover';
+    frame.style.backgroundPosition = 'center';
+    // крестик по центру (виден при наведении) — удаление фото
+    frame.innerHTML = '<div id="acPhotoDelete" title="Удалить фото" onclick="removeAvatar(event)"><i class="ti ti-x" style="font-size:20px;"></i></div>';
+  } else {
+    frame.classList.remove('has-photo');
+    frame.style.backgroundImage = '';
+    frame.innerHTML = '<i class="ti ti-camera-plus" style="font-size:26px;"></i><span style="font-size:11px;">Добавить фото</span>';
+  }
+}
+
+// удаление фото: клик по крестику (не открывая выбор файла) → подтверждение → сохранение avatar:null
+function removeAvatar(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  if(!confirm('Удалить фото?')) return;
+  _acAvatar = null;
+  acShowAvatar(null);
+  autoSaveAccount();
+}
+
+// выбор фото: сжимаем (canvas → JPEG, макс. 320×400) и запоминаем для сохранения в БД
+function acPreviewPhoto(input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW=320, maxH=400;
+      const r = Math.min(maxW/img.width, maxH/img.height, 1);
+      const w = Math.round(img.width*r), h = Math.round(img.height*r);
+      const canvas = document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      _acAvatar = canvas.toDataURL('image/jpeg', 0.8);
+      acShowAvatar(_acAvatar);
+      autoSaveAccount(); // фото сохраняем сразу после выбора
+    };
+    img.onerror = ()=>alert('Не удалось прочитать изображение.');
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
 }
 
 async function renderMyCompanies(){
@@ -6328,7 +6482,10 @@ window.addEventListener('resize', ()=>{
     </div>
     <div class="modal-body">
       <nav class="modal-sidebar">
-        <div class="modal-sidebar-item active" onclick="switchSettingsTab('graphtypes',this)">
+        <div class="modal-sidebar-item active" onclick="switchSettingsTab('account',this)">
+          <i class="ti ti-user-circle"></i> Аккаунт
+        </div>
+        <div class="modal-sidebar-item" onclick="switchSettingsTab('graphtypes',this)">
           <i class="ti ti-sitemap"></i> Шаблоны графиков
         </div>
         <div class="modal-sidebar-item" onclick="switchSettingsTab('units',this)">
@@ -6340,13 +6497,76 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item" onclick="switchSettingsTab('requests',this)">
           <i class="ti ti-clipboard-list"></i> Заявки на графики
         </div>
-        <div class="modal-sidebar-item" onclick="switchSettingsTab('company',this)">
-          <i class="ti ti-building"></i> Моя компания
-        </div>
       </nav>
       <div class="modal-content">
 
-        <div id="settings-graphtypes" class="modal-section active">
+        <div id="settings-account" class="modal-section active">
+
+          <div class="np-field" style="display:flex;align-items:center;gap:8px;">
+            <div class="np-label" style="margin-bottom:0;"><i class="ti ti-id"></i> ID участника</div>
+            <div id="acPublicId" style="font-size:14px;font-weight:600;color:var(--text);">—</div>
+          </div>
+
+          <div class="np-field">
+            <div class="np-label"><i class="ti ti-user"></i> ФИО</div>
+            <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+              <div style="display:flex;flex-direction:column;gap:10px;width:210px;">
+                <div style="position:relative;">
+                  <input type="text" id="acLastName" class="np-input" placeholder="Фамилия" onchange="autoSaveAccount()" onkeydown="if(event.key==='Enter')this.blur()">
+                  <span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--text-danger);pointer-events:none;">*</span>
+                </div>
+                <div style="position:relative;">
+                  <input type="text" id="acFirstName" class="np-input" placeholder="Имя" onchange="autoSaveAccount()" onkeydown="if(event.key==='Enter')this.blur()">
+                  <span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--text-danger);pointer-events:none;">*</span>
+                </div>
+                <input type="text" id="acMiddleName" class="np-input" placeholder="Отчество" onchange="autoSaveAccount()" onkeydown="if(event.key==='Enter')this.blur()">
+                <div style="margin-top:6px;">
+                  <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);display:flex;align-items:center;gap:5px;margin-bottom:6px;"><i class="ti ti-phone"></i> Телефон</label>
+                  <input type="text" id="acPhone" class="np-input" placeholder="+7 ..." inputmode="tel" onchange="autoSaveAccount()" onkeydown="if(event.key==='Enter')this.blur()">
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+                <label for="acPhotoInput" id="acPhotoFrame" title="Добавить фото" style="position:relative;width:120px;height:150px;border:1px dashed var(--border2);border-radius:var(--rad);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:var(--text3);background:var(--bg2);overflow:hidden;">
+                  <i class="ti ti-camera-plus" style="font-size:26px;"></i>
+                  <span style="font-size:11px;">Добавить фото</span>
+                </label>
+                <input type="file" id="acPhotoInput" accept="image/*" style="display:none;" onchange="acPreviewPhoto(this)">
+                <div style="font-size:10.5px;color:var(--text3);text-align:center;max-width:130px;line-height:1.4;">Участникам проекта будет легче с вами связаться</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:10px;min-height:16px;">
+            <span id="acSaveStatus" style="font-size:12px;"></span>
+          </div>
+
+          <div class="np-field">
+            <div class="np-label"><i class="ti ti-mail"></i> Почта (логин)</div>
+            <div id="acEmail" style="font-size:13px;color:var(--text2);">—</div>
+          </div>
+          <div class="np-field">
+            <div class="np-label"><i class="ti ti-lock"></i> Сменить пароль</div>
+            <div style="display:flex;gap:8px;align-items:center;max-width:420px;">
+              <input type="password" id="acNewPass" class="np-input" placeholder="Новый пароль (мин. 6 символов)" autocomplete="new-password">
+              <button class="btn" onclick="changeMyPassword()" style="flex-shrink:0;">Изменить</button>
+            </div>
+          </div>
+
+          <div class="settings-section-title" style="margin-top:26px;">Мои компании</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Компания определяется по ИНН. Владелец компании добавляет сотрудников по ссылке-приглашению. Руководитель проекта сможет назначить вашу компанию подрядчиком на разделы или отдельные работы и выбрать ответственного из ваших сотрудников.</div>
+          <div id="myCompaniesList"></div>
+          <div class="dir-header" style="margin-top:18px;">
+            <div class="dir-title">Зарегистрировать компанию</div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Если компания с таким ИНН уже есть в системе — вы присоединитесь к ней сотрудником.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;max-width:420px;">
+            <input type="text" id="companyInnInput" class="np-input" placeholder="ИНН (10 или 12 цифр)" inputmode="numeric" maxlength="12">
+            <input type="text" id="companyNameInput" class="np-input" placeholder="Название компании">
+            <button class="btn btn-primary" onclick="createCompany()" style="align-self:flex-start;"><i class="ti ti-plus"></i> Зарегистрировать</button>
+          </div>
+        </div>
+
+        <div id="settings-graphtypes" class="modal-section">
 
           <div id="graphTypesList"></div>
 
@@ -6392,21 +6612,6 @@ window.addEventListener('resize', ()=>{
           <div class="settings-section-title">Заявки на создание графика</div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Создание нового графика требует одобрения владельца системы. Здесь — статус ваших заявок; владельцу дополнительно видны кнопки одобрения.</div>
           <div id="creationRequestsList"></div>
-        </div>
-
-        <div id="settings-company" class="modal-section">
-          <div class="settings-section-title">Моя компания</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Компания определяется по ИНН. Владелец компании добавляет сотрудников по ссылке-приглашению. Руководитель проекта сможет назначить вашу компанию подрядчиком на разделы или отдельные работы и выбрать ответственного из ваших сотрудников.</div>
-          <div id="myCompaniesList"></div>
-          <div class="dir-header" style="margin-top:18px;">
-            <div class="dir-title">Зарегистрировать компанию</div>
-          </div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Если компания с таким ИНН уже есть в системе — вы присоединитесь к ней сотрудником.</div>
-          <div style="display:flex;flex-direction:column;gap:8px;max-width:420px;">
-            <input type="text" id="companyInnInput" class="np-input" placeholder="ИНН (10 или 12 цифр)" inputmode="numeric" maxlength="12">
-            <input type="text" id="companyNameInput" class="np-input" placeholder="Название компании">
-            <button class="btn btn-primary" onclick="createCompany()" style="align-self:flex-start;"><i class="ti ti-plus"></i> Зарегистрировать</button>
-          </div>
         </div>
 
       </div>
@@ -6487,7 +6692,7 @@ window.addEventListener('resize', ()=>{
                 <option value="member">Участник проекта</option>
                 <option value="contractor">Подрядчик</option>
                 <option value="client">Заказчик</option>
-                <option value="admin">Администратор</option>
+                <option value="admin">Рук. проекта</option>
               </select>
               <button class="btn btn-primary" onclick="createInviteLink()"><i class="ti ti-link-plus"></i> Создать ссылку</button>
             </div>
