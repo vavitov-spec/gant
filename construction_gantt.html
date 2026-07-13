@@ -5030,10 +5030,10 @@ function openGraphSettings(){
   // Подрядчику/остальным без права структурных правок доступна только «Участники»
   const structural = !noStructureEdit();
   items[0].style.display = structural ? '' : 'none';
-  items[1].style.display = structural ? '' : 'none';
+  items[3].style.display = structural ? '' : 'none';
   // вкладка «Подрядчики» (назначение компаний на работы) — только руководителю проекта
-  if(items[3]) items[3].style.display = currentRole==='admin' ? '' : 'none';
-  switchGSTab(structural ? 'general' : 'members', structural ? items[0] : items[2]);
+  if(items[2]) items[2].style.display = currentRole==='admin' ? '' : 'none';
+  switchGSTab(structural ? 'general' : 'members', structural ? items[0] : items[1]);
   document.getElementById('gsName').value = p.name;
 
   const monthOpts = MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
@@ -5081,11 +5081,19 @@ async function renderProjectMembers(){
   if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
   const roleLabel = {admin:'Рук. проекта', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
   const isAdmin = currentRole==='admin';
-  el.innerHTML = (data||[]).map(m=>`
+  const list = data||[];
+  // ФИО из карточки профиля (profiles доступны на чтение всем вошедшим — RLS "profiles select all")
+  let namesByUser = {};
+  const ids = [...new Set(list.map(m=>m.user_id))];
+  if(ids.length){
+    const { data: profs } = await sb.from('profiles').select('user_id, full_name').in('user_id', ids);
+    (profs||[]).forEach(p=>{ if(p.full_name) namesByUser[p.user_id] = p.full_name; });
+  }
+  el.innerHTML = list.map(m=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.user_email||m.user_id)}</div>
-        <div style="font-size:11px;color:var(--text3);">${roleLabel[m.role]||m.role}${m.contractor_name?' · '+escapeHtml(m.contractor_name):''}</div>
+        <div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(namesByUser[m.user_id]||m.user_email||m.user_id)}</div>
+        <div style="font-size:11px;color:var(--text3);">${m.contractor_name?escapeHtml(m.contractor_name):(roleLabel[m.role]||m.role)}</div>
       </div>
       ${isAdmin ? `
         <select onchange="changeMemberRole(${m.id}, this.value)" style="font-size:12px;padding:3px 5px;border:0.5px solid var(--border2);border-radius:6px;background:var(--bg2);color:var(--text);">
@@ -5167,17 +5175,27 @@ async function renderInvitesList(){
   const g = currentGraphMeta();
   if(!g){ el.innerHTML = ''; return; }
   const { data, error } = await sb.from('project_invites')
-    .select('token, role, contractor_name, expires_at, used_at')
+    .select('token, role, contractor_name, target_user_id, expires_at, used_at')
     .eq('project_id', g.projectId)
     .is('used_at', null)
     .order('expires_at', { ascending:false });
   if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
   const roleLabel = {admin:'Рук. проекта', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
   if(!data || !data.length){ el.innerHTML = '<div class="dir-empty">Неиспользованных приглашений нет.</div>'; return; }
+  // для прямых приглашений (по ID) подтягиваем ФИО адресата
+  const targetIds = [...new Set(data.filter(i=>i.target_user_id).map(i=>i.target_user_id))];
+  let namesByUser = {};
+  if(targetIds.length){
+    const { data: profs } = await sb.from('profiles').select('user_id, full_name, email').in('user_id', targetIds);
+    (profs||[]).forEach(p=>{ namesByUser[p.user_id] = p.full_name || p.email; });
+  }
   el.innerHTML = data.map(inv=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);">
       <div style="flex:1;min-width:0;font-size:12px;color:var(--text2);">
-        ${roleLabel[inv.role]||inv.role}${inv.contractor_name?' · '+escapeHtml(inv.contractor_name):''}
+        ${inv.target_user_id
+          ? '<i class="ti ti-user" title="Прямое приглашение по ID"></i> '+escapeHtml(namesByUser[inv.target_user_id]||'пользователь')
+          : '<i class="ti ti-link" title="Ссылка-приглашение"></i> ссылка'}
+        · ${roleLabel[inv.role]||inv.role}${inv.contractor_name?' · '+escapeHtml(inv.contractor_name):''}
         <span style="color:var(--text3);"> · до ${new Date(inv.expires_at).toLocaleDateString('ru')}</span>
       </div>
       <button class="btn" style="padding:4px 8px;border-color:var(--text-danger);color:var(--text-danger);" onclick="revokeInvite('${inv.token}')" title="Отозвать"><i class="ti ti-trash"></i></button>
@@ -5186,10 +5204,108 @@ async function renderInvitesList(){
 }
 
 async function revokeInvite(token){
-  if(!confirm('Отозвать эту ссылку-приглашение?')) return;
+  if(!confirm('Отозвать это приглашение?')) return;
   const { error } = await sb.from('project_invites').delete().eq('token', token);
   if(error){ alert('Не удалось отозвать: ' + error.message); return; }
   await renderInvitesList();
+}
+
+// ─── прямое приглашение по ID пользователя (альтернатива ссылке) ─────────────
+let _inviteByIdUser = null; // {user_id, full_name, email} — найденный по ID адресат
+
+async function findUserById(){
+  const raw = (document.getElementById('inviteByIdInput').value||'').trim();
+  const box = document.getElementById('inviteByIdResult');
+  const id = parseInt(raw, 10);
+  _inviteByIdUser = null;
+  if(!raw || !Number.isFinite(id) || id<=0){ box.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Введите числовой ID.</div>'; return; }
+  box.innerHTML = '<div style="color:var(--text3);font-size:12px;">Поиск…</div>';
+  const { data, error } = await sb.rpc('find_profile_by_public_id', { p_public_id: id });
+  if(error){ box.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">'+escapeHtml(error.message)+'</div>'; return; }
+  if(!data || !data.length){
+    box.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Пользователь с ID '+id+' не найден.</div>';
+    return;
+  }
+  _inviteByIdUser = { user_id:data[0].user_id, full_name:data[0].full_name, email:data[0].email };
+  box.innerHTML = `
+    <div style="font-size:13px;font-weight:600;margin-bottom:2px;">${escapeHtml(_inviteByIdUser.full_name||_inviteByIdUser.email||('№'+id))}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">ID ${id}${_inviteByIdUser.full_name&&_inviteByIdUser.email?' · '+escapeHtml(_inviteByIdUser.email):''}</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="inviteByIdRole" class="np-input" style="flex:1;">
+        <option value="member">Участник проекта</option>
+        <option value="contractor">Подрядчик</option>
+        <option value="client">Заказчик</option>
+        <option value="admin">Рук. проекта</option>
+      </select>
+      <button class="btn btn-primary" onclick="sendInviteById()" style="flex-shrink:0;"><i class="ti ti-send"></i> Пригласить</button>
+    </div>`;
+}
+
+async function sendInviteById(){
+  if(!_inviteByIdUser){ return; }
+  const g = currentGraphMeta();
+  if(!g){ alert('Не удалось определить график.'); return; }
+  const role = document.getElementById('inviteByIdRole').value;
+  const { error } = await sb.rpc('invite_member_by_id', { p_project_id: g.projectId, p_target_user_id: _inviteByIdUser.user_id, p_role: role });
+  if(error){ alert('Не удалось отправить приглашение: ' + error.message); return; }
+  alert('Приглашение отправлено — ' + (_inviteByIdUser.full_name || _inviteByIdUser.email) + ' увидит его при следующем входе.');
+  _inviteByIdUser = null;
+  document.getElementById('inviteByIdInput').value = '';
+  document.getElementById('inviteByIdResult').innerHTML = '';
+  await renderInvitesList();
+}
+
+// ─── входящие прямые приглашения текущего пользователя (проверяются при каждом входе) ─
+let _pendingInvites = [];
+const PENDING_INVITE_ROLE_LABEL = {admin:'Рук. проекта', member:'Участник', contractor:'Подрядчик', client:'Заказчик'};
+
+async function checkPendingInvites(){
+  if(!sb || !currentUser) return;
+  const { data, error } = await sb.rpc('get_my_pending_invites');
+  if(error || !data || !data.length) return;
+  _pendingInvites = data;
+  renderPendingInvites();
+  document.getElementById('pendingInvitesOverlay').classList.add('open');
+}
+
+function renderPendingInvites(){
+  const el = document.getElementById('pendingInvitesList');
+  if(!el) return;
+  if(!_pendingInvites.length){ closePendingInvites(); return; }
+  el.innerHTML = _pendingInvites.map(inv=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:0.5px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(inv.project_name)}</div>
+        <div style="font-size:11px;color:var(--text3);">Роль: ${PENDING_INVITE_ROLE_LABEL[inv.role]||inv.role}</div>
+      </div>
+      <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;flex-shrink:0;" onclick="acceptPendingInvite('${inv.token}')"><i class="ti ti-check"></i> Принять</button>
+      <button class="btn" style="padding:5px 10px;font-size:12px;flex-shrink:0;border-color:var(--text-danger);color:var(--text-danger);" onclick="declinePendingInvite('${inv.token}')"><i class="ti ti-x"></i></button>
+    </div>
+  `).join('');
+}
+
+async function acceptPendingInvite(token){
+  const { data: appStateId, error } = await sb.rpc('accept_invite', { p_token: token });
+  if(error){ alert('Не удалось принять приглашение: ' + error.message); return; }
+  _pendingInvites = _pendingInvites.filter(i=>i.token!==token);
+  await loadMyGraphs();
+  renderProjectsList();
+  renderPendingInvites();
+  const g = appStateId ? myGraphs.find(x=>x.appStateId===appStateId) : null;
+  if(g && confirm('Приглашение принято — открыть этот график сейчас?')) await switchProject(g.projectId);
+}
+
+async function declinePendingInvite(token){
+  if(!confirm('Отклонить это приглашение?')) return;
+  const { error } = await sb.rpc('decline_project_invite', { p_token: token });
+  if(error){ alert('Не удалось отклонить: ' + error.message); return; }
+  _pendingInvites = _pendingInvites.filter(i=>i.token!==token);
+  renderPendingInvites();
+}
+
+function closePendingInvites(){
+  const ov = document.getElementById('pendingInvitesOverlay');
+  if(ov) ov.classList.remove('open');
 }
 
 function closeGraphSettings(){
@@ -6255,6 +6371,7 @@ async function afterLogin(user){
   const invitedAppStateId = await acceptInviteFromURL();
   if(companyInviteToken) await acceptCompanyInvite(companyInviteToken);
   await loadMyGraphs();
+  checkPendingInvites(); // не блокируем открытие графика — приглашения покажутся поверх
   if(!myGraphs.length){
     renderProjectsList();
     const badge = document.getElementById('projBadge');
@@ -6556,14 +6673,14 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item active" onclick="switchGSTab('general',this)">
           <i class="ti ti-adjustments"></i> Общие
         </div>
-        <div class="modal-sidebar-item" onclick="switchGSTab('sections',this)">
-          <i class="ti ti-list-tree"></i> Разделы графика
-        </div>
         <div class="modal-sidebar-item" onclick="switchGSTab('members',this)">
           <i class="ti ti-users-group"></i> Участники
         </div>
         <div class="modal-sidebar-item" onclick="switchGSTab('assignments',this)">
           <i class="ti ti-briefcase"></i> Подрядчики
+        </div>
+        <div class="modal-sidebar-item" onclick="switchGSTab('sections',this)">
+          <i class="ti ti-list-tree"></i> Разделы графика
         </div>
       </nav>
       <div class="modal-content">
@@ -6624,6 +6741,16 @@ window.addEventListener('resize', ()=>{
             <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Ссылка одноразовая — сгорает после первого использования, действует 30 дней.</div>
             <div id="invitesList"></div>
           </div>
+
+          <div class="np-field" id="gsInviteByIdBlock" style="margin-top:16px;">
+            <div class="np-label"><i class="ti ti-id-badge-2"></i> Пригласить по ID</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+              <input type="text" id="inviteByIdInput" class="np-input" placeholder="ID пользователя (например, 1004)" inputmode="numeric" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();findUserById();}">
+              <button class="btn btn-primary" onclick="findUserById()" style="flex-shrink:0;"><i class="ti ti-search"></i> Найти</button>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Свой ID пользователь видит во вкладке «Аккаунт». Приглашение придёт ему при входе — он сам его примет.</div>
+            <div id="inviteByIdResult"></div>
+          </div>
         </div>
 
         <div id="gs-assignments" class="modal-section">
@@ -6665,6 +6792,19 @@ window.addEventListener('resize', ()=>{
         <button class="btn btn-primary" onclick="waFind()" style="flex-shrink:0;"><i class="ti ti-search"></i> Найти</button>
       </div>
       <div id="waResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PENDING INVITES MODAL (прямые приглашения по ID, ожидающие решения текущего пользователя) -->
+<div class="modal-overlay" id="pendingInvitesOverlay" onclick="if(event.target===this)closePendingInvites()">
+  <div class="modal" style="width:420px;max-height:70vh;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-mail"></i> Приглашения в графики</div>
+      <button class="modal-close" onclick="closePendingInvites()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="display:block;padding:16px;overflow-y:auto;">
+      <div id="pendingInvitesList"></div>
     </div>
   </div>
 </div>
