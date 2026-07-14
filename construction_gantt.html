@@ -548,6 +548,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   <div class="tabs no-print">
     <div class="tab active" onclick="switchTab('gantt',this)"><i class="ti ti-layout-list"></i> График</div>
     <div class="tab" onclick="switchTab('ai',this)"><i class="ti ti-chart-bar"></i> Анализ отклонений</div>
+    <div class="tab" onclick="switchTab('journal',this)"><i class="ti ti-history"></i> Журнал</div>
     <div id="ganttControls" class="no-print" style="display:flex;align-items:center;gap:10px;z-index:2;">
       <div class="scale-switch" id="ganttScaleSwitch" style="display:flex;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;background:var(--bg);">
         <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
@@ -639,6 +640,10 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   <!-- ANALYSIS -->
   <div id="panel-ai" class="panel">
     <div class="ai-panel" id="aiContent"></div>
+  </div>
+
+  <div id="panel-journal" class="panel">
+    <div class="ai-panel" id="journalContent" style="padding:16px;"></div>
   </div>
 
 </div><!-- /.app -->
@@ -3353,6 +3358,150 @@ function buildAnalysis(){
   return {riskLevel, riskColor, fact, plan, diff, estDelay, issues, recs, contractorStats};
 }
 
+// ─── журнал изменений: дата/время/кто/что — план или факт ────────────────────
+// строки журнала группируются по (пользователь, час) — все правки одного человека
+// в течение текущего часа складываются в items одной строки (см. RPC log_change)
+const JOURNAL_KIND_LABEL = { plan:'План', fact:'Факт' };
+
+async function renderJournal(){
+  const el = document.getElementById('journalContent');
+  if(!el) return;
+  const g = currentGraphMeta();
+  if(!g || !sb){ el.innerHTML = '<div class="dir-empty">Журнал недоступен.</div>'; return; }
+  el.innerHTML = '<div style="color:var(--text3);font-size:12px;">Загрузка…</div>';
+  const { data, error } = await sb.from('change_log')
+    .select('actor_name, hour_bucket, items')
+    .eq('project_id', g.projectId)
+    .order('hour_bucket', { ascending:false })
+    .limit(200);
+  if(error){ el.innerHTML = '<div style="color:var(--text-danger);font-size:12px;">Ошибка: '+escapeHtml(error.message)+'</div>'; return; }
+  if(!data || !data.length){ el.innerHTML = '<div class="dir-empty">Журнал пуст — изменений ещё не было.</div>'; return; }
+  el.innerHTML = data.map(row=>{
+    const hs = new Date(row.hour_bucket);
+    const he = new Date(hs.getTime()+3600000);
+    const dateStr = hs.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const rangeStr = hs.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) + '–' + he.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    const items = (row.items||[]).slice().sort((a,b)=>new Date(a.at)-new Date(b.at));
+    const itemsHtml = items.map(it=>{
+      const t = new Date(it.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+      const kindColor = it.kind==='fact' ? 'var(--text-success)' : '#185FA5';
+      return `<div style="display:flex;gap:8px;padding:3px 0;font-size:12.5px;">
+        <span style="flex-shrink:0;color:var(--text3);width:44px;">${t}</span>
+        <span style="flex-shrink:0;font-weight:600;color:${kindColor};width:42px;">${JOURNAL_KIND_LABEL[it.kind]||it.kind}</span>
+        <span style="flex:1;min-width:0;color:var(--text2);">${escapeHtml(it.description)}</span>
+      </div>`;
+    }).join('');
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border);">
+      <div style="font-size:12.5px;font-weight:600;margin-bottom:4px;">${escapeHtml(row.actor_name)} <span style="font-weight:400;color:var(--text3);">· ${dateStr}, ${rangeStr}</span></div>
+      ${itemsHtml}
+    </div>`;
+  }).join('');
+}
+
+// автоматическое определение изменений плана/факта: сравниваем последнее подтверждённое
+// состояние (после загрузки/сохранения) с новым перед отправкой в облако — не нужно
+// вручную помечать каждую функцию редактирования как «источник записи в журнал»
+let _changeLogBaseline = null; // {tasks, links} последнего известного состояния (проекта projects[0])
+
+function snapshotForLog(proj){
+  if(!proj) return null;
+  return { tasks: JSON.parse(JSON.stringify(proj.tasks||[])), links: JSON.parse(JSON.stringify(proj.links||[])) };
+}
+
+function taskWithoutFact(t){
+  const c = {...t};
+  delete c.factOverrides; delete c.factVol; delete c.factPct;
+  return c;
+}
+
+// раздел, к которому относится работа: ближайший предшествующий узел с cat=true
+// в плоском массиве tasks (тот же порядок обхода, что и в assignedWA/worksUnderSection)
+function sectionNameOf(tasksArr, taskId){
+  let cur = null;
+  for(const x of (tasksArr||[])){
+    if(x.cat) cur = x.name || 'Без названия';
+    if(x.id===taskId) return cur;
+  }
+  return null;
+}
+
+function withSection(section, text){
+  return section ? `Раздел «${section}»: ${text}` : text;
+}
+
+function fmtSignedNumber(n){
+  const r = Math.round(n*100)/100;
+  return (r>0?'+':'') + r;
+}
+
+// возвращает отдельные пункты (не склеенные в одну строку) — каждый пишется в журнал
+// своей записью внутри общего «часа» пользователя; фактическая правка — это ДЕЛЬТА
+// объёма, внесённого именно сейчас, а не итоговый процент/сумма по позиции
+function diffTasksForLog(oldTasks, newTasks){
+  const oldMap = new Map((oldTasks||[]).map(t=>[t.id,t]));
+  const newMap = new Map((newTasks||[]).map(t=>[t.id,t]));
+  const planItems = [];
+  const factItems = [];
+  newMap.forEach((t, id)=>{
+    const label = t.cat ? 'раздел' : 'работу';
+    const name = t.name || 'без названия';
+    const section = t.cat ? null : sectionNameOf(newTasks, id);
+    if(!oldMap.has(id)){ planItems.push(withSection(section, `добавил(а) ${label} «${name}»`)); return; }
+    const ot = oldMap.get(id);
+    if(JSON.stringify(taskWithoutFact(ot)) !== JSON.stringify(taskWithoutFact(t))){
+      planItems.push(withSection(section, `изменил(а) ${label} «${name}»`));
+    }
+    const oldFact = ot.factVol||0, newFact = t.factVol||0;
+    if(Math.round(oldFact*100) !== Math.round(newFact*100)){
+      const unit = t.unit ? ' '+t.unit : '';
+      factItems.push(withSection(section, `внёс факт по «${name}»: ${fmtSignedNumber(newFact-oldFact)}${unit}`));
+    }
+  });
+  oldMap.forEach((t, id)=>{
+    if(!newMap.has(id)){
+      const label = t.cat ? 'раздел' : 'работу';
+      const section = t.cat ? null : sectionNameOf(oldTasks, id);
+      planItems.push(withSection(section, `удалил(а) ${label} «${t.name||'без названия'}»`));
+    }
+  });
+  return { planItems, factItems };
+}
+
+async function logChangeToServer(projectId, kind, description){
+  if(!sb || !projectId || !description) return;
+  try{ await sb.rpc('log_change', { p_project_id: projectId, p_kind: kind, p_description: description }); }
+  catch(e){ console.warn('Не удалось записать журнал изменений:', e); }
+}
+
+// при массовой правке (десятки строк разом) не шлём по записи на каждую — сворачиваем
+// в одно итоговое сообщение, чтобы не раздувать журнал
+const JOURNAL_MAX_ITEMS_PER_SAVE = 20;
+async function logItemsToServer(projectId, kind, items){
+  if(!items.length) return;
+  if(items.length > JOURNAL_MAX_ITEMS_PER_SAVE){
+    const label = kind==='fact' ? 'записей факта' : 'изменений плана';
+    await logChangeToServer(projectId, kind, `Массовое обновление: ${items.length} ${label}`);
+    return;
+  }
+  await Promise.all(items.map(text=>logChangeToServer(projectId, kind, text)));
+}
+
+// вызывается после успешного cloudSave() — сравнивает с последним подтверждённым
+// состоянием и пишет в журнал только реальную разницу (не каждую промежуточную правку)
+async function logPlanFactChanges(payload){
+  const g = currentGraphMeta();
+  const proj = (payload.projects||[])[0];
+  if(!g || !proj){ _changeLogBaseline = snapshotForLog(proj); return; }
+  if(!_changeLogBaseline){ _changeLogBaseline = snapshotForLog(proj); return; }
+  const { planItems, factItems } = diffTasksForLog(_changeLogBaseline.tasks, proj.tasks||[]);
+  if(JSON.stringify(_changeLogBaseline.links||[]) !== JSON.stringify(proj.links||[])){
+    planItems.push('изменил(а) связи между работами');
+  }
+  _changeLogBaseline = snapshotForLog(proj);
+  await logItemsToServer(g.projectId, 'plan', planItems);
+  await logItemsToServer(g.projectId, 'fact', factItems);
+}
+
 function renderAnalysis(){
   const a = buildAnalysis();
   const summaryText = a.diff<0
@@ -4070,6 +4219,7 @@ function switchTab(name,el){
   const panel=document.getElementById('panel-'+name);
   if(panel) panel.classList.add('active');
   if(name==='ai') renderAnalysis();
+  if(name==='journal') renderJournal();
   if(name==='gantt') scrollGanttToToday();
   const toggle = document.getElementById('ganttViewToggle');
   if(toggle) toggle.style.display = name==='gantt' ? '' : 'none';
@@ -4211,6 +4361,7 @@ async function cloudSave(payload){
     if(!_cloudSaveTimer) _cloudDirty = false; // новых правок в очереди нет — всё в облаке
     setCloudStatus('saved');
     maybeSnapshotHistory(payload);
+    logPlanFactChanges(payload);
   }catch(e){
     console.warn('Не удалось сохранить в облако:', e);
     setCloudStatus('retry');
@@ -4449,6 +4600,7 @@ function applyPayload(data){
     activeGraphTypeId = 1;
   }
   if(Array.isArray(data.unitsList) && data.unitsList.length) unitsList = data.unitsList;
+  _changeLogBaseline = snapshotForLog((data.projects||[])[0]);
   return true;
 }
 
@@ -4534,9 +4686,10 @@ async function switchProject(projectId){
 
   // обновляем открытую сейчас вкладку, если это не "график"
   const activeTabIdx = [...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'));
-  const tabNames = ['gantt','ai'];
+  const tabNames = ['gantt','ai','journal'];
   const name = tabNames[activeTabIdx] || 'gantt';
   if(name==='ai') renderAnalysis();
+  if(name==='journal') renderJournal();
   if(name==='gantt') scrollGanttToToday();
 }
 
@@ -6334,6 +6487,7 @@ async function openGraph(graphMeta){
     const seed = blankProjectSeed(graphMeta.name);
     projects = [seed];
     activeProjectId = seed.id;
+    _changeLogBaseline = snapshotForLog(seed);
   }
   await loadWA(); // назначения подрядчиков (work_assignments) — чтобы показать компанию в столбце «Подрядчик»
   firstRender();
