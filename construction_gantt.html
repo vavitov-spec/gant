@@ -511,6 +511,14 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
 .fact-hint-num{color:transparent!important;transition:color .12s;}
 .task-row:hover .fact-hint-num,
 .task-row.selected .fact-hint-num{color:var(--text3)!important;}
+/* когда тема переключена вручную (атрибут [data-theme]), у .gantt-fact-late/.gantt-fact-early
+   появляется собственный цвет с !important И селектором атрибута — это специфичнее (2 единицы),
+   чем просто .fact-hint-num выше (1 единица), поэтому подсказка «прогноз» была видна цветом
+   просрочки (янтарным/красноватым) даже без наведения. Дублируем правило с тем же префиксом
+   [data-theme], чтобы специфичность совпала — тогда решает порядок в файле (это правило ниже). */
+[data-theme="light"] .fact-hint-num,[data-theme="dark"] .fact-hint-num{color:transparent!important;}
+[data-theme="light"] .task-row:hover .fact-hint-num,[data-theme="dark"] .task-row:hover .fact-hint-num,
+[data-theme="light"] .task-row.selected .fact-hint-num,[data-theme="dark"] .task-row.selected .fact-hint-num{color:var(--text3)!important;}
 </style>
 </head>
 <body>
