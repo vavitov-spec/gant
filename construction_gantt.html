@@ -16,6 +16,10 @@
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<!-- печать в PDF без диалога печати браузера: html2canvas снимает диаграмму как есть
+     (без сюрпризов @media print), jsPDF собирает из этого готовые страницы PDF -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
@@ -139,6 +143,13 @@ html[data-theme="light"] body{background:#f0f2f5;}
 
 /* Gantt */
 .gantt-wrap{flex:1;min-height:0;overflow:auto;position:relative;}
+/* включается точечно из applyPrintRangeClip() на время снимка html2canvas для PDF (см.
+   buildPrintPdf): обрезает содержимое диаграммы до выбранного диапазона печати и отключает
+   position:sticky у липких колонок — html2canvas не всегда корректно снимает sticky-элементы,
+   а тут scrollLeft уже обнулён, так что static визуально даёт тот же результат */
+.gantt-wrap.print-range-clip{overflow-x:hidden;}
+.gantt-wrap.print-range-clip .gantt-table th,.gantt-wrap.print-range-clip .gantt-table td{position:static;}
+.gantt-wrap.print-range-clip .gantt-table td.bar-cell,.gantt-wrap.print-range-clip .gantt-table th.bar-cell{position:relative;}
 .bar-plan{
   cursor:grab;position:absolute;height:9px;top:3px;border-radius:4px;overflow:hidden;
   background:linear-gradient(180deg,#D9ECFC 0%,#A8CFF1 100%);
@@ -493,11 +504,17 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   .layout{height:auto!important;padding:0!important;gap:0!important;}
   .app{border:none!important;border-radius:0!important;overflow:visible!important;height:auto!important;box-shadow:none!important;}
   .panel.active{overflow:visible!important;height:auto!important;flex:none!important;}
+  /* этот блок больше не используется генерацией PDF (см. buildPrintPdf/html2canvas выше по
+     файлу) — она не вызывает window.print(). Оставлен как разумный фолбэк на случай, если
+     кто-то распечатает страницу вручную через Ctrl+P/Cmd+P, минуя кнопку «Экспорт в PDF». */
   .gantt-wrap{overflow:visible!important;height:auto!important;flex:none!important;}
+  .gantt-wrap.print-range-clip{overflow-x:hidden!important;}
   .gantt-table th,.gantt-table td{position:static!important;}
   /* колонка диаграммы должна остаться positioned — иначе полосы выходных, сетка и полосы
      работ (абсолютные слои внутри ячейки) теряют привязку и уезжают на колонки данных */
   .gantt-table td.bar-cell{position:relative!important;}
+  /* строка не должна резаться пополам между двумя печатными листами */
+  .gantt-table tr{page-break-inside:avoid;}
   /* кнопки и ручки редактирования на бумаге не нужны */
   .row-drag-handle,.add-work-btn-inline,.task-del-btn,.th-mini-btn,.fp-mode-toggle{display:none!important;}
   .modal-overlay{display:none!important;}
@@ -534,7 +551,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     <div class="sidebar-footer">
       <button class="sidebar-footer-btn no-print" id="themeToggleBtn" onclick="toggleTheme()" title="Тёмная тема"><i class="ti ti-moon"></i></button>
       <button class="sidebar-footer-btn no-print" id="editLockBtn" onclick="unlockEdit()" title="Ввести пароль для редактирования"><i class="ti ti-lock"></i> Только чтение</button>
-      <button class="sidebar-footer-btn no-print" onclick="exportToPDF()" title="Открыть диалог печати браузера и сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
+      <button class="sidebar-footer-btn no-print" onclick="openPrintSettings()" title="Настроить формат листа, диапазон и распечатать/сохранить как PDF"><i class="ti ti-file-download"></i> Экспорт в PDF</button>
       <button class="sidebar-footer-btn no-print" onclick="openSettings()"><i class="ti ti-settings"></i> Настройки</button>
     </div>
   </aside>
@@ -2783,6 +2800,7 @@ function renderGantt(){
       if(currentSectionHidden){ return; } // раздел выключен из отображения в настройках графика
       if(filtersActive && !sectionsWithVisible.has(t.id)){ return; } // все задачи раздела скрыты фильтром
       tr.className='cat-row'+(selectedCatId===t.id?' selected':'');
+      tr.dataset.taskId = t.id;
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
       tr.draggable = false;
@@ -4233,61 +4251,407 @@ function switchTab(name,el){
   if(toggle) toggle.style.display = name==='gantt' ? '' : 'none';
 }
 
-// ─── экспорт в PDF: используем системный диалог печати браузера ("Сохранить как PDF") —
-// печатается текущая открытая вкладка (график/анализ) целиком, без обрезки по прокрутке
-function exportToPDF(){
-  // на листе целиком помещается только масштаб «Месяц» — переключаемся на время печати,
-  // а если диаграмма шире листа (А4 альбомная), ужимаем страницу масштабом
-  const prevScale = ganttScale;
-  const appEl = document.querySelector('.app');
+// ─── настройки печати (формат листа/ориентация/диапазон) ────────────────────────────────
+const PRINT_SETTINGS_KEY = 'ganttPrintSettings_v1';
+const PAPER_MM = { A4:{w:210,h:297}, A3:{w:297,h:420} };
+
+function loadPrintSettings(){
+  try{
+    const raw = localStorage.getItem(PRINT_SETTINGS_KEY);
+    if(raw){ const s = JSON.parse(raw); if(s && s.format) return s; }
+  }catch(e){}
+  return {format:'A4', orientation:'landscape'};
+}
+function savePrintSettings(s){
+  try{ localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(s)); }catch(e){}
+}
+
+// печатается график целиком (от первого до последнего периода на экране, в текущем
+// масштабе ganttScale) — без выбора диапазона, чтобы не усложнять и не плодить лишние баги
+function fullPrintRange(){
+  if(ganttScale==='month'){
+    const rt = renderMonths();
+    if(rt<=0) return null;
+    return { start: offsetToDate(0), endExcl: offsetToDate(rt) };
+  }
+  const days = periodDates();
+  if(!days.length) return null;
+  return { start: days[0], endExcl: addDays(days[days.length-1], 1) };
+}
+
+// px-смещение даты от начала периода графика в ТЕКУЩЕМ масштабе — та же величина, которую
+// используют periodGridLinesHtml/weekendBandsHtml/позиция полос работ, поэтому диапазон
+// печати клипуется ровно по тем же координатам, что уже рисует остальной рендер
+function pxOf(date){
+  return ganttScale==='month' ? dateToOffset(date)*MONTH_COL_PX : dayIndexOfDate(date)*SCALE_DAY_PX[ganttScale];
+}
+
+// сколько листов нужно, чтобы график поместился примерно в НАТУРАЛЬНУЮ величину (как на экране,
+// 96dpi), без искусственного сжатия текста — разумное значение по умолчанию для «Листов по
+// ширине/высоте» при первом открытии модалки. Без этого 1×1 сминало весь (часто широкий и
+// длинный) график в один лист, и текст на превью получался мелким и нечитаемым.
+function estimateDefaultPages(format, orientation){
+  const paper = PAPER_MM[format] || PAPER_MM.A4;
+  const landscape = orientation !== 'portrait';
+  const paperW = landscape ? Math.max(paper.w,paper.h) : Math.min(paper.w,paper.h);
+  const paperH = landscape ? Math.min(paper.w,paper.h) : Math.max(paper.w,paper.h);
+  const marginMm = 10;
+  const pageUsableWidthPx96 = (paperW - marginMm*2) * 96/25.4;
+  // на каждой странице сверху — полоса с логотипом и названием (см. drawPageHeader в
+  // buildPrintPdf, 9мм) — вычитаем её из доступной под саму диаграмму высоты листа
+  const pageUsableHeightPx96 = (paperH - marginMm*2 - 9) * 96/25.4;
+
+  const range = fullPrintRange();
+  if(!range) return {pagesWide:1, pagesTall:1};
+  const stickyW = stickyColsWidthPx();
+  const rangeW = Math.max(1, pxOf(range.endExcl) - pxOf(range.start));
   const wrap = document.getElementById('ganttWrap');
-  // запоминаем текущую прокрутку графика — на бумаге прокрутки нет (лист печатается целиком),
-  // а после закрытия диалога печати возвращаем экран туда, где был пользователь
+  const naturalHeightPx = wrap ? wrap.scrollHeight : pageUsableHeightPx96;
+
+  const perPageTimelineWidthPx96 = Math.max(50, pageUsableWidthPx96 - stickyW);
+  return {
+    pagesWide: Math.max(1, Math.min(30, Math.ceil(rangeW / perPageTimelineWidthPx96))),
+    pagesTall: Math.max(1, Math.min(30, Math.ceil(naturalHeightPx / pageUsableHeightPx96))),
+  };
+}
+
+let _lastPdfBuild = null; // {doc, name, tiles} — последнее собранное превью, чтобы «Скачать PDF» не пересобирал всё заново
+let _previewTimer = null;
+let _previewToken = 0; // растущий счётчик — отбрасываем результат устаревшего (уже перекрытого новым) запроса на превью
+// формат листа / ориентация — переключатели-кнопки (как масштаб графика День/Неделя/Месяц),
+// applyPsToggle — общая часть (проставить значение и подсветить активную кнопку) для
+// начальной загрузки настроек и для клика по кнопке (setPsToggle)
+function applyPsToggle(groupId, hiddenId, value){
+  document.getElementById(hiddenId).value = value;
+  document.querySelectorAll('#'+groupId+' .view-toggle-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.value===value);
+  });
+}
+function setPsToggle(groupId, hiddenId, el, notify){
+  applyPsToggle(groupId, hiddenId, el.dataset.value);
+  if(notify) schedulePreviewUpdate();
+}
+function psAdjustPages(id, delta){
+  const input = document.getElementById(id);
+  const v = Math.max(1, Math.min(30, (parseInt(input.value,10)||1) + delta));
+  input.value = v;
+  schedulePreviewUpdate();
+}
+
+function openPrintSettings(){
+  const s = loadPrintSettings();
+  applyPsToggle('psFormatToggle', 'psFormat', s.format || 'A4');
+  applyPsToggle('psOrientToggle', 'psOrientation', s.orientation || 'landscape');
+  if(s.pagesWide && s.pagesTall){
+    document.getElementById('psPagesWide').value = s.pagesWide;
+    document.getElementById('psPagesTall').value = s.pagesTall;
+  }else{
+    const rec = estimateDefaultPages(s.format || 'A4', s.orientation || 'landscape');
+    document.getElementById('psPagesWide').value = rec.pagesWide;
+    document.getElementById('psPagesTall').value = rec.pagesTall;
+  }
+  document.getElementById('psPreview').innerHTML = '';
+  document.getElementById('psSaveBtn').disabled = true;
+  _lastPdfBuild = null;
+  document.getElementById('printSettingsOverlay').classList.add('open');
+  updatePreview();
+}
+function closePrintSettings(){
+  document.getElementById('printSettingsOverlay').classList.remove('open');
+  clearTimeout(_previewTimer);
+}
+function schedulePreviewUpdate(){
+  clearTimeout(_previewTimer);
+  document.getElementById('psSaveBtn').disabled = true;
+  _previewTimer = setTimeout(updatePreview, 500);
+}
+async function updatePreview(){
+  const format = document.getElementById('psFormat').value;
+  const orientation = document.getElementById('psOrientation').value;
+  const pagesWide = document.getElementById('psPagesWide').value;
+  const pagesTall = document.getElementById('psPagesTall').value;
+  savePrintSettings({format, orientation, pagesWide, pagesTall});
+
+  const myToken = ++_previewToken;
+  const build = await buildPrintPdf({format, orientation, pagesWide, pagesTall});
+  if(myToken !== _previewToken) return; // за время сборки настройки уже поменялись ещё раз — этот результат больше не актуален
+  if(!build) return;
+  _lastPdfBuild = build;
+  const previewEl = document.getElementById('psPreview');
+  previewEl.innerHTML = '';
+  build.tiles.forEach((dataUrl, i)=>{
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.alt = `Лист ${i+1}`;
+    img.style.cssText = 'height:220px;flex-shrink:0;border:0.5px solid var(--border2);border-radius:4px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.12);';
+    previewEl.appendChild(img);
+  });
+  document.getElementById('psSaveBtn').disabled = false;
+}
+function downloadPreviewedPdf(){
+  if(!_lastPdfBuild) return;
+  _lastPdfBuild.doc.save(_lastPdfBuild.name);
+}
+
+// ширина всех "липких" колонок данных (всё, кроме колонки диаграммы) — не зависит от
+// диапазона/масштаба печати, только от их собственных фиксированных width в разметке
+function stickyColsWidthPx(){
+  const table = document.querySelector('#panel-gantt .gantt-table');
+  if(!table) return 0;
+  return Array.from(table.querySelectorAll('thead th')).filter(th=>!th.classList.contains('bar-cell'))
+    .reduce((sum,el)=>sum+el.getBoundingClientRect().width, 0);
+}
+
+// сдвигает содержимое каждой ячейки диаграммы (td/th.bar-cell) на -fromPx через CSS transform
+// (а не через вложенный div) и клипует саму ячейку до rangePx — так печатается только
+// выбранный диапазон дат. transform применяется к каждому ПРЯМОМУ ребёнку ячейки уже ПОСЛЕ
+// того, как браузер вычислил его позицию обычным образом (position:absolute — от отступа
+// ячейки, как у линий сетки; position:static/relative — по потоку, как у .bar-wrap с полосами
+// работ и у #ganttMonthHeader в шапке) — поэтому у каждого слоя сохраняется его СОБСТВЕННАЯ,
+// уже правильно посчитанная система координат, и ничего не задваивается (в отличие от общей
+// обёртки-контейнера, которая для .bar-wrap и для абсолютных линий сетки давала бы разный
+// эффективный сдвиг, т.к. они по-разному учитывают padding ячейки).
+// table-layout:auto (выставленный _renderMonthHeaderInto под ширину ВСЕГО периода) считает
+// ширину колонки диаграммы по самому широкому НЕобрезанному содержимому строк и полностью
+// игнорирует overflow:hidden на отдельных ячейках — поэтому одной обрезки ячеек недостаточно,
+// колонка всё равно останется во всю ширину проекта. table-layout:fixed берёт ширины колонок
+// только из первой строки (шапки) и не смотрит на контент вовсе — переключаем таблицу на него
+// на время печати, тогда обрезанная ширина ячеек реально становится шириной колонки.
+let _printClipState = null;
+function applyPrintRangeClip(fromPx, rangePx){
+  if(_printClipState) return; // уже применено — не повторяем
+  const table = document.querySelector('#panel-gantt .gantt-table');
+  const wrap = document.getElementById('ganttWrap');
+  if(!table) return;
+  const cells = table.querySelectorAll('td.bar-cell, th.bar-cell');
+  const savedCells = [];
+  cells.forEach(cell=>{
+    const prevWidth = cell.style.width, prevMinWidth = cell.style.minWidth, prevMaxWidth = cell.style.maxWidth, prevOverflow = cell.style.overflow;
+    const shifted = Array.from(cell.children).map(child=>{
+      const prevTransform = child.style.transform;
+      child.style.transform = `translateX(${-fromPx}px)`;
+      return {child, prevTransform};
+    });
+    cell.style.overflow = 'hidden';
+    cell.style.width = rangePx + 'px';
+    cell.style.minWidth = rangePx + 'px';
+    cell.style.maxWidth = rangePx + 'px';
+    savedCells.push({cell, shifted, prevWidth, prevMinWidth, prevMaxWidth, prevOverflow});
+  });
+  const prevTableLayout = table.style.tableLayout, prevTableWidth = table.style.width;
+  table.style.tableLayout = 'fixed';
+  table.style.width = (stickyColsWidthPx() + rangePx) + 'px';
+  if(wrap) wrap.classList.add('print-range-clip'); // прячет "хвосты" линий связи/линии "сегодня" за пределами диапазона
+  _printClipState = { cells: savedCells, table, prevTableLayout, prevTableWidth };
+}
+function revertPrintRangeClip(){
+  if(!_printClipState) return;
+  const { cells, table, prevTableLayout, prevTableWidth } = _printClipState;
+  cells.forEach(({cell, shifted, prevWidth, prevMinWidth, prevMaxWidth, prevOverflow})=>{
+    shifted.forEach(({child, prevTransform})=>{ child.style.transform = prevTransform; });
+    cell.style.width = prevWidth;
+    cell.style.minWidth = prevMinWidth;
+    cell.style.maxWidth = prevMaxWidth;
+    cell.style.overflow = prevOverflow;
+  });
+  table.style.tableLayout = prevTableLayout;
+  table.style.width = prevTableWidth;
+  const wrap = document.getElementById('ganttWrap');
+  if(wrap) wrap.classList.remove('print-range-clip');
+  _printClipState = null;
+}
+
+// линия "сегодня" и полоса "сверхсрочной" зоны/линия окончания срока считаются от начала
+// ВСЕГО периода графика (см. _renderTodayLineFor/renderProjectEndOverlay), а не от начала
+// выбранного диапазона печати — их нужно дополнительно сдвинуть на fromPx, в отличие от линий
+// связи (renderGanttLinks), которые меряют реальное положение уже сдвинутых полос работ через
+// getBoundingClientRect и поэтому корректны сами по себе, без доп. правок
+function shiftPrintOverlaysBy(fromPx){
+  ['ganttTodayLine','ganttOvertimeBand','ganttProjectEndLine'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el || el.style.display === 'none') return;
+    const left = parseFloat(el.style.left);
+    if(!isNaN(left)) el.style.left = (left - fromPx) + 'px';
+  });
+}
+
+// ─── экспорт в PDF: html2canvas снимает диаграмму как есть, jsPDF собирает из этого лист(ы)
+// PDF напрямую (никакого диалога печати браузера и его непредсказуемого @media print) ───
+
+// делит общую ширину/высоту снимка на pagesWide×pagesTall листов: "липкие" колонки данных
+// повторяются на каждом листе по ширине с тем же масштабом, что и строки (scaleY), а сама
+// временнáя шкала растягивается/сжимается НЕЗАВИСИМО по ширине под pagesWide листов —
+// у диаграммы Ганта это осмысленно (плотность дней и высота строки и так независимы).
+// Возвращает {doc, name, tiles} (tiles — dataURL превью каждой страницы) или null при ошибке;
+// само сохранение файла — отдельным шагом (downloadPreviewedPdf), после того как пользователь
+// посмотрел превью и убедился, что всё влезло правильно.
+async function buildPrintPdf(settings){
+  if(!window.html2canvas || !window.jspdf){
+    alert('Не удалось загрузить библиотеку для сборки PDF — нужен интернет хотя бы один раз (библиотека подгружается с CDN). Проверьте соединение и попробуйте ещё раз.');
+    return null;
+  }
+  const paper = PAPER_MM[settings.format] || PAPER_MM.A4;
+  const landscape = settings.orientation !== 'portrait';
+  const paperW = landscape ? Math.max(paper.w,paper.h) : Math.min(paper.w,paper.h);
+  const paperH = landscape ? Math.min(paper.w,paper.h) : Math.max(paper.w,paper.h);
+  const pagesWide = Math.max(1, Math.min(30, parseInt(settings.pagesWide,10) || 1));
+  const pagesTall = Math.max(1, Math.min(30, parseInt(settings.pagesTall,10) || 1));
+  const marginMm = 10;
+  const pageUsableWidthMm = paperW - marginMm*2;
+  const pageUsableHeightMm = paperH - marginMm*2;
+  const OUTPUT_DPI = 300; // разрешение готовых страниц PDF (стандартное печатное качество)
+  const pxPerMm = OUTPUT_DPI/25.4;
+  const pageUsableWidthPx = Math.round(pageUsableWidthMm * pxPerMm);
+  const pageUsableHeightPx = Math.round(pageUsableHeightMm * pxPerMm);
+
+  const range = fullPrintRange();
+  if(!range){
+    alert('В графике ещё нет ни одного периода для печати.');
+    return null;
+  }
+
+  const progressEl = document.getElementById('psProgress');
+  if(progressEl) progressEl.style.display = '';
+
+  const wrap = document.getElementById('ganttWrap');
   const prevScrollLeft = wrap ? wrap.scrollLeft : 0;
   const prevScrollTop  = wrap ? wrap.scrollTop  : 0;
-  let restored = false;
+  const prevWrapStyle = wrap ? { width:wrap.style.width, height:wrap.style.height, flex:wrap.style.flex } : null;
+  const fromPx = pxOf(range.start);
+  const rangePx = Math.max(1, pxOf(range.endExcl) - fromPx);
+  const stickyWidthCssPx = stickyColsWidthPx();
 
-  // линии связи (renderGanttLinks/barRectRel), линия "сегодня" и полоса "сверхсрочной" зоны
-  // считаются через getBoundingClientRect() контейнера #ganttWrap с компенсацией его
-  // scrollLeft/scrollTop. На бумаге #ganttWrap — другая раскладка (overflow:visible вместо
-  // прокручиваемого блока, см. @media print), и прокрутки там нет вовсе — пересчитать эти
-  // координаты корректно можно только когда браузер уже применил print-стили, а это
-  // гарантированно происходит не раньше события 'beforeprint'. Если не обнулить
-  // scrollLeft/scrollTop — старое значение прокрутки с экрана задвоится поверх уже
-  // некомпенсированной print-геометрии.
-  const syncPrintOverlays = ()=>{
+  let result = null;
+  try{
     if(wrap){ wrap.scrollLeft = 0; wrap.scrollTop = 0; }
-    if(wrap) void wrap.offsetHeight; // форсируем reflow — в Safari print-стили иногда применяются не мгновенно
+    applyPrintRangeClip(fromPx, rangePx);
     renderGanttLinks();
     renderTodayLine();
     renderProjectEndOverlay();
-  };
+    shiftPrintOverlaysBy(fromPx); // today-line/overtime-band считаются от начала ВСЕГО периода — довинчиваем под диапазон печати
+    // #ganttWrap на экране — flex:1 с overflow:auto: его СОБСТВЕННЫЙ размер равен видимой
+    // области, а диаграмма шире просто прокручивается внутри. html2canvas снимает то, что
+    // реально помещается в текущий (видимый) размер элемента, а не весь его scrollWidth —
+    // поэтому в PDF попадал маленький кусок. Явно растягиваем wrap до реального размера его
+    // содержимого (уже обрезанного applyPrintRangeClip под нужный диапазон) на время снимка.
+    if(wrap){
+      const fullW = wrap.scrollWidth, fullH = wrap.scrollHeight;
+      wrap.style.flex = 'none';
+      wrap.style.width = fullW + 'px';
+      wrap.style.height = fullH + 'px';
+    }
+    // даём браузеру дорисовать клип/сдвиги/новый размер (часть позиционирования — в requestAnimationFrame)
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 
-  const restore = ()=>{
-    if(restored) return; restored = true;
-    window.removeEventListener('beforeprint', syncPrintOverlays);
-    window.removeEventListener('afterprint', restore);
-    if(appEl) appEl.style.zoom = '';
-    if(ganttScale !== prevScale){ ganttScale = prevScale; renderGantt(); }
-    if(wrap){ wrap.scrollLeft = prevScrollLeft; wrap.scrollTop = prevScrollTop; }
-    // прокрутку вернули уже после (пере)рендера — пересчитываем оверлеи ещё раз, иначе они
-    // останутся нарисованными под прокрутку "0" (как для бумаги), а не под ту, куда вернулся экран
+    // scale:3 — снимок с запасом по разрешению (примерно под 300dpi), чтобы при вставке в
+    // страницу PDF (см. OUTPUT_DPI) не было ни повторного размытия от увеличения, ни лишней
+    // потери резкости от сильного уменьшения; letterRendering — чуть чётче мелкий текст дат/%
+    const sourceCanvas = await html2canvas(wrap, { scale:3, backgroundColor:'#ffffff', useCORS:true, letterRendering:true });
+    const totalWpx = sourceCanvas.width, totalHpx = sourceCanvas.height;
+    // доля "липких" колонок в снимке — от их реальной CSS-ширины, не от заранее известного
+    // масштаба html2canvas (он может слегка округлить итоговый canvas)
+    const stickyWpx = Math.round(stickyWidthCssPx / (stickyWidthCssPx + rangePx) * totalWpx);
+    const timelineWpx = Math.max(1, totalWpx - stickyWpx);
+
+    const badgeEl = document.getElementById('projBadge');
+    const projectName = (badgeEl && badgeEl.textContent.trim()) || 'Новый график';
+    const logoImgEl = document.querySelector('.print-vector-logo img');
+
+    // шапка с логотипом Vector и названием графика — своя полоса сверху КАЖДОЙ страницы,
+    // высота отдана canvas-рисованию (не html2canvas), т.к. рисуем только то, что нужно —
+    // логотип уже загружен в DOM (используем как есть), без липких колонок/статистики/кнопок
+    const headerHeightPx = Math.round(9 * pxPerMm); // 9мм
+    const chartAreaHeightPx = Math.max(1, pageUsableHeightPx - headerHeightPx);
+    function drawPageHeader(ctx){
+      const padPx = Math.round(3 * pxPerMm);
+      const logoPx = Math.round(5.5 * pxPerMm);
+      const cy = headerHeightPx/2;
+      let x = padPx;
+      if(logoImgEl && logoImgEl.complete && logoImgEl.naturalWidth){
+        ctx.drawImage(logoImgEl, x, cy-logoPx/2, logoPx, logoPx);
+        x += logoPx + Math.round(1.2*pxPerMm);
+      }
+      ctx.textBaseline = 'middle';
+      ctx.font = `700 ${Math.round(3.6*pxPerMm)}px -apple-system, "Segoe UI", sans-serif`;
+      ctx.fillStyle = '#185FA5';
+      ctx.fillText('Vector', x, cy);
+      x += ctx.measureText('Vector').width + Math.round(4*pxPerMm);
+      ctx.font = `500 ${Math.round(3.4*pxPerMm)}px -apple-system, "Segoe UI", sans-serif`;
+      ctx.fillStyle = '#333';
+      ctx.fillText('График производства работ:', x, cy);
+      x += ctx.measureText('График производства работ:').width + Math.round(1.5*pxPerMm);
+      ctx.font = `700 ${Math.round(3.4*pxPerMm)}px -apple-system, "Segoe UI", sans-serif`;
+      ctx.fillStyle = '#111';
+      ctx.fillText(projectName, x, cy);
+      ctx.strokeStyle = '#dfe3e8';
+      ctx.lineWidth = Math.max(1, Math.round(0.12*pxPerMm));
+      ctx.beginPath();
+      ctx.moveTo(0, headerHeightPx-0.5);
+      ctx.lineTo(pageUsableWidthPx, headerHeightPx-0.5);
+      ctx.stroke();
+    }
+
+    const scaleY = (pagesTall * chartAreaHeightPx) / totalHpx;
+    // ширину "липких" колонок растягиваем вместе со строками (scaleY) только когда строки
+    // СЖИМАЮТСЯ (scaleY<1) — тогда узкие колонки остаются пропорциональны своим строкам.
+    // Но если строки, наоборот, РАСТЯГИВАЮТСЯ (scaleY>1, содержимое короче листа/выбрано
+    // больше листов по высоте, чем нужно) — раздувать вместе с ними ещё и ширину колонок с
+    // названиями работ не нужно: они и так читаемы, а разросшись, отъедают у диаграммы
+    // почти всю ширину листа, и её потом приходится сильно сжимать по ширине, чтобы влезло.
+    const stickyScaleX = Math.min(scaleY, 1);
+    const stickyOutWpx = Math.min(pageUsableWidthPx - 1, Math.round(stickyWpx * stickyScaleX));
+    const timelineOutWpx = Math.max(1, pageUsableWidthPx - stickyOutWpx);
+
+    const doc = new jspdf.jsPDF({ orientation: landscape?'landscape':'portrait', unit:'mm', format:[paperW,paperH] });
+    const tiles = [];
+    let first = true;
+    for(let r=0;r<pagesTall;r++){
+      const srcY = Math.round(r * totalHpx / pagesTall);
+      const srcH = Math.max(1, Math.round((r+1) * totalHpx / pagesTall) - srcY);
+      for(let c=0;c<pagesWide;c++){
+        const srcTx0 = stickyWpx + Math.round(c * timelineWpx / pagesWide);
+        const srcTW = Math.max(1, stickyWpx + Math.round((c+1) * timelineWpx / pagesWide) - srcTx0);
+
+        const tile = document.createElement('canvas');
+        tile.width = pageUsableWidthPx; tile.height = pageUsableHeightPx;
+        const ctx = tile.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high'; // качественный алгоритм масштабирования при переносе среза снимка на страницу
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, tile.width, tile.height);
+        drawPageHeader(ctx);
+        ctx.drawImage(sourceCanvas, 0, srcY, stickyWpx, srcH, 0, headerHeightPx, stickyOutWpx, chartAreaHeightPx);
+        ctx.drawImage(sourceCanvas, srcTx0, srcY, srcTW, srcH, stickyOutWpx, headerHeightPx, timelineOutWpx, chartAreaHeightPx);
+
+        // JPEG вместо PNG — на градиентах/тенях/сглаженном тексте диаграммы PNG весит в разы
+        // больше при почти неотличимой на глаз разнице; для печатного PDF это не критично
+        const imgData = tile.toDataURL('image/jpeg', 0.96);
+        tiles.push(imgData);
+        if(!first) doc.addPage([paperW,paperH], landscape?'landscape':'portrait');
+        first = false;
+        doc.addImage(imgData, 'JPEG', marginMm, marginMm, pageUsableWidthMm, pageUsableHeightMm);
+      }
+    }
+
+    const name = projectName.replace(/[\\/:*?"<>|]+/g,'_') + '.pdf';
+    result = { doc, name, tiles };
+  }catch(err){
+    console.error('Не удалось собрать PDF:', err);
+    alert('Не удалось собрать PDF: ' + (err && err.message ? err.message : err));
+  }finally{
+    revertPrintRangeClip();
+    if(wrap && prevWrapStyle){
+      wrap.style.width = prevWrapStyle.width;
+      wrap.style.height = prevWrapStyle.height;
+      wrap.style.flex = prevWrapStyle.flex;
+      wrap.scrollLeft = prevScrollLeft; wrap.scrollTop = prevScrollTop;
+    }
     renderGanttLinks();
     renderTodayLine();
     renderProjectEndOverlay();
-  };
-
-  if(prevScale !== 'month'){ ganttScale = 'month'; renderGantt(); }
-  window.addEventListener('beforeprint', syncPrintOverlays);
-  window.addEventListener('afterprint', restore);
-  setTimeout(()=>{ // даём браузеру дорисовать (часть позиционирования — в requestAnimationFrame)
-    const table = document.querySelector('#panel-gantt .gantt-table');
-    const pageW = 1050; // печатная ширина листа A4 альбомного (~96dpi, поля 10мм)
-    const w = table ? table.scrollWidth : 0;
-    if(appEl && w > pageW) appEl.style.zoom = (pageW / w).toFixed(3);
-    window.print();
-    setTimeout(restore, 500); // страховка, если afterprint не сработал
-  }, 150);
+    if(progressEl) progressEl.style.display = 'none';
+  }
+  return result;
 }
 
 // ─── init ─────────────────────────────────────────────────────────────────────
@@ -7058,6 +7422,58 @@ window.addEventListener('resize', ()=>{
     <div class="np-actions" id="asSectionActions" style="display:none;">
       <button class="btn" onclick="asBack()"><i class="ti ti-arrow-left"></i> Назад</button>
       <button class="btn btn-primary" id="asSectionConfirmBtn" onclick="asSectionConfirm()"><i class="ti ti-check"></i> Создать</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="printSettingsOverlay" onclick="if(event.target===this)closePrintSettings()">
+  <div class="modal" style="width:600px;max-height:86vh;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-printer"></i> Печать / PDF</div>
+      <button class="modal-close" onclick="closePrintSettings()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-content" style="flex:1;overflow-y:auto;padding:20px;">
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-file"></i> Формат листа</div>
+        <div style="display:flex;gap:8px;">
+          <div class="view-toggle" id="psFormatToggle" style="flex:1;">
+            <div class="view-toggle-btn active" data-value="A4" style="flex:1;text-align:center;" onclick="setPsToggle('psFormatToggle','psFormat',this,true)">A4</div>
+            <div class="view-toggle-btn" data-value="A3" style="flex:1;text-align:center;" onclick="setPsToggle('psFormatToggle','psFormat',this,true)">A3</div>
+          </div>
+          <div class="view-toggle" id="psOrientToggle" style="flex:1;">
+            <div class="view-toggle-btn active" data-value="landscape" style="flex:1;text-align:center;" onclick="setPsToggle('psOrientToggle','psOrientation',this,true)">Альбомная</div>
+            <div class="view-toggle-btn" data-value="portrait" style="flex:1;text-align:center;" onclick="setPsToggle('psOrientToggle','psOrientation',this,true)">Книжная</div>
+          </div>
+          <input type="hidden" id="psFormat" value="A4">
+          <input type="hidden" id="psOrientation" value="landscape">
+        </div>
+      </div>
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-layout-grid"></i> Листов по ширине / по высоте</div>
+        <div style="display:flex;gap:14px;align-items:center;">
+          <div style="display:flex;align-items:center;gap:3px;">
+            <button type="button" class="th-mini-btn" onclick="psAdjustPages('psPagesWide',-1)" title="Меньше листов по ширине"><i class="ti ti-minus" style="font-size:12px;"></i></button>
+            <input type="number" class="np-input" id="psPagesWide" min="1" max="30" value="1" style="width:48px;text-align:center;" oninput="schedulePreviewUpdate()">
+            <button type="button" class="th-mini-btn" onclick="psAdjustPages('psPagesWide',1)" title="Больше листов по ширине"><i class="ti ti-plus" style="font-size:12px;"></i></button>
+          </div>
+          <span style="color:var(--text3);">×</span>
+          <div style="display:flex;align-items:center;gap:3px;">
+            <button type="button" class="th-mini-btn" onclick="psAdjustPages('psPagesTall',-1)" title="Меньше листов по высоте"><i class="ti ti-minus" style="font-size:12px;"></i></button>
+            <input type="number" class="np-input" id="psPagesTall" min="1" max="30" value="1" style="width:48px;text-align:center;" oninput="schedulePreviewUpdate()">
+            <button type="button" class="th-mini-btn" onclick="psAdjustPages('psPagesTall',1)" title="Больше листов по высоте"><i class="ti ti-plus" style="font-size:12px;"></i></button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px;">Печатается график целиком, разрезаясь на столько листов, сколько нужно (названия работ повторяются на каждом слева, чтобы листы можно было склеить). Число листов подставлено по размеру графика — уменьшите, чтобы сжать текст мельче, увеличьте, чтобы буквы были крупнее.</div>
+      </div>
+      <div id="psProgress" style="display:none;font-size:12px;color:var(--text2);margin-top:4px;">Готовим превью…</div>
+      <div id="psPreviewWrap" style="margin-top:14px;">
+        <div class="np-label" style="margin-bottom:8px;"><i class="ti ti-eye"></i> Превью страниц</div>
+        <div id="psPreview" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;"></div>
+      </div>
+    </div>
+    <div class="np-actions">
+      <button class="btn" onclick="closePrintSettings()">Отмена</button>
+      <button class="btn btn-primary" id="psSaveBtn" disabled onclick="downloadPreviewedPdf()"><i class="ti ti-file-download"></i> Скачать PDF</button>
     </div>
   </div>
 </div>
