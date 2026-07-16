@@ -4240,14 +4240,45 @@ function exportToPDF(){
   // а если диаграмма шире листа (А4 альбомная), ужимаем страницу масштабом
   const prevScale = ganttScale;
   const appEl = document.querySelector('.app');
+  const wrap = document.getElementById('ganttWrap');
+  // запоминаем текущую прокрутку графика — на бумаге прокрутки нет (лист печатается целиком),
+  // а после закрытия диалога печати возвращаем экран туда, где был пользователь
+  const prevScrollLeft = wrap ? wrap.scrollLeft : 0;
+  const prevScrollTop  = wrap ? wrap.scrollTop  : 0;
   let restored = false;
+
+  // линии связи (renderGanttLinks/barRectRel), линия "сегодня" и полоса "сверхсрочной" зоны
+  // считаются через getBoundingClientRect() контейнера #ganttWrap с компенсацией его
+  // scrollLeft/scrollTop. На бумаге #ganttWrap — другая раскладка (overflow:visible вместо
+  // прокручиваемого блока, см. @media print), и прокрутки там нет вовсе — пересчитать эти
+  // координаты корректно можно только когда браузер уже применил print-стили, а это
+  // гарантированно происходит не раньше события 'beforeprint'. Если не обнулить
+  // scrollLeft/scrollTop — старое значение прокрутки с экрана задвоится поверх уже
+  // некомпенсированной print-геометрии.
+  const syncPrintOverlays = ()=>{
+    if(wrap){ wrap.scrollLeft = 0; wrap.scrollTop = 0; }
+    if(wrap) void wrap.offsetHeight; // форсируем reflow — в Safari print-стили иногда применяются не мгновенно
+    renderGanttLinks();
+    renderTodayLine();
+    renderProjectEndOverlay();
+  };
+
   const restore = ()=>{
     if(restored) return; restored = true;
+    window.removeEventListener('beforeprint', syncPrintOverlays);
     window.removeEventListener('afterprint', restore);
     if(appEl) appEl.style.zoom = '';
     if(ganttScale !== prevScale){ ganttScale = prevScale; renderGantt(); }
+    if(wrap){ wrap.scrollLeft = prevScrollLeft; wrap.scrollTop = prevScrollTop; }
+    // прокрутку вернули уже после (пере)рендера — пересчитываем оверлеи ещё раз, иначе они
+    // останутся нарисованными под прокрутку "0" (как для бумаги), а не под ту, куда вернулся экран
+    renderGanttLinks();
+    renderTodayLine();
+    renderProjectEndOverlay();
   };
+
   if(prevScale !== 'month'){ ganttScale = 'month'; renderGantt(); }
+  window.addEventListener('beforeprint', syncPrintOverlays);
   window.addEventListener('afterprint', restore);
   setTimeout(()=>{ // даём браузеру дорисовать (часть позиционирования — в requestAnimationFrame)
     const table = document.querySelector('#panel-gantt .gantt-table');
