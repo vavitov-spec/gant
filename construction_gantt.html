@@ -41,6 +41,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .task-name-label{color:#D8E6F5;}
   .cat-row .ti{color:#85B7EB;}
   .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#7A95AC!important;}
+  .group-row td{background:#3A2E4D!important;}
+  .group-row:hover td,.group-row.selected td{background:#453759!important;}
+  .group-row .group-row-label{color:#E6D9F7;}
+  .group-row .ti{color:#B79AE0;}
+  .group-row .ti-chevron-right,.group-row .ti-chevron-down{color:#9B85C4!important;}
   .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
   .gantt-fact-early-empty{background:transparent!important;outline-color:transparent!important;}
   .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(134,239,172,0.35)!important;}
@@ -61,6 +66,11 @@ html[data-theme="dark"] body{background:#181818;}
 [data-theme="dark"] .task-name-label{color:#D8E6F5;}
 [data-theme="dark"] .cat-row .ti{color:#85B7EB;}
 [data-theme="dark"] .cat-row .ti-chevron-right,[data-theme="dark"] .cat-row .ti-chevron-down{color:#7A95AC!important;}
+[data-theme="dark"] .group-row td{background:#3A2E4D!important;}
+[data-theme="dark"] .group-row:hover td,[data-theme="dark"] .group-row.selected td{background:#453759!important;}
+[data-theme="dark"] .group-row .group-row-label{color:#E6D9F7;}
+[data-theme="dark"] .group-row .ti{color:#B79AE0;}
+[data-theme="dark"] .group-row .ti-chevron-right,[data-theme="dark"] .group-row .ti-chevron-down{color:#9B85C4!important;}
 [data-theme="dark"] .gantt-fact-early{background:rgba(134,239,172,0.18)!important;color:#86EFAC!important;outline-color:rgba(134,239,172,0.55)!important;}
 [data-theme="dark"] .gantt-fact-early-empty{background:transparent!important;outline-color:transparent!important;}
 [data-theme="dark"] .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(134,239,172,0.35)!important;}
@@ -78,6 +88,11 @@ html[data-theme="light"] body{background:#f0f2f5;}
 [data-theme="light"] .cat-row .cat-row-label,[data-theme="light"] .cat-row .row-num,[data-theme="light"] .cat-row td.col-start,[data-theme="light"] .cat-row td.col-dur,[data-theme="light"] .cat-row td.col-end{color:#15324F!important;}
 [data-theme="light"] .cat-row .ti{color:#185FA5!important;}
 [data-theme="light"] .cat-row .ti-chevron-right,[data-theme="light"] .cat-row .ti-chevron-down{color:#6B92B8!important;}
+[data-theme="light"] .group-row td{background:#E5DCF5!important;}
+[data-theme="light"] .group-row:hover td,[data-theme="light"] .group-row.selected td{background:#D6C6EC!important;}
+[data-theme="light"] .group-row .group-row-label{color:#3D2568!important;}
+[data-theme="light"] .group-row .ti{color:#6C3FC5!important;}
+[data-theme="light"] .group-row .ti-chevron-right,[data-theme="light"] .group-row .ti-chevron-down{color:#9B85C4!important;}
 [data-theme="light"] .gantt-fact-early{background:rgba(34,197,94,0.14)!important;color:#15803D!important;outline-color:rgba(34,197,94,0.55)!important;}
 [data-theme="light"] .gantt-fact-early-empty{background:transparent!important;outline-color:transparent!important;}
 [data-theme="light"] .gantt-fact-early-empty:hover{background:rgba(34,197,94,0.12)!important;outline-color:rgba(34,197,94,0.35)!important;}
@@ -214,6 +229,15 @@ html[data-theme="light"] body{background:#f0f2f5;}
 .cat-row .cat-row-label{font-size:13px;letter-spacing:.01em;}
 .cat-row .ti{color:#185FA5;}
 .cat-row .ti-chevron-right,.cat-row .ti-chevron-down{color:#6B92B8!important;}
+/* группа разделов — визуально «выше» раздела (более насыщенный акцент), разделы внутри неё
+   получают небольшой добавочный отступ слева, чтобы читалась вложенность в группу */
+.group-row td{background:#E5DCF5!important;font-weight:600;border-left:3px solid #6C3FC5;padding:5px 10px 5px 9px!important;}
+.group-row td + td{border-left:none!important;}
+.group-row:hover td,.group-row.selected td{background:#D6C6EC!important;}
+.group-row .group-row-label{color:#3D2568;font-size:13px;letter-spacing:.01em;}
+.group-row .ti{color:#6C3FC5;}
+.group-row .ti-chevron-right,.group-row .ti-chevron-down{color:#9B85C4!important;}
+.cat-row.in-group td.sticky-col-cat{padding-left:22px!important;}
 
 .scale-switch-btn{border:none;background:var(--bg);color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;padding:4px 10px;border-right:0.5px solid var(--border2);}
 .scale-switch-btn:last-child{border-right:none;}
@@ -225,10 +249,13 @@ html[data-theme="light"] body{background:#f0f2f5;}
 .add-work-btn-inline{display:inline-flex;align-items:center;gap:4px;border:0.5px solid rgba(24,95,165,0.25);background:rgba(24,95,165,0.06);cursor:pointer;color:#185FA5;font-size:10.5px;font-family:inherit;padding:3px 8px;border-radius:5px;flex-shrink:0;opacity:0;transition:opacity .12s;}
 .cat-row:hover .add-work-btn-inline,
 .cat-row.selected .add-work-btn-inline,
+.group-row:hover .add-work-btn-inline,
+.group-row.selected .add-work-btn-inline,
 .add-work-btn-inline:focus-visible{opacity:1;}
 .add-work-btn-inline:hover{background:rgba(24,95,165,0.14);border-color:#185FA5;}
 /* режим только чтения (нет пароля): прячем элементы редактирования */
 body.readonly .add-section-btn,
+body.readonly .add-group-btn,
 body.readonly .add-work-btn-inline,
 body.readonly .row-drag-handle,
 body.readonly .task-del-btn{display:none!important;}
@@ -249,10 +276,10 @@ body.viewer-role .th-edit-btn{display:none!important;}
 .filter-toggle.on::after{left:14px;}
 
 /* более тонкие строки разделов / работ / подвидов */
-.cat-row td{padding-top:1px!important;padding-bottom:1px!important;}
+.cat-row td,.group-row td{padding-top:1px!important;padding-bottom:1px!important;}
 /* даты/длительность раздела — тот же отступ 4px, что и в строках работ (.tight-col),
    иначе текст, выровненный по правому краю, «плывёт» относительно работ на несколько px */
-.cat-row td.tight-col{padding-left:4px!important;padding-right:4px!important;}
+.cat-row td.tight-col,.group-row td.tight-col{padding-left:4px!important;padding-right:4px!important;}
 .gantt-table td{padding-top:0;padding-bottom:0;}
 .fp-mode-toggle{display:flex;justify-content:center;gap:2px;margin-bottom:2px;}
 .fp-mode-btn{font-size:9px;padding:0 4px;border-radius:3px;cursor:pointer;color:var(--text3);background:none;border:0.5px solid transparent;line-height:1.6;white-space:nowrap;}
@@ -454,7 +481,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   /* шапка «График производства работ: …» + плашки показателей — на телефоне прячем */
   .header{display:none!important;}
   /* режим только просмотра: убираем добавление/правку/удаление разделов и работ */
-  .add-section-btn,.add-work-btn-inline,.row-drag-handle,.task-del-btn{display:none!important;}
+  .add-section-btn,.add-group-btn,.add-work-btn-inline,.row-drag-handle,.task-del-btn{display:none!important;}
   /* вкладки: горизонтальный скролл вместо переполнения, иконки прячем */
   .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;padding:0 8px;}
   .tab{padding:9px 10px;font-size:12.5px;flex-shrink:0;}
@@ -651,6 +678,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
     </div>
     <div style="display:flex;align-items:center;gap:16px;padding:5px 16px;font-size:11px;color:var(--text2);border-top:0.5px solid var(--border);">
       <button class="btn no-print add-section-btn" onclick="addSection()"><i class="ti ti-folder-plus"></i> Добавить раздел работ</button>
+      <button class="btn no-print add-group-btn" onclick="addGroup()"><i class="ti ti-folders"></i> Добавить группу разделов</button>
       <span style="display:flex;align-items:center;gap:16px;margin-left:auto;">
         <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:linear-gradient(180deg,#D9ECFC,#A8CFF1);box-shadow:0 1px 1px rgba(20,80,140,0.2);vertical-align:middle;margin-right:4px;"></span>План</span>
         <span><span style="display:inline-block;width:12px;height:6px;border-radius:2px;background:linear-gradient(180deg,#4FB783,#2E8C5D);vertical-align:middle;margin-right:4px;"></span>Факт</span>
@@ -1029,7 +1057,7 @@ function durMonthUnits(t){
 function renderMonths(){
   let maxEnd = TOTAL;
   for(const t of tasks){
-    if(t.cat) continue;
+    if(t.cat || t.group) continue;
     const e = t.start + durMonthUnits(t);
     if(e > maxEnd) maxEnd = e;
   }
@@ -1074,7 +1102,7 @@ function dayIndexOfDate(date){
   return Math.round((date - first)/86400000);
 }
 
-function workTasks(){ return tasks.filter(t=>!t.cat); }
+function workTasks(){ return tasks.filter(t=>!t.cat && !t.group); }
 
 // готовность проекта = сумма объёмов всех работ — это 100% проекта. Плановая/фактическая
 // готовность считаются от того же знаменателя, суммируя план/факт «до сегодня» по каждой
@@ -1238,6 +1266,8 @@ function renderStats(){
 let ganttCollapsed = {};
 // ── состояние свёрнутых видов работ, у которых есть подвиды ─────────────────────
 let workCollapsed = {};
+// ── состояние свёрнутых групп разделов ──────────────────────────────────────────
+let groupCollapsed = {};
 
 function toggleGanttSection(catId){
   ganttCollapsed[catId] = !ganttCollapsed[catId];
@@ -1246,6 +1276,11 @@ function toggleGanttSection(catId){
 
 function toggleWorkSection(workId){
   workCollapsed[workId] = !workCollapsed[workId];
+  renderGantt();
+}
+
+function toggleGanttGroup(groupId){
+  groupCollapsed[groupId] = !groupCollapsed[groupId];
   renderGantt();
 }
 
@@ -1285,9 +1320,35 @@ function sectionChildren(catId){
   if(idx<0) return [];
   const out = [];
   for(let i=idx+1;i<tasks.length;i++){
-    if(tasks[i].cat) break;
+    if(tasks[i].cat || tasks[i].group) break;
     out.push(tasks[i]);
   }
+  return out;
+}
+
+// разделы (id), физически принадлежащие группе — по цепочке подряд идущих разделов
+// сразу после маркера группы, у которых groupId совпадает с этой группой (см. renderGantt —
+// то же правило смежности используется и при отрисовке)
+function groupMemberSectionIds(groupId){
+  const idx = tasks.findIndex(x=>x.id===groupId && x.group);
+  if(idx<0) return [];
+  const ids = [];
+  for(let i=idx+1;i<tasks.length;i++){
+    const x = tasks[i];
+    if(x.group) break;
+    if(x.cat){
+      if(x.groupId!==groupId) break;
+      ids.push(x.id);
+    }
+  }
+  return ids;
+}
+
+// все работы группы (по всем её разделам) — для сводки при свёрнутой/скрытой группе
+function groupChildren(groupId){
+  const secIds = new Set(groupMemberSectionIds(groupId));
+  const out = [];
+  secIds.forEach(id=>out.push(...sectionChildren(id)));
   return out;
 }
 
@@ -1350,6 +1411,8 @@ function dateCellsHtmlFromRollup(r){
   };
 }
 function sectionDateCellsHtml(catId){ return dateCellsHtmlFromRollup(sectionRollup(catId)); }
+function groupRollup(groupId){ return rollupOfTasks(groupChildren(groupId)); }
+function groupDateCellsHtml(groupId){ return dateCellsHtmlFromRollup(groupRollup(groupId)); }
 
 // сводная полоса раздела (план + факт/отставание до сегодня, в том же визуальном языке,
 // что и полосы отдельных работ) — используется только когда раздел свёрнут, чтобы не
@@ -1381,6 +1444,7 @@ function summaryBarHtmlFromRollup(r){
   return `<div class="bar-wrap">${barPlanHtml}${factBgHtml}</div>`;
 }
 function sectionSummaryBarHtml(catId){ return summaryBarHtmlFromRollup(sectionRollup(catId)); }
+function groupSummaryBarHtml(groupId){ return summaryBarHtmlFromRollup(groupRollup(groupId)); }
 
 // содержимое колонок «Факт/План» и «%» для свёрнутого раздела — то же правило тек./общ.,
 // что и в этих колонках у отдельных работ, только суммарно по работам раздела
@@ -1396,6 +1460,7 @@ function factPlanCellsHtmlFromRollup(r){
   return { factplanHtml, pctHtml: (plan>0 ? pct+'%' : '—'), cls };
 }
 function sectionFactPlanCellsHtml(catId){ return factPlanCellsHtmlFromRollup(sectionRollup(catId)); }
+function groupFactPlanCellsHtml(groupId){ return factPlanCellsHtmlFromRollup(groupRollup(groupId)); }
 
 // объём по каждому рабочему дню задачи с учётом дневных правок (Map: dayIndex → vol)
 function getDayVolumeMap(t){
@@ -2737,12 +2802,30 @@ function renderGantt(){
   // hiddenChain[L] = true, если ветка на уровне L выключена из отображения (настройки графика)
   let hiddenChain = [];
 
-  // предварительно вычисляем разделы с хотя бы одной видимой задачей (для фильтров)
+  // группы разделов: раздел визуально принадлежит группе, только если он идёт сразу за её
+  // маркером (или сразу за другим разделом той же группы) и его groupId совпадает — та же
+  // проверка смежности используется при переносе раздела в группу/из неё (см. moveSectionBlock)
+  const groupsMap = new Map(tasks.filter(t=>t.group).map(t=>[t.id, t]));
+  const sectionGroupOf = new Map();
+  {
+    let curGroupId = null;
+    tasks.forEach(t=>{
+      if(t.group){ curGroupId = t.id; return; }
+      if(t.cat){
+        if(curGroupId!==null && t.groupId===curGroupId){ sectionGroupOf.set(t.id, curGroupId); }
+        else { curGroupId = null; }
+      }
+    });
+  }
+
+  // предварительно вычисляем разделы (и их группы) с хотя бы одной видимой задачей (для фильтров)
   const filtersActive = anyGanttFilterActive();
   const sectionsWithVisible = new Set();
+  const groupsWithVisible = new Set();
   if(filtersActive){
     let catId = null;
     tasks.forEach(t=>{
+      if(t.group){ return; }
       if(t.cat){ catId=t.id; return; }
       if(catId===null) return;
       const ok1 = !ganttFilters.hideCompleted || t.factPct!==100;
@@ -2750,11 +2833,16 @@ function renderGantt(){
       const ok3 = !ganttFilters.showOnlyCurrentMonth || isTaskCurrentMonth(t) || isTaskOverdueIncomplete(t);
       const ok4 = !!ganttFilters.types[t.type||'work'];
       const ok5 = !ganttFilters.onlyMyWorks || currentRole!=='contractor' || isMyAssignedWork(t);
-      if(ok1&&ok2&&ok3&&ok4&&ok5) sectionsWithVisible.add(catId);
+      if(ok1&&ok2&&ok3&&ok4&&ok5){
+        sectionsWithVisible.add(catId);
+        const gid = sectionGroupOf.get(catId);
+        if(gid!==undefined) groupsWithVisible.add(gid);
+      }
     });
   }
 
-  // многоуровневая нумерация: раздел — сквозной порядковый номер; работа — «номер раздела.N[.N...]»,
+  // многоуровневая нумерация: раздел — сквозной порядковый номер (группы не нумеруются и
+  // номер не занимают — это просто визуальная папка); работа — «номер раздела.N[.N...]»,
   // с уровнем вложенности, отражающим фактический отступ работы. Считается ЗАРАНЕЕ отдельным
   // проходом по ПОЛНОМУ списку задач, без учёта активных фильтров (ganttFilters) — фильтры влияют
   // только на видимость строк, а не на их номер: спрятанная фильтром работа не должна "сдвигать"
@@ -2770,6 +2858,7 @@ function renderGantt(){
     let sectionHiddenForNum = false;
     let hiddenChainForNum = [];
     tasks.forEach(t=>{
+      if(t.group) return;
       if(t.cat){
         sectionHiddenForNum = !!t.hidden;
         hiddenChainForNum = [];
@@ -2791,23 +2880,78 @@ function renderGantt(){
   }
 
   tasks.forEach((t,idx)=>{
+    if(t.group){
+      const tr = document.createElement('tr');
+      const isCollapsedG = !!groupCollapsed[t.id];
+      const isHiddenG = !!t.hidden;
+      if(isHiddenG){ return; } // группа выключена из отображения в настройках графика
+      if(filtersActive && !groupsWithVisible.has(t.id)){ return; } // все задачи группы скрыты фильтром
+      tr.className='group-row'+(selectedGroupId===t.id?' selected':'');
+      tr.dataset.taskId = t.id;
+      const isEditingGroup = editingGroupId===t.id;
+      tr.style.cursor='pointer';
+      tr.draggable = false;
+      tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,'group'));
+      tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,'group'));
+      tr.addEventListener('dragleave', rowDragLeave);
+      tr.addEventListener('drop',      e=>rowDrop(e,t.id,'group'));
+      tr.addEventListener('dragend',   rowDragEnd);
+      tr.onclick = isEditingGroup ? null : (()=>{
+        selectedGroupId = (selectedGroupId===t.id) ? null : t.id;
+        selectedCatId = null;
+        selectedTaskId = null;
+        toggleGanttGroup(t.id);
+      });
+      const groupLabelHtml = isEditingGroup
+        ? `<input id="groupNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название группы" style="font:inherit;font-size:13px;padding:3px 7px;border:0.5px solid var(--border2);border-radius:5px;background:var(--bg);color:var(--text);width:260px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitGroupName(${t.id}, this.value)">`
+        : `<span class="group-row-label" ondblclick="event.stopPropagation();startEditGroup(${t.id})" title="Двойной клик — переименовать группу" style="cursor:text;">${t.name}</span>`;
+      const dateCells = groupDateCellsHtml(t.id);
+      const startTd = dateCells ? `<td class="col-start tight-col" style="font-size:12px;white-space:nowrap;">${dateCells.startHtml}</td>` : `<td class="col-start"></td>`;
+      const durTd   = dateCells ? `<td class="col-dur tight-col" style="font-size:12px;white-space:nowrap;">${dateCells.durHtml}</td>` : `<td class="col-dur"></td>`;
+      const endTd   = dateCells ? `<td class="col-end tight-col" style="font-size:12px;white-space:nowrap;">${dateCells.endHtml}</td>` : `<td class="col-end"></td>`;
+      const rollupCells = isCollapsedG ? groupFactPlanCellsHtml(t.id) : null;
+      const factplanTd = rollupCells
+        ? `<td class="col-factplan" style="text-align:center;font-size:12px;white-space:nowrap;" title="Свод по группе">${rollupCells.factplanHtml}</td>`
+        : `<td class="col-factplan"></td>`;
+      const pctTd = rollupCells
+        ? `<td class="col-pct ${rollupCells.cls}" style="font-size:12px;font-weight:500;">${rollupCells.pctHtml}</td>`
+        : `<td class="col-pct"></td>`;
+      const barCellHtml = isCollapsedG ? groupSummaryBarHtml(t.id) : '<div class="bar-wrap"></div>';
+      tr.innerHTML=`<td class="sticky-col-cat">
+        <span style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
+          <span class="row-drag-handle" title="Перетащить группу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:13px;"></i></span>
+          <i class="ti ti-chevron-${isCollapsedG?'right':'down'}" style="font-size:12px;width:13px;flex-shrink:0;"></i>
+          <i class="ti ${t.icon||'ti-folders'}" style="font-size:15px;"></i>
+          ${groupLabelHtml}
+          ${isEditingGroup?'':`<button class="add-work-btn-inline" onclick="event.stopPropagation();addSection(${t.id})" title="Добавить раздел в эту группу">
+            <i class="ti ti-plus" style="font-size:11px;"></i> Раздел
+          </button>`}
+        </span></td><td class="col-type"></td><td class="col-contractor"></td>${startTd}${durTd}${endTd}<td class="col-volume"></td><td class="col-unit"></td>${factplanTd}${pctTd}<td class="col-plantoday"></td><td class="bar-cell" style="position:relative;">${periodGridLinesHtml()}${barCellHtml}</td>`;
+      body.appendChild(tr);
+      return;
+    }
     if(t.cat){
       const tr = document.createElement('tr');
-      currentCollapsed = !!ganttCollapsed[t.id];
-      currentSectionHidden = !!t.hidden;
+      const myGroupId = sectionGroupOf.get(t.id);
+      const myGroup = myGroupId!==undefined ? groupsMap.get(myGroupId) : null;
+      const groupHiddenNow = !!(myGroup && myGroup.hidden);
+      const groupCollapsedNow = !!(myGroup && groupCollapsed[myGroup.id]);
+      currentCollapsed = !!ganttCollapsed[t.id] || groupCollapsedNow;
+      currentSectionHidden = !!t.hidden || groupHiddenNow;
       collapsedChain = [];
       hiddenChain = [];
+      if(groupHiddenNow || groupCollapsedNow){ return; } // группа выключена/свёрнута — раздел прячем целиком
       if(currentSectionHidden){ return; } // раздел выключен из отображения в настройках графика
       if(filtersActive && !sectionsWithVisible.has(t.id)){ return; } // все задачи раздела скрыты фильтром
-      tr.className='cat-row'+(selectedCatId===t.id?' selected':'');
+      tr.className='cat-row'+(selectedCatId===t.id?' selected':'')+(myGroupId!==undefined?' in-group':'');
       tr.dataset.taskId = t.id;
       const isEditingCat = editingCatId===t.id;
       tr.style.cursor='pointer';
       tr.draggable = false;
-      tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,true));
-      tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,true));
+      tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,'cat'));
+      tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,'cat'));
       tr.addEventListener('dragleave', rowDragLeave);
-      tr.addEventListener('drop',      e=>rowDrop(e,t.id,true));
+      tr.addEventListener('drop',      e=>rowDrop(e,t.id,'cat'));
       tr.addEventListener('dragend',   rowDragEnd);
       tr.onclick = isEditingCat ? null : (()=>{
         selectedCatId = (selectedCatId===t.id) ? null : t.id;
@@ -2863,7 +3007,7 @@ function renderGantt(){
     }
 
     const next = tasks[idx+1];
-    const showCollapseToggle = !!(next && !next.cat && (next.level||0) > level);
+    const showCollapseToggle = !!(next && !next.cat && !next.group && (next.level||0) > level);
     const isCollapsedNow = showCollapseToggle && !!workCollapsed[t.id];
     collapsedChain[level] = isCollapsedNow;
     hiddenChain[level] = !!t.hidden;
@@ -2890,7 +3034,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
   const tr = document.createElement('tr');
   const level = t.level||0;
   const next = tasks[idx+1];
-  const showCollapseToggle = !!(next && !next.cat && (next.level||0) > level);
+  const showCollapseToggle = !!(next && !next.cat && !next.group && (next.level||0) > level);
   const isCollapsedNow = showCollapseToggle && !!workCollapsed[t.id];
   // у работы есть вложенные работы (её понизили в неё другие работы) — она становится
   // подразделом: свои объём/ед.изм/план-факт теряют смысл, вместо них показываем свод
@@ -2911,10 +3055,10 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
       selectTask(t.id);
     };
     tr.draggable = false;
-    tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,false));
-    tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,false));
+    tr.addEventListener('dragstart', e=>rowDragStart(e,t.id,'task'));
+    tr.addEventListener('dragover',  e=>rowDragOver(e,t.id,'task'));
     tr.addEventListener('dragleave', rowDragLeave);
-    tr.addEventListener('drop',      e=>rowDrop(e,t.id,false));
+    tr.addEventListener('drop',      e=>rowDrop(e,t.id,'task'));
     tr.addEventListener('dragend',   rowDragEnd);
     const indentPx = level*18;
     const collapseToggleHtml = showCollapseToggle
@@ -3113,21 +3257,24 @@ function applyStickyColumnOffsets(){
 
 // ── выбор строки и управление уровнем вложенности (вид работ ↔ подвид работ) ───
 // ─── row drag-and-drop ──────────────────────────────────────────────────────
+// _dragSrcKind: 'group' | 'cat' | 'task'
 let _dragSrcId = null;
-let _dragSrcIsCat = false;
+let _dragSrcKind = null;
 
-function rowDragStart(e, id, isCat){
+function rowDragStart(e, id, kind){
   if(noStructureEdit()){ e.preventDefault(); return; }
   _dragSrcId = id;
-  _dragSrcIsCat = isCat;
+  _dragSrcKind = kind;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(id));
   setTimeout(()=>{ const tr=e.currentTarget; if(tr) tr.classList.add('row-dragging'); }, 0);
 }
 
-function rowDragOver(e, id, isCat){
+function rowDragOver(e, id, kind){
   if(_dragSrcId===null || _dragSrcId===id) return;
-  if(_dragSrcIsCat && !isCat) return; // секция — только на другую секцию
+  if(_dragSrcKind==='group' && kind==='task') return; // группу можно бросить на раздел (встанет рядом с ним) или на другую группу, но не прямо на работу
+  if(_dragSrcKind==='cat' && kind==='task') return; // раздел — на раздел или на группу (стать первым в ней)
+  if(_dragSrcKind==='task' && kind==='group') return; // работу нельзя бросить прямо на группу
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
   const tr = e.currentTarget;
@@ -3142,42 +3289,134 @@ function rowDragLeave(e){
 
 function rowDragEnd(){
   _dragSrcId = null;
-  _dragSrcIsCat = false;
+  _dragSrcKind = null;
   document.querySelectorAll('.row-dragging,.drag-over-top,.drag-over-bottom')
     .forEach(el=>el.classList.remove('row-dragging','drag-over-top','drag-over-bottom'));
-  document.querySelectorAll('tr.cat-row,tr.task-row').forEach(tr=>tr.draggable=false);
+  document.querySelectorAll('tr.cat-row,tr.task-row,tr.group-row').forEach(tr=>tr.draggable=false);
 }
 
-function rowDrop(e, targetId, targetIsCat){
+function rowDrop(e, targetId, targetKind){
   e.preventDefault();
   const srcId = _dragSrcId;
-  const srcIsCat = _dragSrcIsCat;
+  const srcKind = _dragSrcKind;
   const tr = e.currentTarget;
   const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height/2;
   const pos = e.clientY < mid ? 'before' : 'after';
   rowDragEnd();
   if(!srcId || srcId===targetId) return;
-  if(srcIsCat && !targetIsCat) return;
-  if(srcIsCat) moveSectionBlock(srcId, targetId, pos);
-  else moveTaskBlock(srcId, targetId, targetIsCat, pos);
+  if(srcKind==='group'){
+    if(targetKind==='task') return;
+    if(targetKind==='group') moveGroupBlock(srcId, targetId, pos);
+    else moveGroupBlockNearSection(srcId, targetId, pos); // targetKind==='cat' — раздел вне или внутри другой группы
+  } else if(srcKind==='cat'){
+    if(targetKind==='task') return;
+    if(targetKind==='group') moveSectionIntoGroup(srcId, targetId);
+    else moveSectionBlock(srcId, targetId, pos);
+  } else {
+    if(targetKind==='group') return;
+    moveTaskBlock(srcId, targetId, targetKind==='cat', pos);
+  }
   renderGantt();
   saveState();
+}
+
+// группа, которой принадлежала бы позиция idx массива tasks, если бы туда сейчас вставили
+// раздел — смотрим на ближайший предыдущий маркер раздела/группы (см. sectionGroupOf в renderGantt)
+function groupContextAt(idx){
+  let i = idx-1;
+  while(i>=0 && !tasks[i].cat && !tasks[i].group) i--;
+  if(i<0) return null;
+  if(tasks[i].group) return tasks[i].id;
+  return tasks[i].groupId || null;
 }
 
 function moveSectionBlock(srcId, targetId, pos){
   const srcIdx = tasks.findIndex(t=>t.id===srcId && t.cat);
   if(srcIdx===-1) return;
   let srcEnd = tasks.length;
-  for(let i=srcIdx+1;i<tasks.length;i++){ if(tasks[i].cat){srcEnd=i;break;} }
+  for(let i=srcIdx+1;i<tasks.length;i++){ if(tasks[i].cat || tasks[i].group){srcEnd=i;break;} }
   const block = tasks.splice(srcIdx, srcEnd-srcIdx);
   const tgtIdx = tasks.findIndex(t=>t.id===targetId && t.cat);
-  if(tgtIdx===-1){ tasks.push(...block); return; }
+  if(tgtIdx===-1){
+    const gid = groupContextAt(tasks.length);
+    if(gid) block[0].groupId = gid; else delete block[0].groupId;
+    tasks.push(...block);
+    return;
+  }
   let insertIdx;
   if(pos==='before'){
     insertIdx = tgtIdx;
   } else {
     insertIdx = tasks.length;
-    for(let i=tgtIdx+1;i<tasks.length;i++){ if(tasks[i].cat){insertIdx=i;break;} }
+    for(let i=tgtIdx+1;i<tasks.length;i++){ if(tasks[i].cat || tasks[i].group){insertIdx=i;break;} }
+  }
+  const gid = groupContextAt(insertIdx);
+  if(gid) block[0].groupId = gid; else delete block[0].groupId;
+  tasks.splice(insertIdx, 0, ...block);
+}
+
+// перенос раздела внутрь группы как первого её члена (перетаскивание раздела прямо на
+// строку группы — например, чтобы добавить раздел в только что созданную пустую группу)
+function moveSectionIntoGroup(srcId, groupId){
+  const srcIdx = tasks.findIndex(t=>t.id===srcId && t.cat);
+  if(srcIdx===-1) return;
+  let srcEnd = tasks.length;
+  for(let i=srcIdx+1;i<tasks.length;i++){ if(tasks[i].cat || tasks[i].group){srcEnd=i;break;} }
+  const block = tasks.splice(srcIdx, srcEnd-srcIdx);
+  const gIdx = tasks.findIndex(t=>t.id===groupId && t.group);
+  if(gIdx===-1){ tasks.push(...block); return; }
+  block[0].groupId = groupId;
+  tasks.splice(gIdx+1, 0, ...block);
+}
+
+// конец блока группы: маркер + все её разделы (смежные, с совпадающим groupId) с их работами
+function groupBlockEnd(startIdx){
+  const groupId = tasks[startIdx].id;
+  let i = startIdx+1;
+  while(i<tasks.length && tasks[i].cat && tasks[i].groupId===groupId){
+    i++;
+    while(i<tasks.length && !tasks[i].cat && !tasks[i].group) i++;
+  }
+  return i;
+}
+
+function moveGroupBlock(srcId, targetId, pos){
+  const srcIdx = tasks.findIndex(t=>t.id===srcId && t.group);
+  if(srcIdx===-1) return;
+  const srcEnd = groupBlockEnd(srcIdx);
+  const block = tasks.splice(srcIdx, srcEnd-srcIdx);
+  const tgtIdx = tasks.findIndex(t=>t.id===targetId && t.group);
+  if(tgtIdx===-1){ tasks.push(...block); return; }
+  const insertIdx = pos==='before' ? tgtIdx : groupBlockEnd(tgtIdx);
+  tasks.splice(insertIdx, 0, ...block);
+}
+
+// перенос группы целиком к произвольному разделу (например, чтобы поднять группу выше
+// раздела, который ни в какую группу не входит — иначе группу было бы некуда перетащить,
+// кроме как на другую группу). Если targetCatId сам входит в другую группу — привязываемся
+// к границе ЭТОЙ группы целиком (перед её началом/после её конца), а не к раздельной строке
+// внутри нeё, чтобы не разрезать чужую группу пополам.
+function moveGroupBlockNearSection(srcId, targetCatId, pos){
+  const srcIdx = tasks.findIndex(t=>t.id===srcId && t.group);
+  if(srcIdx===-1) return;
+  const srcEnd = groupBlockEnd(srcIdx);
+  const block = tasks.splice(srcIdx, srcEnd-srcIdx);
+  let tgtIdx = tasks.findIndex(t=>t.id===targetCatId && t.cat);
+  if(tgtIdx===-1){ tasks.push(...block); return; }
+  const owner = tasks[tgtIdx].groupId;
+  if(owner){
+    const gIdx = tasks.findIndex(t=>t.id===owner && t.group);
+    if(gIdx!==-1 && groupMemberSectionIds(owner).includes(targetCatId)){
+      tasks.splice(pos==='before' ? gIdx : groupBlockEnd(gIdx), 0, ...block);
+      return;
+    }
+  }
+  let insertIdx;
+  if(pos==='before'){
+    insertIdx = tgtIdx;
+  } else {
+    insertIdx = tgtIdx+1;
+    while(insertIdx<tasks.length && !tasks[insertIdx].cat && !tasks[insertIdx].group) insertIdx++;
   }
   tasks.splice(insertIdx, 0, ...block);
 }
@@ -3187,7 +3426,7 @@ function moveTaskBlock(srcId, targetId, targetIsCat, pos){
   if(srcIdx===-1) return;
   const srcLevel = tasks[srcIdx].level||0;
   let srcEnd = srcIdx+1;
-  while(srcEnd<tasks.length && !tasks[srcEnd].cat && (tasks[srcEnd].level||0)>srcLevel) srcEnd++;
+  while(srcEnd<tasks.length && !tasks[srcEnd].cat && !tasks[srcEnd].group && (tasks[srcEnd].level||0)>srcLevel) srcEnd++;
   const block = tasks.splice(srcIdx, srcEnd-srcIdx);
   const tgtIdx = tasks.findIndex(t=>t.id===targetId);
   if(tgtIdx===-1){ tasks.push(...block); return; }
@@ -3199,13 +3438,14 @@ function moveTaskBlock(srcId, targetId, targetIsCat, pos){
   } else {
     const tgtLevel = tasks[tgtIdx].level||0;
     insertIdx = tgtIdx+1;
-    while(insertIdx<tasks.length && !tasks[insertIdx].cat && (tasks[insertIdx].level||0)>tgtLevel) insertIdx++;
+    while(insertIdx<tasks.length && !tasks[insertIdx].cat && !tasks[insertIdx].group && (tasks[insertIdx].level||0)>tgtLevel) insertIdx++;
   }
   tasks.splice(insertIdx, 0, ...block);
 }
 
 let selectedTaskId = null;
 let selectedCatId = null; // выбранный раздел — только для показа кнопки «+ Работы» без наведения
+let selectedGroupId = null; // выбранная группа — только для показа кнопки «+ Раздел» без наведения
 
 function selectTask(id){
   selectedTaskId = (selectedTaskId===id) ? null : id;
@@ -3266,7 +3506,7 @@ function getChildIds(taskId){
   const ids = [];
   for(let i=idx+1;i<tasks.length;i++){
     const n = tasks[i];
-    if(n.cat || (n.level||0)<=baseLevel) break;
+    if(n.cat || n.group || (n.level||0)<=baseLevel) break;
     ids.push(n.id);
   }
   return ids;
@@ -3610,10 +3850,10 @@ function showAddTask(catId){
     if(catIdx===-1){
       tasks.push(newTask);
     } else {
-      // находим конец раздела — следующий раздел (cat) или конец списка
+      // находим конец раздела — следующий раздел (cat), группа (group) или конец списка
       let sectionEnd = tasks.length;
       for(let i=catIdx+1;i<tasks.length;i++){
-        if(tasks[i].cat){ sectionEnd=i; break; }
+        if(tasks[i].cat || tasks[i].group){ sectionEnd=i; break; }
       }
       // если в этом разделе выделена строка — вставляем сразу после неё
       const selIdx = selectedTaskId!==null
@@ -4064,8 +4304,11 @@ function saveLinkEdit(){
 // ─── add section ────────────────────────────────────────────────────────────
 let editingCatId = null;
 
-function addSection(){
+// groupId передаётся, когда раздел добавляют кнопкой «+ Раздел» прямо на строке группы —
+// тогда новый раздел сразу попадёт в эту группу (см. asConfirmNew/asConfirmCopy)
+function addSection(groupId){
   if(noStructureEdit()) return;
+  _asTargetGroupId = (groupId!==undefined && groupId!==null) ? groupId : null;
   // открываем диалог выбора типа раздела
   const overlay = document.getElementById('addSectionOverlay');
   overlay.classList.add('open');
@@ -4073,6 +4316,7 @@ function addSection(){
 }
 
 let _asCopySourceId = null;
+let _asTargetGroupId = null;
 
 function asReset(){
   _asCopySourceId = null;
@@ -4087,6 +4331,7 @@ function asReset(){
 
 function closeAddSection(){
   document.getElementById('addSectionOverlay').classList.remove('open');
+  _asTargetGroupId = null;
   asReset();
 }
 
@@ -4107,7 +4352,7 @@ function asChooseMode(mode){
            onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
         <i class="ti ${c.icon||'ti-folder'}" style="color:#185FA5;font-size:14px;"></i>
         <span>${escapeHtml(c.name)}</span>
-        <span style="margin-left:auto;font-size:11px;color:var(--text3);">${tasks.filter(t=>!t.cat && tasks.indexOf(t) > tasks.indexOf(c) && (tasks.findIndex((x,i)=>x.cat && i>tasks.indexOf(c)) === -1 || tasks.indexOf(t) < tasks.findIndex((x,i)=>x.cat && i>tasks.indexOf(c)))).length} работ</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text3);">${tasks.filter(t=>!t.cat && !t.group && tasks.indexOf(t) > tasks.indexOf(c) && (tasks.findIndex((x,i)=>(x.cat||x.group) && i>tasks.indexOf(c)) === -1 || tasks.indexOf(t) < tasks.findIndex((x,i)=>(x.cat||x.group) && i>tasks.indexOf(c)))).length} работ</span>
       </div>`).join('');
     document.getElementById('asSectionStep2copy').style.display = '';
     // на шаге выбора раздела кнопка "Создать" скрыта
@@ -4150,6 +4395,7 @@ function asConfirmNew(){
   if(!name) return;
   const newId = Math.max(0,...tasks.map(t=>t.id))+1;
   tasks.push({ id:newId, cat:true, name, icon:'ti-folder' });
+  if(_asTargetGroupId) moveSectionIntoGroup(newId, _asTargetGroupId);
   closeAddSection();
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
@@ -4164,16 +4410,18 @@ function asConfirmCopy(){
   // находим все работы раздела-источника
   let sectionEnd = tasks.length;
   for(let i=srcCatIdx+1;i<tasks.length;i++){
-    if(tasks[i].cat){ sectionEnd=i; break; }
+    if(tasks[i].cat || tasks[i].group){ sectionEnd=i; break; }
   }
   const srcCat = tasks[srcCatIdx];
   const srcWorks = tasks.slice(srcCatIdx+1, sectionEnd);
   // генерируем новые id
   let nextId = Math.max(0,...tasks.map(t=>t.id))+1;
   const newCat = { ...srcCat, id:nextId++, name };
+  delete newCat.groupId; // копия начинает вне группы, если не указано иное ниже
   const newWorks = srcWorks.map(w=>({ ...w, id:nextId++, factPct:0, factVol:0,
     planOverrides:{}, dayOverrides:{} }));
   tasks.push(newCat, ...newWorks);
+  if(_asTargetGroupId) moveSectionIntoGroup(newCat.id, _asTargetGroupId);
   closeAddSection();
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
@@ -4208,6 +4456,66 @@ function commitCatName(id, value){
   }
   renderGantt();
   if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+}
+
+// ─── add / rename / delete group (группа разделов) ──────────────────────────
+let editingGroupId = null;
+
+function addGroup(){
+  if(noStructureEdit()) return;
+  const newId = Math.max(0,...tasks.map(t=>t.id))+1;
+  tasks.push({ id:newId, group:true, name:'', icon:'ti-folders' });
+  editingGroupId = newId;
+  renderGantt();
+  const input = document.getElementById('groupNameInput-'+newId);
+  if(input){ input.focus(); }
+}
+
+function startEditGroup(id){
+  if(noStructureEdit()) return;
+  editingGroupId = id;
+  renderGantt();
+  const input = document.getElementById('groupNameInput-'+id);
+  if(input){ input.focus(); input.select(); }
+}
+
+function commitGroupName(id, value){
+  const t = tasks.find(x=>x.id===id && x.group);
+  if(!t) return;
+  const name = (value||'').trim();
+  editingGroupId = null;
+  if(!name){
+    // пустое название — удаляем саму группу-обёртку; разделы внутри остаются на графике,
+    // просто перестают быть частью группы (как и раздел с пустым именем не удаляет свои работы)
+    ungroupAllIn(id);
+    tasks = tasks.filter(x=>x.id!==id);
+  } else {
+    t.name = name;
+  }
+  renderGantt();
+  if(typeof renderProjectsList==='function') renderProjectsList();
+  saveState();
+}
+
+// снимает groupId со всех разделов, физически принадлежащих группе — сама группа при этом не трогается
+function ungroupAllIn(groupId){
+  groupMemberSectionIds(groupId).forEach(id=>{
+    const s = tasks.find(x=>x.id===id);
+    if(s) delete s.groupId;
+  });
+}
+
+function deleteGroupConfirm(id){
+  if(!confirm('Удалить группу? Разделы внутри неё останутся на графике — просто перестанут быть частью группы.')) return;
+  deleteGroup(id);
+}
+
+function deleteGroup(id){
+  ungroupAllIn(id);
+  tasks = tasks.filter(x=>x.id!==id);
+  renderGSSections();
+  renderGantt();
   saveState();
 }
 
@@ -5877,9 +6185,24 @@ function renderGSSections(){
   const el = document.getElementById('gsSections');
   if(!p){ el.innerHTML=''; return; }
   let html = '';
+  let curGroupId = null; // та же проверка смежности, что и при отрисовке диаграммы (renderGantt)
   p.tasks.forEach((t,idx)=>{
+    if(t.group){
+      curGroupId = t.id;
+      html += `<div class="tree-section-row" style="background:var(--bg-info);">
+        <i class="ti ${t.icon||'ti-folders'}" style="font-size:14px;color:#6C3FC5;flex-shrink:0;"></i>
+        <button onclick="toggleTaskHidden(${t.id})" title="${t.hidden?'Показать группу':'Скрыть группу'}" style="border:none;background:none;cursor:pointer;color:${t.hidden?'var(--text3)':'#6C3FC5'};display:flex;align-items:center;flex-shrink:0;">
+          <i class="ti ti-eye${t.hidden?'-off':''}" style="font-size:15px;"></i>
+        </button>
+        <span style="flex:1;font-weight:600;${t.hidden?'color:var(--text3);text-decoration:line-through;':''}">${t.name}</span>
+        <button onclick="deleteGroupConfirm(${t.id})" title="Удалить группу" style="border:none;background:none;cursor:pointer;color:var(--text3);flex-shrink:0;"><i class="ti ti-trash" style="font-size:14px;"></i></button>
+      </div>`;
+      return;
+    }
     if(t.cat){
-      html += `<div class="tree-section-row">
+      const inGroup = curGroupId!==null && t.groupId===curGroupId;
+      if(!inGroup) curGroupId = null;
+      html += `<div class="tree-section-row" style="${inGroup?'padding-left:32px;':''}">
         <button onclick="toggleTaskHidden(${t.id})" title="${t.hidden?'Показать раздел':'Скрыть раздел'}" style="border:none;background:none;cursor:pointer;color:${t.hidden?'var(--text3)':'#185FA5'};display:flex;align-items:center;flex-shrink:0;">
           <i class="ti ti-eye${t.hidden?'-off':''}" style="font-size:15px;"></i>
         </button>
@@ -5890,8 +6213,8 @@ function renderGSSections(){
     }
     const next = p.tasks[idx+1];
     const level = t.level||0;
-    const hasChildren = !!(next && !next.cat && (next.level||0) > level);
-    if(!hasChildren) return; // в списке показываем только разделы и подразделы (группы), не отдельные работы
+    const hasChildren = !!(next && !next.cat && !next.group && (next.level||0) > level);
+    if(!hasChildren) return; // в списке показываем только разделы и подразделы (группы работ), не отдельные работы
     html += `<div class="tree-work-row" style="padding-left:${20+level*16}px;">
       <button onclick="toggleTaskHidden(${t.id})" title="${t.hidden?'Показать подраздел':'Скрыть подраздел'}" style="border:none;background:none;cursor:pointer;color:${t.hidden?'var(--text3)':'#185FA5'};display:flex;align-items:center;flex-shrink:0;">
         <i class="ti ti-eye${t.hidden?'-off':''}" style="font-size:14px;"></i>
@@ -5920,7 +6243,7 @@ function deleteSection(id){
   const idx = tasks.findIndex(t=>t.cat && t.id===id);
   if(idx===-1) return;
   let end = idx+1;
-  while(end<tasks.length && !tasks[end].cat) end++;
+  while(end<tasks.length && !tasks[end].cat && !tasks[end].group) end++;
   const removedIds = new Set(tasks.slice(idx, end).map(t=>t.id));
   tasks.splice(idx, end-idx);
   links = links.filter(l=>!removedIds.has(l.from) && !removedIds.has(l.to));
@@ -6322,7 +6645,7 @@ function worksUnderSection(sectionId){
   const arr = tasks||[]; const res = [];
   const idx = arr.findIndex(t=>t.cat && t.id===sectionId);
   if(idx===-1) return res;
-  for(let i=idx+1;i<arr.length;i++){ if(arr[i].cat) break; res.push(arr[i].id); }
+  for(let i=idx+1;i<arr.length;i++){ if(arr[i].cat || arr[i].group) break; res.push(arr[i].id); }
   return res;
 }
 
@@ -6331,9 +6654,11 @@ function waToggle(id){ _waExpanded[id] = !_waExpanded[id]; drawWA(); }
 function drawWA(){
   const el = document.getElementById('waTree');
   if(!el) return;
-  // группируем плоский список: раздел (cat) -> его работы
+  // группируем плоский список: раздел (cat) -> его работы (маркеры групп разделов на это дерево
+  // назначений подрядчиков не влияют — назначение всё так же идёт по разделу или по работе)
   const groups = []; let cur = null; const orphan = [];
   (tasks||[]).forEach(t=>{
+    if(t.group){ cur = null; return; }
     if(t.cat){ cur = { sec:t, works:[] }; groups.push(cur); }
     else if(cur){ cur.works.push(t); }
     else { orphan.push(t); }
