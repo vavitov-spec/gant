@@ -2228,7 +2228,7 @@ function editEarlyFactPeriod(taskId, periodKey, currentVol, el){
 // периоды ПОСЛЕ планового конца работы, которые нужно показать как «факт после графика»
 function postEndPeriods(t){
   if(ganttScale==='month') return [];
-  if((t.volume||0)<=0 || (t.factVol||0) >= t.volume) return [];
+  if((t.volume||0)<=0) return [];
   const endIdx = dayIndexOfDate(taskEndDate(t)) + 1;
   const today = new Date(); today.setHours(0,0,0,0);
   const todayIdx = dayIndexOfDate(today);
@@ -2238,6 +2238,10 @@ function postEndPeriods(t){
 
   const dayOv = (t.factOverrides && t.factOverrides['day']) || {};
   const enteredIdxs = Object.keys(dayOv).map(k=>parseInt(k.slice(1))).filter(idx=>!isNaN(idx) && idx>=endIdx);
+  // объём набран (факт >= плана) и после планового конца ничего не вносилось —
+  // показывать нечего и предлагать ввод незачем (не должно уходить в минус, если
+  // задача уже полностью выполнена в срок и никогда не было просрочки по факту)
+  if((t.factVol||0) >= t.volume && !enteredIdxs.length) return [];
 
   const keySet = new Set();
   if(!enteredIdxs.length){
