@@ -141,7 +141,7 @@ html[data-theme="light"] body{background:#f0f2f5;}
 .btn:hover{background:var(--bg2);}
 .btn-primary{background:#185FA5;color:#fff;border-color:#185FA5;}
 .btn-primary:hover{background:#0C447C;}
-.tabs{flex-shrink:0;display:flex;border-bottom:0.5px solid var(--border);padding:0 16px;position:relative;}
+.tabs{flex-shrink:0;display:flex;align-items:center;min-height:33px;border-bottom:0.5px solid var(--border);padding:0 16px;position:relative;}
 .tab{padding:7px 14px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-0.5px;display:flex;align-items:center;gap:5px;}
 .tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:500;}
 .tab:hover:not(.active){color:var(--text);}
@@ -587,21 +587,21 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   <div class="header">
     <div class="header-left">
       <span class="print-vector-logo"><img src="data:image/png;base64,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" alt="Vector" style="height:20px;width:20px;object-fit:contain;"><span style="font-size:14px;font-weight:700;color:#185FA5;">Vector</span></span>
-      <div class="logo"><i class="ti ti-building-skyscraper"></i></div>
-      <span class="app-title">График производства работ:</span>
-      <span class="badge" id="projBadge" style="font-size:14px;font-weight:600;">Новый график</span>
-      <button class="th-mini-btn th-edit-btn no-print" onclick="openGraphSettings()" title="Настройка графика" style="margin-left:-4px;">
+      <button class="th-mini-btn th-edit-btn no-print" onclick="openGraphSettings()" title="Настройка графика">
         <i class="ti ti-settings" style="font-size:12px;"></i>
       </button>
+      <span class="badge" id="projBadge" style="font-size:14px;font-weight:600;display:none;">Новый график</span>
+      <div class="header-tabs no-print" style="display:flex;border-bottom:none;padding:0;">
+        <div class="tab active" onclick="switchTab('gantt',this)"><i class="ti ti-layout-list"></i> График</div>
+        <div class="tab" onclick="switchTab('ai',this)"><i class="ti ti-chart-bar"></i> Анализ отклонений</div>
+        <div class="tab" onclick="switchTab('journal',this)"><i class="ti ti-history"></i> Журнал</div>
+      </div>
     </div>
     <div class="stats-row" id="statsRow"></div>
   </div>
 
   <div class="tabs no-print">
-    <div class="tab active" onclick="switchTab('gantt',this)"><i class="ti ti-layout-list"></i> График</div>
-    <div class="tab" onclick="switchTab('ai',this)"><i class="ti ti-chart-bar"></i> Анализ отклонений</div>
-    <div class="tab" onclick="switchTab('journal',this)"><i class="ti ti-history"></i> Журнал</div>
-    <div id="ganttControls" class="no-print" style="display:flex;align-items:center;gap:10px;z-index:2;">
+    <div id="ganttControls" class="no-print" style="display:flex;align-items:center;gap:10px;z-index:2;margin-left:auto;">
       <div class="scale-switch" id="ganttScaleSwitch" style="display:flex;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;background:var(--bg);">
         <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
         <button class="scale-switch-btn" data-scale="week" onclick="setGanttScale('week')">Неделя</button>
@@ -3046,6 +3046,7 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
   const rollup = showCollapseToggle ? taskRollup(t.id) : null;
   const dateRollupCells = rollup ? dateCellsHtmlFromRollup(rollup) : null;
   const isDesignType = (t.type||'work')==='design';
+  const typeColor = taskTypeInfo(t.type).color;
     const dm = durMonthUnits(t);
     const m = barMetrics(t);
     // isLate убран — просроченность видна по красным цифрам факта на полосе
@@ -3093,14 +3094,14 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
       : `<span ondblclick="event.stopPropagation();startEditTaskVol(${t.id})" title="Двойной клик — изменить общий объём">${(t.volume||0).toLocaleString('ru')}</span>`;
     const nameHtml = isEditingName
       ? `<input id="taskNameInput-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="Название работы" style="font:inherit;font-size:12px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);width:220px;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.target.blur();}else if(event.key==='Escape'){event.target.value='';event.target.blur();}" onblur="commitTaskName(${t.id}, this.value)">`
-      : `<span class="task-name-label" ondblclick="event.stopPropagation();startEditTaskName(${t.id})" title="Двойной клик — переименовать работу" style="cursor:text;${isDesignType?`color:${DESIGN_TEXT};`:''}">${escapeHtml(t.name)}</span>`;
+      : `<span class="task-name-label" ondblclick="event.stopPropagation();startEditTaskName(${t.id})" title="Двойной клик — переименовать работу" style="cursor:text;${typeColor?`color:${typeColor};`:''}">${escapeHtml(t.name)}</span>`;
     const deleteBtnHtml = (isSelected && !isEditingName)
       ? `<button class="task-del-btn" onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Удалить работу" style="border:none;background:none;cursor:pointer;color:var(--text3);width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;"><i class="ti ti-x" style="font-size:12px;"></i></button>`
       : '';
     const numHtml = numLabel ? `<span class="row-num" style="color:var(--text3);flex-shrink:0;">${numLabel}</span>` : '';
     tr.innerHTML=`
       <td><div class="task-indent-wrap" style="display:flex;align-items:flex-start;gap:3px;white-space:nowrap;padding-left:${indentPx}px;"><span class="row-drag-handle" title="Перетащить работу" onmousedown="this.closest('tr').draggable=true" onmouseup="this.closest('tr').draggable=false"><i class="ti ti-grip-vertical" style="font-size:12px;"></i></span>${collapseToggleHtml}${level>0?'<span class="task-indent">∟</span>':''}${numHtml}${nameHtml}${deleteBtnHtml}</div></td>
-      <td class="col-type" style="font-size:12px;color:${isDesignType?DESIGN_TEXT:'var(--text3)'};">${isEditingType
+      <td class="col-type" style="font-size:12px;color:${typeColor||'var(--text3)'};">${isEditingType
         ? `<select id="taskTypeSelect-${t.id}" onclick="event.stopPropagation();" onchange="commitTaskType(${t.id},this.value)" onblur="if(editingTypeTaskId===${t.id}){editingTypeTaskId=null;renderGantt();}" style="font:inherit;font-size:12px;padding:2px 3px;border:0.5px solid var(--border2);border-radius:var(--rad);background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;">${TASK_TYPES.map(ty=>`<option value="${ty.value}"${(t.type||'work')===ty.value?' selected':''}>${ty.label}</option>`).join('')}</select>`
         : `<span ondblclick="event.stopPropagation();startEditTaskType(${t.id})" title="Двойной клик — изменить тип (${taskTypeInfo(t.type).label})" style="cursor:default;">${taskTypeInfo(t.type).short}</span>`
       }</td>
@@ -4559,8 +4560,8 @@ function switchTab(name,el){
   if(name==='ai') renderAnalysis();
   if(name==='journal') renderJournal();
   if(name==='gantt') scrollGanttToToday();
-  const toggle = document.getElementById('ganttViewToggle');
-  if(toggle) toggle.style.display = name==='gantt' ? '' : 'none';
+  const controls = document.getElementById('ganttControls');
+  if(controls) controls.style.display = name==='gantt' ? 'flex' : 'none';
 }
 
 // ─── настройки печати (формат листа/ориентация/диапазон) ────────────────────────────────
@@ -5000,7 +5001,7 @@ function setCloudStatus(s){
 function buildPayload(){
   saveActiveProjectState(); // подтягиваем актуальные tasks/total/current активного проекта
   return {
-    projects, activeProjectId, graphTypes, activeGraphTypeId, unitsList,
+    projects, activeProjectId, graphTypes, activeGraphTypeId, unitsList, taskTypes: TASK_TYPES,
     updatedAt: Date.now() // метка времени: по ней выбираем более свежую версию (локальную или облачную)
   };
 }
@@ -5315,6 +5316,7 @@ function applyPayload(data){
     activeGraphTypeId = 1;
   }
   if(Array.isArray(data.unitsList) && data.unitsList.length) unitsList = data.unitsList;
+  if(Array.isArray(data.taskTypes) && data.taskTypes.length) TASK_TYPES = data.taskTypes;
   _changeLogBaseline = snapshotForLog((data.projects||[])[0]);
   return true;
 }
@@ -5841,16 +5843,81 @@ function activeGraphType(){ return graphTypes.find(g=>g.id===activeGraphTypeId) 
 
 let unitsList = ['%', 'м²', 'м³', 'м.п.', 'шт.'];
 // типы строк графика: значение — что хранится в t.type, short — как показываем в свёрнутом виде на полосе
-const TASK_TYPES = [
-  {value:'design',    label:'ПИР',      short:'ПИР'},
+let TASK_TYPES = [
+  {value:'design',    label:'ПИР',      short:'ПИР',    color:'#D4B94A'},
   {value:'work',      label:'СМР',      short:'СМР'},
   {value:'materials', label:'Поставка', short:'Пост.'}
 ];
 function taskTypeInfo(val){ return TASK_TYPES.find(x=>x.value===(val||'work')) || TASK_TYPES[0]; }
-// работы типа ПИР («design») визуально выделяются лёгким жёлтым оттенком — текст названия
-// и фон полосы на диаграмме (сама заливка факта/плана поверх остаётся прежней)
-const DESIGN_TEXT    = '#D4B94A';
+// работы типа ПИР («design») дополнительно выделяются фоном полосы на диаграмме
+// (сама заливка факта/плана поверх остаётся прежней); цвет текста — из TASK_TYPES.color
 const DESIGN_BAR_BG  = 'linear-gradient(180deg,#FEF9E7 0%,#F6E9AE 100%)';
+// базовая палитра для выбора цвета типа задачи — вместо системного выбора любого цвета
+const BASIC_COLORS = [
+  {value:'',        label:'Без цвета'},
+  {value:'#E53935', label:'Красный'},
+  {value:'#FB8C00', label:'Оранжевый'},
+  {value:'#D4B94A', label:'Жёлтый'},
+  {value:'#43A047', label:'Зелёный'},
+  {value:'#00ACC1', label:'Бирюзовый'},
+  {value:'#1E88E5', label:'Синий'},
+  {value:'#5E35B1', label:'Фиолетовый'},
+  {value:'#D81B60', label:'Розовый'},
+  {value:'#6D4C41', label:'Коричневый'},
+  {value:'#757575', label:'Серый'},
+  {value:'#212121', label:'Чёрный'}
+];
+// кнопка-квадратик текущего цвета; клик открывает всплывающую квадратную палитру (openColorPopover)
+function colorTriggerHtml(current, onclickAttr){
+  const bg = current || 'repeating-linear-gradient(45deg,#ccc,#ccc 2px,#fff 2px,#fff 4px)';
+  return `<div onclick="event.stopPropagation();${onclickAttr}" title="Выбрать цвет" style="width:18px;height:18px;border-radius:4px;cursor:pointer;flex-shrink:0;box-sizing:border-box;background:${bg};border:1px solid var(--border2);"></div>`;
+}
+
+let _colorPopoverOwnerId = null;
+let _colorPopoverOutsideHandler = null;
+function closeColorPopover(){
+  const existing = document.getElementById('colorPopover');
+  if(existing) existing.remove();
+  if(_colorPopoverOutsideHandler) document.removeEventListener('click', _colorPopoverOutsideHandler);
+  _colorPopoverOutsideHandler = null;
+  _colorPopoverOwnerId = null;
+}
+// всплывающая квадратная палитра базовых цветов рядом с кнопкой-квадратиком;
+// onPick(value) вызывается при выборе конкретного цвета
+function openColorPopover(btn, ownerId, current, onPick){
+  const wasOpenForThis = _colorPopoverOwnerId===ownerId;
+  closeColorPopover();
+  if(wasOpenForThis) return;
+  _colorPopoverOwnerId = ownerId;
+  const dd = document.createElement('div');
+  dd.id = 'colorPopover';
+  dd.className = 'filter-dropdown';
+  dd.style.padding = '8px';
+  dd.style.width = '78px';
+  const r = btn.getBoundingClientRect();
+  dd.style.top = (r.bottom + 4) + 'px';
+  dd.style.left = r.left + 'px';
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;';
+  BASIC_COLORS.forEach(c=>{
+    const active = c.value===(current||'');
+    const sw = document.createElement('div');
+    sw.title = c.label;
+    sw.style.cssText = `width:16px;height:16px;border-radius:4px;cursor:pointer;flex-shrink:0;box-sizing:border-box;background:${c.value || 'repeating-linear-gradient(45deg,#ccc,#ccc 2px,#fff 2px,#fff 4px)'};border:${active?'2px solid #185FA5':'1px solid var(--border2)'};`;
+    sw.onclick = ()=>{ onPick(c.value); closeColorPopover(); };
+    grid.appendChild(sw);
+  });
+  dd.appendChild(grid);
+  document.body.appendChild(dd);
+  _colorPopoverOutsideHandler = function(e){ if(!dd.contains(e.target) && e.target!==btn) closeColorPopover(); };
+  setTimeout(()=>document.addEventListener('click', _colorPopoverOutsideHandler), 0);
+}
+function handleTypeColorClick(btn, i){
+  openColorPopover(btn, 'type-'+i, (TASK_TYPES[i]||{}).color, function(val){ setTaskTypeColor(i, val); });
+}
+function handleNewTypeColorClick(btn){
+  openColorPopover(btn, 'new', _newTaskTypeColor, function(val){ pickNewTaskTypeColor(val); });
+}
 
 // ─── настройки конкретного графика (шестерёнка в шапке таблицы) ─────────────
 const GS_COLUMNS = [
@@ -5899,6 +5966,7 @@ function openGraphSettings(){
   const structural = !noStructureEdit();
   items[0].style.display = structural ? '' : 'none';
   items[3].style.display = structural ? '' : 'none';
+  if(items[4]) items[4].style.display = structural ? '' : 'none';
   // вкладка «Подрядчики» (назначение компаний на работы) — только руководителю проекта
   if(items[2]) items[2].style.display = currentRole==='admin' ? '' : 'none';
   switchGSTab(structural ? 'general' : 'members', structural ? items[0] : items[1]);
@@ -5928,6 +5996,7 @@ function openGraphSettings(){
   }).join('');
 
   renderGSSections();
+  renderTaskTypesList();
   renderProjectMembers();
   renderInvitesList();
   document.getElementById('graphSettingsOverlay').classList.add('open');
@@ -6182,6 +6251,68 @@ function closeGraphSettings(){
 
 function overlayClickGS(e){
   if(e.target===document.getElementById('graphSettingsOverlay')) closeGraphSettings();
+}
+
+function renderTaskTypesList(){
+  const el = document.getElementById('taskTypesList');
+  if(!el) return;
+  document.getElementById('tasktypes-count').textContent = TASK_TYPES.length + ' записей';
+  el.innerHTML = TASK_TYPES.map((t,i)=>`
+    <div class="dir-item">
+      <div class="dir-item-left">
+        <span class="dir-item-num">${i+1}.</span>
+        <span style="font-weight:500;${t.color?`color:${t.color};`:''}">${escapeHtml(t.label)}</span>
+        <span style="color:var(--text3);font-size:11px;">(${escapeHtml(t.short)})</span>
+        ${colorTriggerHtml(t.color, `handleTypeColorClick(this,${i})`)}
+      </div>
+      <div class="dir-item-actions">
+        <button class="dir-btn del" onclick="deleteTaskType(${i})" title="Удалить"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('') || '<div class="dir-empty">Список пуст</div>';
+  renderAddTaskTypeColorSwatches();
+}
+
+let _newTaskTypeColor = '';
+function renderAddTaskTypeColorSwatches(){
+  const el = document.getElementById('taskTypeColorSwatches');
+  if(!el) return;
+  el.innerHTML = colorTriggerHtml(_newTaskTypeColor, 'handleNewTypeColorClick(this)');
+}
+function pickNewTaskTypeColor(color){
+  _newTaskTypeColor = color;
+  renderAddTaskTypeColorSwatches();
+}
+
+function setTaskTypeColor(i,color){
+  if(!TASK_TYPES[i]) return;
+  TASK_TYPES[i].color = color;
+  renderTaskTypesList();
+  renderGantt();
+  saveState();
+}
+
+function addTaskType(){
+  const labelInp = document.getElementById('taskTypeLabelInput');
+  const shortInp = document.getElementById('taskTypeShortInput');
+  const label = labelInp.value.trim();
+  if(!label) return;
+  const short = shortInp.value.trim() || label.slice(0,5);
+  if(TASK_TYPES.some(t=>t.label.toLowerCase()===label.toLowerCase())){ alert('Такой тип задачи уже есть в списке'); return; }
+  TASK_TYPES.push({ value:'type_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), label, short, color: _newTaskTypeColor });
+  labelInp.value=''; shortInp.value=''; _newTaskTypeColor='';
+  renderTaskTypesList();
+  renderGantt();
+  saveState();
+}
+
+function deleteTaskType(i){
+  if(TASK_TYPES.length<=1){ alert('Должен остаться хотя бы один тип задачи.'); return; }
+  const t = TASK_TYPES[i];
+  if(!confirm(`Удалить тип задачи «${t.label}»?`)) return;
+  TASK_TYPES.splice(i,1);
+  renderTaskTypesList();
+  renderGantt();
+  saveState();
 }
 
 function renderGSSections(){
@@ -7568,6 +7699,9 @@ window.addEventListener('resize', ()=>{
         <div class="modal-sidebar-item" onclick="switchGSTab('sections',this)">
           <i class="ti ti-list-tree"></i> Разделы графика
         </div>
+        <div class="modal-sidebar-item" onclick="switchGSTab('tasktypes',this)">
+          <i class="ti ti-tag"></i> Тип задачи
+        </div>
       </nav>
       <div class="modal-content">
 
@@ -7604,6 +7738,24 @@ window.addEventListener('resize', ()=>{
           <div class="np-field">
             <div class="np-label"><i class="ti ti-list-tree"></i> Разделы и подразделы</div>
             <div class="tree-wrap" id="gsSections"></div>
+          </div>
+        </div>
+
+        <div id="gs-tasktypes" class="modal-section">
+          <div class="np-field">
+            <div class="np-label"><i class="ti ti-tag"></i> Типы задач</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Справочник типов задач этого графика — выбирается в строке работы. Можно удалять и добавлять свои.</div>
+            <div class="dir-header">
+              <div class="dir-title">Типы</div>
+              <div class="dir-count" id="tasktypes-count"></div>
+            </div>
+            <div class="dir-list" id="taskTypesList"></div>
+            <div class="dir-add-row">
+              <input type="text" id="taskTypeLabelInput" placeholder="Название, например: Демонтаж" style="flex:2;" onkeydown="if(event.key==='Enter')addTaskType()">
+              <input type="text" id="taskTypeShortInput" placeholder="Сокращение (необязательно)" style="flex:1;" onkeydown="if(event.key==='Enter')addTaskType()">
+              <button class="btn btn-primary" onclick="addTaskType()"><i class="ti ti-plus"></i> Добавить</button>
+            </div>
+            <div id="taskTypeColorSwatches" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>
           </div>
         </div>
 
