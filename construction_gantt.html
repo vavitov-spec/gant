@@ -601,6 +601,13 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   </div>
 
   <div class="tabs no-print">
+    <div id="quickTypeToggles" class="no-print" style="display:flex;align-items:center;gap:12px;"></div>
+    <div id="journalControls" class="no-print" style="display:none;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);" title="Скрыть в журнале записи о корректировке плана графика">
+        <span>План</span>
+        <div class="filter-toggle" id="jftoggle-hidePlan" onclick="toggleJournalHidePlan()"></div>
+      </div>
+    </div>
     <div id="ganttControls" class="no-print" style="display:flex;align-items:center;gap:10px;z-index:2;margin-left:auto;">
       <div class="scale-switch" id="ganttScaleSwitch" style="display:flex;border:0.5px solid var(--border2);border-radius:var(--rad);overflow:hidden;background:var(--bg);">
         <button class="scale-switch-btn" data-scale="day" onclick="setGanttScale('day')">День</button>
@@ -719,7 +726,28 @@ const WEEKDAY_LABEL_TO_GETDAY = [1,2,3,4,5,6,0]; // соответствие п�
 let ganttScale = 'week';
 let factplanMode = 'cur'; // 'cur' — по прошедшим периодам, 'tot' — общий факт/объём
 function setFactplanMode(m){ factplanMode=m; renderGantt(); }
-let ganttFilters = { hideCompleted: false, showOnlyCurrent: false, showOnlyCurrentMonth: false, onlyMyWorks: false, types: { design: true, work: true, materials: true } };
+let ganttFilters = { hideCompleted: false, showOnlyCurrent: false, showOnlyCurrentMonth: false, onlyMyWorks: false, types: {} };
+// видимость типа на диаграмме: отсутствие записи или true — виден; отдельно сохраняем в localStorage
+// только явно скрытые (false) типы, по графику (currentAppStateId), чтобы это переживало перезагрузку страницы
+function isTypeVisible(value){ return ganttFilters.types[value] !== false; }
+function typeVisStorageKey(){ return 'ganttTypeVis_' + currentAppStateId; }
+function loadTypeVisibility(){
+  ganttFilters.types = {};
+  if(currentAppStateId==null) return;
+  try{
+    const raw = localStorage.getItem(typeVisStorageKey());
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    if(Array.isArray(saved)) saved.forEach(v=>{ ganttFilters.types[v] = false; });
+  }catch(e){}
+}
+function saveTypeVisibility(){
+  if(currentAppStateId==null) return;
+  try{
+    const hidden = Object.keys(ganttFilters.types).filter(k=>ganttFilters.types[k]===false);
+    localStorage.setItem(typeVisStorageKey(), JSON.stringify(hidden));
+  }catch(e){}
+}
 function isTaskCurrentWeek(t){
   const today = new Date();
   const mon = new Date(today); mon.setDate(today.getDate()-((today.getDay()||7)-1)); mon.setHours(0,0,0,0);
@@ -755,7 +783,7 @@ function toggleFilterMenu(btn){
     ${currentRole==='contractor' ? `<div class="filter-item" onclick="toggleFilter('onlyMyWorks')"><span style="flex:1;">Только мои работы</span><div class="filter-toggle${ganttFilters.onlyMyWorks?' on':''}" id="ftoggle-onlyMyWorks"></div></div>` : ''}
     <div style="height:1px;background:var(--border);margin:5px 0;"></div>
     <div style="padding:4px 14px 3px;font-size:11px;color:var(--text3);">Тип работ</div>
-    ${TASK_TYPES.map(ty=>`<div class="filter-item" onclick="toggleTypeFilter('${ty.value}')"><span style="flex:1;">${ty.label}</span><div class="filter-toggle${ganttFilters.types[ty.value]?' on':''}" id="ftoggle-type-${ty.value}"></div></div>`).join('')}`;
+    ${TASK_TYPES.map(ty=>`<div class="filter-item" onclick="toggleTypeFilter('${ty.value}')"><span style="flex:1;">${ty.label}</span><div class="filter-toggle${isTypeVisible(ty.value)?' on':''}" id="ftoggle-type-${ty.value}"></div></div>`).join('')}`;
   document.body.appendChild(dd);
 
   // закрываем и по клику вне окна, и само по себе, если увести курсор с окна фильтра
@@ -777,7 +805,7 @@ function toggleFilterMenu(btn){
 }
 function anyGanttFilterActive(){
   return ganttFilters.hideCompleted || ganttFilters.showOnlyCurrent || ganttFilters.showOnlyCurrentMonth
-    || ganttFilters.onlyMyWorks || TASK_TYPES.some(ty=>!ganttFilters.types[ty.value]);
+    || ganttFilters.onlyMyWorks || TASK_TYPES.some(ty=>!isTypeVisible(ty.value));
 }
 function toggleFilter(key){
   ganttFilters[key] = !ganttFilters[key];
@@ -788,12 +816,27 @@ function toggleFilter(key){
   renderGantt();
 }
 function toggleTypeFilter(value){
-  ganttFilters.types[value] = !ganttFilters.types[value];
+  ganttFilters.types[value] = !isTypeVisible(value);
+  saveTypeVisibility();
   const tog = document.getElementById('ftoggle-type-'+value);
-  if(tog) tog.classList.toggle('on', ganttFilters.types[value]);
+  if(tog) tog.classList.toggle('on', isTypeVisible(value));
+  const qtog = document.getElementById('qtoggle-'+value);
+  if(qtog) qtog.classList.toggle('on', isTypeVisible(value));
   const btn = document.getElementById('btnFilter');
   if(btn) btn.classList.toggle('active', anyGanttFilterActive());
   renderGantt();
+}
+// переключатели видимости типов, отмеченных «Показать в быстром меню» (настройки графика → Тип задачи) —
+// та же логика видимости, что и в фильтре (ganttFilters.types), просто вынесена под руку в строку над диаграммой
+function renderQuickTypeToggles(){
+  const el = document.getElementById('quickTypeToggles');
+  if(!el) return;
+  const quick = TASK_TYPES.filter(t=>t.quick);
+  el.innerHTML = quick.map(t=>`
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);" title="Показать/скрыть на диаграмме работы типа «${escapeHtml(t.label)}»">
+      <span>${escapeHtml(t.short)}</span>
+      <div class="filter-toggle${isTypeVisible(t.value)?' on':''}" id="qtoggle-${t.value}" onclick="toggleTypeFilter('${t.value}')"></div>
+    </div>`).join('');
 }
 const SCALE_DAY_PX = { day: 32, week: 12 };
 // цвета «сверхсрочных» периодов (за датой завершения проекта)
@@ -2790,6 +2833,7 @@ let _workNumOf = new Map();
 function renderGantt(){
   invalidatePlanFactCache();
   renderStats();
+  renderQuickTypeToggles();
   recomputeMonthColPx();
   renderGanttMonthHeader();
   document.querySelectorAll('#ganttScaleSwitch .scale-switch-btn').forEach(btn=>{
@@ -2835,7 +2879,7 @@ function renderGantt(){
       const ok1 = !ganttFilters.hideCompleted || t.factPct!==100;
       const ok2 = !ganttFilters.showOnlyCurrent || isTaskCurrentWeek(t) || isTaskOverdueIncomplete(t);
       const ok3 = !ganttFilters.showOnlyCurrentMonth || isTaskCurrentMonth(t) || isTaskOverdueIncomplete(t);
-      const ok4 = !!ganttFilters.types[t.type||'work'];
+      const ok4 = isTypeVisible(t.type||'work');
       const ok5 = !ganttFilters.onlyMyWorks || currentRole!=='contractor' || isMyAssignedWork(t);
       if(ok1&&ok2&&ok3&&ok4&&ok5){
         sectionsWithVisible.add(catId);
@@ -3019,7 +3063,7 @@ function renderGantt(){
     if(ganttFilters.hideCompleted && t.factPct===100){ return; }
     if(ganttFilters.showOnlyCurrent && !isTaskCurrentWeek(t) && !isTaskOverdueIncomplete(t)){ return; }
     if(ganttFilters.showOnlyCurrentMonth && !isTaskCurrentMonth(t) && !isTaskOverdueIncomplete(t)){ return; }
-    if(!ganttFilters.types[t.type||'work']){ return; }
+    if(!isTypeVisible(t.type||'work')){ return; }
     if(ganttFilters.onlyMyWorks && currentRole==='contractor' && !isMyAssignedWork(t)){ return; }
 
     body.appendChild(buildTaskRow(t, idx, weekendHtml, _workNumOf.get(t.id)));
@@ -3633,6 +3677,13 @@ function buildAnalysis(){
 // строки журнала группируются по (пользователь, час) — все правки одного человека
 // в течение текущего часа складываются в items одной строки (см. RPC log_change)
 const JOURNAL_KIND_LABEL = { plan:'План', fact:'Факт' };
+let journalFilters = { hidePlan: false };
+function toggleJournalHidePlan(){
+  journalFilters.hidePlan = !journalFilters.hidePlan;
+  const tog = document.getElementById('jftoggle-hidePlan');
+  if(tog) tog.classList.toggle('on', journalFilters.hidePlan);
+  renderJournal();
+}
 
 async function renderJournal(){
   const el = document.getElementById('journalContent');
@@ -3652,7 +3703,8 @@ async function renderJournal(){
     const he = new Date(hs.getTime()+3600000);
     const dateStr = hs.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
     const rangeStr = hs.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) + '–' + he.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-    const items = (row.items||[]).slice().sort((a,b)=>new Date(a.at)-new Date(b.at));
+    const items = (row.items||[]).filter(it=>!(journalFilters.hidePlan && it.kind==='plan')).sort((a,b)=>new Date(a.at)-new Date(b.at));
+    if(!items.length) return '';
     const itemsHtml = items.map(it=>{
       const t = new Date(it.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
       const kindColor = it.kind==='fact' ? 'var(--text-success)' : '#185FA5';
@@ -4562,6 +4614,10 @@ function switchTab(name,el){
   if(name==='gantt') scrollGanttToToday();
   const controls = document.getElementById('ganttControls');
   if(controls) controls.style.display = name==='gantt' ? 'flex' : 'none';
+  const quick = document.getElementById('quickTypeToggles');
+  if(quick) quick.style.display = name==='gantt' ? 'flex' : 'none';
+  const journalControls = document.getElementById('journalControls');
+  if(journalControls) journalControls.style.display = name==='journal' ? 'flex' : 'none';
 }
 
 // ─── настройки печати (формат листа/ориентация/диапазон) ────────────────────────────────
@@ -6261,15 +6317,26 @@ function renderTaskTypesList(){
     <div class="dir-item">
       <div class="dir-item-left">
         <span class="dir-item-num">${i+1}.</span>
+        ${colorTriggerHtml(t.color, `handleTypeColorClick(this,${i})`)}
         <span style="font-weight:500;${t.color?`color:${t.color};`:''}">${escapeHtml(t.label)}</span>
         <span style="color:var(--text3);font-size:11px;">(${escapeHtml(t.short)})</span>
-        ${colorTriggerHtml(t.color, `handleTypeColorClick(this,${i})`)}
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;margin-left:8px;" title="Показать переключатель видимости этого типа над графиком (день/неделя/месяц)">
+          <input type="checkbox" ${t.quick?'checked':''} onchange="toggleTaskTypeQuick(${i})"> Быстрое меню
+        </label>
       </div>
       <div class="dir-item-actions">
         <button class="dir-btn del" onclick="deleteTaskType(${i})" title="Удалить"><i class="ti ti-trash"></i></button>
       </div>
     </div>`).join('') || '<div class="dir-empty">Список пуст</div>';
   renderAddTaskTypeColorSwatches();
+}
+
+function toggleTaskTypeQuick(i){
+  if(!TASK_TYPES[i]) return;
+  TASK_TYPES[i].quick = !TASK_TYPES[i].quick;
+  renderTaskTypesList();
+  renderQuickTypeToggles();
+  saveState();
 }
 
 let _newTaskTypeColor = '';
@@ -6294,12 +6361,13 @@ function setTaskTypeColor(i,color){
 function addTaskType(){
   const labelInp = document.getElementById('taskTypeLabelInput');
   const shortInp = document.getElementById('taskTypeShortInput');
+  const quickInp = document.getElementById('taskTypeQuickInput');
   const label = labelInp.value.trim();
   if(!label) return;
   const short = shortInp.value.trim() || label.slice(0,5);
   if(TASK_TYPES.some(t=>t.label.toLowerCase()===label.toLowerCase())){ alert('Такой тип задачи уже есть в списке'); return; }
-  TASK_TYPES.push({ value:'type_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), label, short, color: _newTaskTypeColor });
-  labelInp.value=''; shortInp.value=''; _newTaskTypeColor='';
+  TASK_TYPES.push({ value:'type_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), label, short, color: _newTaskTypeColor, quick: quickInp.checked });
+  labelInp.value=''; shortInp.value=''; _newTaskTypeColor=''; quickInp.checked=false;
   renderTaskTypesList();
   renderGantt();
   saveState();
@@ -7338,6 +7406,7 @@ async function openGraph(graphMeta){
   currentRole = graphMeta.role;
   // подрядчику по умолчанию включаем фильтр «только мои работы» (остальным ролям он не нужен)
   ganttFilters.onlyMyWorks = currentRole==='contractor';
+  loadTypeVisibility(); // видимость типов на диаграмме — своя для каждого графика, сохранена в localStorage
   try{ localStorage.setItem('gantt_last_project_id', String(graphMeta.projectId)); }catch(e){}
   setCloudStatus('sync');
   const res = await cloudLoad();
@@ -7755,7 +7824,12 @@ window.addEventListener('resize', ()=>{
               <input type="text" id="taskTypeShortInput" placeholder="Сокращение (необязательно)" style="flex:1;" onkeydown="if(event.key==='Enter')addTaskType()">
               <button class="btn btn-primary" onclick="addTaskType()"><i class="ti ti-plus"></i> Добавить</button>
             </div>
-            <div id="taskTypeColorSwatches" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+              <div id="taskTypeColorSwatches" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+              <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Показать переключатель видимости этого типа над графиком (день/неделя/месяц)">
+                <input type="checkbox" id="taskTypeQuickInput"> Быстрое меню
+              </label>
+            </div>
           </div>
         </div>
 
