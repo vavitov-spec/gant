@@ -1405,6 +1405,12 @@ function rollupOfTasks(children){
   let minStart=Infinity, maxEndOffset=-Infinity, minStartIdx=Infinity, maxEndIdxExcl=-Infinity;
   let planTot=0, factTot=0, planCur=0, factCur=0, startDate=null, endDate=null;
   for(const t of children){
+    // работа, у которой есть собственные вложенные работы (стала подразделом), — её
+    // даты/объём/факт устарели и не показываются на её собственной строке (см. buildTaskRow,
+    // «даты вычисляются по вложенным работам»/«объём... теряют смысл»); реальный вклад в свод
+    // раздела уже дают её вложенные работы (они тоже есть в этом списке children), поэтому
+    // саму работу-подраздел здесь пропускаем — иначе её объём считался бы дважды
+    if(getChildIds(t.id).length) continue;
     const dm = durMonthUnits(t);
     if(t.start<minStart) minStart=t.start;
     const endOffset=t.start+dm;
