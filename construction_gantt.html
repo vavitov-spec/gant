@@ -603,7 +603,7 @@ select.np-input{appearance:none;-webkit-appearance:none;background-image:url("da
   <div class="tabs no-print">
     <div id="quickTypeToggles" class="no-print" style="display:flex;align-items:center;gap:12px;"></div>
     <div id="journalControls" class="no-print" style="display:none;align-items:center;gap:12px;">
-      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);" title="Скрыть в журнале записи о корректировке плана графика">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);" title="Показать в журнале записи о корректировке плана графика (по умолчанию скрыты)">
         <span>План</span>
         <div class="filter-toggle" id="jftoggle-hidePlan" onclick="toggleJournalHidePlan()"></div>
       </div>
@@ -3677,11 +3677,11 @@ function buildAnalysis(){
 // строки журнала группируются по (пользователь, час) — все правки одного человека
 // в течение текущего часа складываются в items одной строки (см. RPC log_change)
 const JOURNAL_KIND_LABEL = { plan:'План', fact:'Факт' };
-let journalFilters = { hidePlan: false };
+let journalFilters = { showPlan: false }; // по умолчанию записи «План» скрыты; ползунок выключен = скрыто, включён = показаны
 function toggleJournalHidePlan(){
-  journalFilters.hidePlan = !journalFilters.hidePlan;
+  journalFilters.showPlan = !journalFilters.showPlan;
   const tog = document.getElementById('jftoggle-hidePlan');
-  if(tog) tog.classList.toggle('on', journalFilters.hidePlan);
+  if(tog) tog.classList.toggle('on', journalFilters.showPlan);
   renderJournal();
 }
 
@@ -3703,7 +3703,7 @@ async function renderJournal(){
     const he = new Date(hs.getTime()+3600000);
     const dateStr = hs.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
     const rangeStr = hs.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) + '–' + he.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-    const items = (row.items||[]).filter(it=>!(journalFilters.hidePlan && it.kind==='plan')).sort((a,b)=>new Date(a.at)-new Date(b.at));
+    const items = (row.items||[]).filter(it=>journalFilters.showPlan || it.kind!=='plan').sort((a,b)=>new Date(a.at)-new Date(b.at));
     if(!items.length) return '';
     const itemsHtml = items.map(it=>{
       const t = new Date(it.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
@@ -3776,8 +3776,10 @@ function diffTasksForLog(oldTasks, newTasks){
     }
     const oldFact = ot.factVol||0, newFact = t.factVol||0;
     if(Math.round(oldFact*100) !== Math.round(newFact*100)){
-      const unit = t.unit ? ' '+t.unit : '';
-      factItems.push(withSection(section, `внёс факт по «${name}»: ${fmtSignedNumber(newFact-oldFact)}${unit}`));
+      const delta = newFact - oldFact;
+      const unit = t.unit || '';
+      const description = withSection(section, `внёс факт по «${name}»: ${fmtSignedNumber(delta)}${unit?(' '+unit):''}`);
+      factItems.push({ taskId: id, label: name, section, delta, unit, description });
     }
   });
   oldMap.forEach((t, id)=>{
@@ -3790,9 +3792,21 @@ function diffTasksForLog(oldTasks, newTasks){
   return { planItems, factItems };
 }
 
-async function logChangeToServer(projectId, kind, description){
+// taskInfo (необязательно): {taskId, label, section, delta, unit} — по нему log_change
+// суммирует дельту факта с уже существующей за этот же час записью той же работы,
+// вместо того чтобы дописывать отдельную строку на каждое сохранение
+async function logChangeToServer(projectId, kind, description, taskInfo){
   if(!sb || !projectId || !description) return;
-  try{ await sb.rpc('log_change', { p_project_id: projectId, p_kind: kind, p_description: description }); }
+  try{
+    await sb.rpc('log_change', {
+      p_project_id: projectId, p_kind: kind, p_description: description,
+      p_task_id: taskInfo ? taskInfo.taskId : null,
+      p_delta: taskInfo ? taskInfo.delta : null,
+      p_unit: taskInfo ? (taskInfo.unit||null) : null,
+      p_task_label: taskInfo ? taskInfo.label : null,
+      p_section: taskInfo ? (taskInfo.section||null) : null
+    });
+  }
   catch(e){ console.warn('Не удалось записать журнал изменений:', e); }
 }
 
@@ -3806,7 +3820,11 @@ async function logItemsToServer(projectId, kind, items){
     await logChangeToServer(projectId, kind, `Массовое обновление: ${items.length} ${label}`);
     return;
   }
-  await Promise.all(items.map(text=>logChangeToServer(projectId, kind, text)));
+  if(kind==='fact'){
+    await Promise.all(items.map(it=>logChangeToServer(projectId, 'fact', it.description, it)));
+  } else {
+    await Promise.all(items.map(text=>logChangeToServer(projectId, kind, text)));
+  }
 }
 
 // вызывается после успешного cloudSave() — сравнивает с последним подтверждённым
