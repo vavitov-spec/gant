@@ -1288,17 +1288,27 @@ function renderGanttMonthHeader(){
   _renderMonthHeaderInto('ganttMonthHeader','ganttBarTh',document.querySelector('.gantt-table'),monthBufferPx);
 }
 
-function renderStats(){
-  const fact = overallFact();
-  const plan = overallPlan();
-  const diff = fact - plan;
-  const delayed = delayedTasks().length;
-  const risk = riskTasks().length;
+// готовность по конкретному типу задачи — тот же точный расчёт по дням (planAndFactToDate),
+// что и overallFact/overallPlan для всего проекта, но только по работам этого типа
+function typeFactPlan(typeValue){
+  const w = workTasks().filter(t=>(t.type||'work')===typeValue);
+  const sumPlan = w.reduce((a,t)=>a+(t.volume||0),0);
+  const sumFact = w.reduce((a,t)=>a+planAndFactToDate(t).fact,0);
+  const sumPlanToDate = w.reduce((a,t)=>a+planAndFactToDate(t).plan,0);
+  return {
+    fact: sumPlan ? Math.round(sumFact/sumPlan*100) : 0,
+    plan: sumPlan ? Math.round(sumPlanToDate/sumPlan*100) : 0
+  };
+}
 
-  document.getElementById('statsRow').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Готовность проекта</div><div class="stat-value">${fact}%</div><div class="stat-sub ${diff>=0?'ok':'warn'}">план ${plan}%</div></div>
-    <div class="stat-card"><div class="stat-label">Отставание от плана</div><div class="stat-value ${diff<0?'danger':'ok'}">${diff>=0?'+':''}${diff}%</div><div class="stat-sub ${diff<0?'danger':'ok'}">${diff<-5?'критическое':diff<0?'умеренное':'в норме'}</div></div>
-    <div class="stat-card"><div class="stat-label">Просрочено / под риском</div><div class="stat-value ${delayed>0?'danger':'ok'}">${delayed} / ${risk}</div><div class="stat-sub ${delayed>0?'danger':'ok'}">задач</div></div>`;
+// строка статистики над диаграммой — плашка на каждый тип задачи с включённой галочкой
+// «Дашборд» в настройках графика (Тип задачи); если ни один тип не отмечен — строка пуста
+function renderStats(){
+  document.getElementById('statsRow').innerHTML = TASK_TYPES.filter(t=>t.dashboard).map(t=>{
+    const { fact, plan } = typeFactPlan(t.value);
+    const diff = fact - plan;
+    return `<div class="stat-card"><div class="stat-label">Готовность «${escapeHtml(t.label)}»</div><div class="stat-value">${fact}%</div><div class="stat-sub ${diff>=0?'ok':'warn'}">план ${plan}%</div></div>`;
+  }).join('');
   document.getElementById('curMonthLabel').textContent = CURRENT > 0 ? monthLabelAt(CURRENT-1) : '—';
 }
 
@@ -6335,16 +6345,19 @@ function renderTaskTypesList(){
   if(!el) return;
   document.getElementById('tasktypes-count').textContent = TASK_TYPES.length + ' записей';
   el.innerHTML = TASK_TYPES.map((t,i)=>`
-    <div class="dir-item">
-      <div class="dir-item-left">
-        <span class="dir-item-num">${i+1}.</span>
-        ${colorTriggerHtml(t.color, `handleTypeColorClick(this,${i})`)}
+    <div class="dir-item" style="display:grid;grid-template-columns:20px 22px minmax(0,1fr) auto auto auto;align-items:center;gap:8px;">
+      <span class="dir-item-num">${i+1}.</span>
+      ${colorTriggerHtml(t.color, `handleTypeColorClick(this,${i})`)}
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
         <span style="font-weight:500;${t.color?`color:${t.color};`:''}">${escapeHtml(t.label)}</span>
         <span style="color:var(--text3);font-size:11px;">(${escapeHtml(t.short)})</span>
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;margin-left:8px;" title="Показать переключатель видимости этого типа над графиком (день/неделя/месяц)">
-          <input type="checkbox" ${t.quick?'checked':''} onchange="toggleTaskTypeQuick(${i})"> Быстрое меню
-        </label>
-      </div>
+      </span>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Показать переключатель видимости этого типа над графиком (день/неделя/месяц)">
+        <input type="checkbox" ${t.quick?'checked':''} onchange="toggleTaskTypeQuick(${i})"> Быстрое меню
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Показать плашку готовности по этому типу в строке статистики над диаграммой">
+        <input type="checkbox" ${t.dashboard?'checked':''} onchange="toggleTaskTypeDashboard(${i})"> Дашборд
+      </label>
       <div class="dir-item-actions">
         <button class="dir-btn del" onclick="deleteTaskType(${i})" title="Удалить"><i class="ti ti-trash"></i></button>
       </div>
@@ -6357,6 +6370,14 @@ function toggleTaskTypeQuick(i){
   TASK_TYPES[i].quick = !TASK_TYPES[i].quick;
   renderTaskTypesList();
   renderQuickTypeToggles();
+  saveState();
+}
+
+function toggleTaskTypeDashboard(i){
+  if(!TASK_TYPES[i]) return;
+  TASK_TYPES[i].dashboard = !TASK_TYPES[i].dashboard;
+  renderTaskTypesList();
+  renderStats();
   saveState();
 }
 
@@ -6383,12 +6404,13 @@ function addTaskType(){
   const labelInp = document.getElementById('taskTypeLabelInput');
   const shortInp = document.getElementById('taskTypeShortInput');
   const quickInp = document.getElementById('taskTypeQuickInput');
+  const dashboardInp = document.getElementById('taskTypeDashboardInput');
   const label = labelInp.value.trim();
   if(!label) return;
   const short = shortInp.value.trim() || label.slice(0,5);
   if(TASK_TYPES.some(t=>t.label.toLowerCase()===label.toLowerCase())){ alert('Такой тип задачи уже есть в списке'); return; }
-  TASK_TYPES.push({ value:'type_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), label, short, color: _newTaskTypeColor, quick: quickInp.checked });
-  labelInp.value=''; shortInp.value=''; _newTaskTypeColor=''; quickInp.checked=false;
+  TASK_TYPES.push({ value:'type_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), label, short, color: _newTaskTypeColor, quick: quickInp.checked, dashboard: dashboardInp.checked });
+  labelInp.value=''; shortInp.value=''; _newTaskTypeColor=''; quickInp.checked=false; dashboardInp.checked=false;
   renderTaskTypesList();
   renderGantt();
   saveState();
@@ -7856,6 +7878,9 @@ window.addEventListener('resize', ()=>{
               <div id="taskTypeColorSwatches" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
               <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Показать переключатель видимости этого типа над графиком (день/неделя/месяц)">
                 <input type="checkbox" id="taskTypeQuickInput"> Быстрое меню
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;white-space:nowrap;" title="Показать плашку готовности по этому типу в строке статистики над диаграммой">
+                <input type="checkbox" id="taskTypeDashboardInput"> Дашборд
               </label>
             </div>
           </div>
