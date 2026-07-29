@@ -7430,7 +7430,12 @@ async function openGraph(graphMeta){
   loadTypeVisibility(); // видимость типов на диаграмме — своя для каждого графика, сохранена в localStorage
   try{ localStorage.setItem('gantt_last_project_id', String(graphMeta.projectId)); }catch(e){}
   setCloudStatus('sync');
-  const res = await cloudLoad();
+  // loadWA не зависит от результата cloudLoad (использует только currentAppStateId,
+  // уже установленный выше) — грузим их параллельно вместо друг за другом
+  const [res] = await Promise.all([
+    cloudLoad(),
+    loadWA() // назначения подрядчиков (work_assignments) — чтобы показать компанию в столбце «Подрядчик»
+  ]);
   if(res && res.payload && Array.isArray(res.payload.projects) && res.payload.projects.length){
     applyPayload(res.payload);
     _lastCloudStamp = res.stamp;
@@ -7442,7 +7447,6 @@ async function openGraph(graphMeta){
     activeProjectId = seed.id;
     _changeLogBaseline = snapshotForLog(seed);
   }
-  await loadWA(); // назначения подрядчиков (work_assignments) — чтобы показать компанию в столбце «Подрядчик»
   firstRender();
   setCloudStatus('saved');
 }
@@ -7470,14 +7474,17 @@ async function afterLogin(user){
   // токен приглашения в компанию захватываем ДО того, как acceptInviteFromURL()
   // очистит строку запроса (оба приглашения могут прийти в одном URL)
   const companyInviteToken = getCompanyInviteTokenFromURL();
-  try{
-    const { data, error } = await sb.rpc('is_system_owner');
-    isSystemOwner = !error && data === true;
-  }catch(e){ isSystemOwner = false; }
-  try{ await sb.rpc('ensure_profile'); }catch(e){} // профиль (public_id/email) — на случай, если триггер не отработал
-  const invitedAppStateId = await acceptInviteFromURL();
-  if(companyInviteToken) await acceptCompanyInvite(companyInviteToken);
-  await loadMyGraphs();
+  // эти запросы ни один не зависит от результата другого — раньше шли строго по очереди
+  // (5 round-trip'ов подряд), из-за чего вход ощутимо тормозил на медленной/дальней сети;
+  // запускаем параллельно
+  const [ownerCheck, , invitedAppStateId] = await Promise.all([
+    (async()=>{ try{ return await sb.rpc('is_system_owner'); }catch(e){ return { data:false, error:e }; } })(),
+    (async()=>{ try{ await sb.rpc('ensure_profile'); }catch(e){} })(), // профиль (public_id/email) — на случай, если триггер не отработал
+    acceptInviteFromURL(),
+    companyInviteToken ? acceptCompanyInvite(companyInviteToken) : Promise.resolve(null),
+    loadMyGraphs()
+  ]);
+  isSystemOwner = !ownerCheck.error && ownerCheck.data === true;
   checkPendingInvites(); // не блокируем открытие графика — приглашения покажутся поверх
   if(!myGraphs.length){
     renderProjectsList();
