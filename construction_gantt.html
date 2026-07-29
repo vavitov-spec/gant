@@ -1294,14 +1294,11 @@ function renderStats(){
   const diff = fact - plan;
   const delayed = delayedTasks().length;
   const risk = riskTasks().length;
-  const wt = workTasks();
-  const onTime = wt.filter(t=>t.start<=CURRENT && !(t.start+durMonthUnits(t)<=CURRENT&&t.factPct<100)).length;
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-card"><div class="stat-label">Готовность проекта</div><div class="stat-value">${fact}%</div><div class="stat-sub ${diff>=0?'ok':'warn'}">план ${plan}%</div></div>
     <div class="stat-card"><div class="stat-label">Отставание от плана</div><div class="stat-value ${diff<0?'danger':'ok'}">${diff>=0?'+':''}${diff}%</div><div class="stat-sub ${diff<0?'danger':'ok'}">${diff<-5?'критическое':diff<0?'умеренное':'в норме'}</div></div>
-    <div class="stat-card"><div class="stat-label">Просрочено / под риском</div><div class="stat-value ${delayed>0?'danger':'ok'}">${delayed} / ${risk}</div><div class="stat-sub ${delayed>0?'danger':'ok'}">задач</div></div>
-    <div class="stat-card"><div class="stat-label">Активных работ</div><div class="stat-value">${onTime}</div><div class="stat-sub ok">в работе</div></div>`;
+    <div class="stat-card"><div class="stat-label">Просрочено / под риском</div><div class="stat-value ${delayed>0?'danger':'ok'}">${delayed} / ${risk}</div><div class="stat-sub ${delayed>0?'danger':'ok'}">задач</div></div>`;
   document.getElementById('curMonthLabel').textContent = CURRENT > 0 ? monthLabelAt(CURRENT-1) : '—';
 }
 
