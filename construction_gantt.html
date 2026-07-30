@@ -4679,6 +4679,35 @@ function fullPrintRange(){
   return { start: days[0], endExcl: addDays(days[days.length-1], 1) };
 }
 
+// разбор строки «ДД.ММ.ГГ»/«ДД.ММ» (тот же ввод, что и в дате начала работы) в объект Date;
+// null, если строка пустая или дата некорректна (например, 31.02)
+function parsePrintDateInput(value){
+  const digits = (value||'').replace(/\D/g,'');
+  let dd, mm, year;
+  if(digits.length===6){
+    dd = parseInt(digits.slice(0,2),10); mm = parseInt(digits.slice(2,4),10); year = 2000+parseInt(digits.slice(4,6),10);
+  } else if(digits.length===4){
+    dd = parseInt(digits.slice(0,2),10); mm = parseInt(digits.slice(2,4),10); year = 2026;
+  } else return null;
+  const month0 = mm-1;
+  const d = new Date(year, month0, dd);
+  return (d.getFullYear()===year && d.getMonth()===month0 && d.getDate()===dd) ? d : null;
+}
+
+// диапазон печати с учётом полей «от—до» в диалоге печати: если оба поля заполнены и дают
+// корректный непустой диапазон — печатается только этот участок графика; иначе (поля пустые,
+// невалидные или вышли за пределы графика) — весь график целиком, как раньше
+function printRangeFromSettings(settings){
+  const full = fullPrintRange();
+  if(!full) return null;
+  const from = parsePrintDateInput(settings && settings.rangeFrom);
+  const to = parsePrintDateInput(settings && settings.rangeTo);
+  if(!from || !to) return full;
+  const start = from < full.start ? full.start : from;
+  const endExcl = addDays(to,1) > full.endExcl ? full.endExcl : addDays(to,1);
+  return start < endExcl ? { start, endExcl } : full;
+}
+
 // px-смещение даты от начала периода графика в ТЕКУЩЕМ масштабе — та же величина, которую
 // используют periodGridLinesHtml/weekendBandsHtml/позиция полос работ, поэтому диапазон
 // печати клипуется ровно по тем же координатам, что уже рисует остальной рендер
@@ -4738,10 +4767,26 @@ function psAdjustPages(id, delta){
   schedulePreviewUpdate();
 }
 
+// заполняет поля «от—до» диапазоном всего графика, без немедленного обновления превью
+// (используется и при открытии диалога, и по кнопке «Весь график»)
+function setPsRangeToFull(){
+  const full = fullPrintRange();
+  document.getElementById('psRangeFrom').value = full ? formatDateDDMMYY(full.start) : '';
+  document.getElementById('psRangeTo').value = full ? formatDateDDMMYY(addDays(full.endExcl,-1)) : '';
+}
+// кнопка «Весь график» — то же самое, но с обновлением превью
+function resetPsRangeToFull(){
+  setPsRangeToFull();
+  schedulePreviewUpdate();
+}
+
 function openPrintSettings(){
   const s = loadPrintSettings();
   applyPsToggle('psFormatToggle', 'psFormat', s.format || 'A4');
   applyPsToggle('psOrientToggle', 'psOrientation', s.orientation || 'landscape');
+  // диапазон дат для печати не сохраняем между открытиями (разные графики — разные периоды) —
+  // при каждом открытии сбрасываем на весь график, дальше пользователь может сузить сам
+  setPsRangeToFull();
   if(s.pagesWide && s.pagesTall){
     document.getElementById('psPagesWide').value = s.pagesWide;
     document.getElementById('psPagesTall').value = s.pagesTall;
@@ -4770,10 +4815,13 @@ async function updatePreview(){
   const orientation = document.getElementById('psOrientation').value;
   const pagesWide = document.getElementById('psPagesWide').value;
   const pagesTall = document.getElementById('psPagesTall').value;
+  const rangeFrom = document.getElementById('psRangeFrom').value;
+  const rangeTo = document.getElementById('psRangeTo').value;
+  // диапазон дат не сохраняем между открытиями (см. openPrintSettings/setPsRangeToFull)
   savePrintSettings({format, orientation, pagesWide, pagesTall});
 
   const myToken = ++_previewToken;
-  const build = await buildPrintPdf({format, orientation, pagesWide, pagesTall});
+  const build = await buildPrintPdf({format, orientation, pagesWide, pagesTall, rangeFrom, rangeTo});
   if(myToken !== _previewToken) return; // за время сборки настройки уже поменялись ещё раз — этот результат больше не актуален
   if(!build) return;
   _lastPdfBuild = build;
@@ -4904,7 +4952,7 @@ async function buildPrintPdf(settings){
   const pageUsableWidthPx = Math.round(pageUsableWidthMm * pxPerMm);
   const pageUsableHeightPx = Math.round(pageUsableHeightMm * pxPerMm);
 
-  const range = fullPrintRange();
+  const range = printRangeFromSettings(settings);
   if(!range){
     alert('В графике ещё нет ни одного периода для печати.');
     return null;
@@ -8055,6 +8103,16 @@ window.addEventListener('resize', ()=>{
           <input type="hidden" id="psFormat" value="A4">
           <input type="hidden" id="psOrientation" value="landscape">
         </div>
+      </div>
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-calendar-event"></i> Диапазон дат</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" inputmode="numeric" maxlength="8" placeholder="ДД.ММ.ГГ" id="psRangeFrom" class="np-input" style="width:100px;flex:none;" oninput="maskDateInput(this)" onchange="schedulePreviewUpdate()">
+          <span style="color:var(--text3);">—</span>
+          <input type="text" inputmode="numeric" maxlength="8" placeholder="ДД.ММ.ГГ" id="psRangeTo" class="np-input" style="width:100px;flex:none;" oninput="maskDateInput(this)" onchange="schedulePreviewUpdate()">
+          <button type="button" class="btn" style="padding:5px 10px;font-size:11px;" onclick="resetPsRangeToFull()">Весь график</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px;">В PDF попадёт только этот участок графика по датам — остальное печататься не будет.</div>
       </div>
       <div class="np-field">
         <div class="np-label"><i class="ti ti-layout-grid"></i> Листов по ширине / по высоте</div>
