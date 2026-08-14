@@ -5239,6 +5239,20 @@ async function cloudLoad(){
   }
 }
 
+// загрузка данных ЧУЖОГО (не обязательно текущего открытого) графика по его app_state_id —
+// нужна мастеру «Новый график» для копирования структуры из уже существующего графика
+async function cloudLoadById(appStateId){
+  if(!sb || !appStateId) return null;
+  try{
+    const { data, error } = await sb.from('app_state').select('data').eq('id', appStateId).single();
+    if(error) throw error;
+    return data ? data.data : null;
+  }catch(e){
+    console.warn('Не удалось загрузить график для копирования:', e);
+    return null;
+  }
+}
+
 // ─── история версий: автоматические снимки состояния в таблице app_state_history ───
 const HISTORY_TABLE = 'app_state_history';
 const HISTORY_KEEP = 30;                      // сколько последних снимков храним
@@ -5554,6 +5568,10 @@ let npRangeStart = null; // {year, month} month 0-11
 let npRangeEnd = null;
 let npSelection = {}; // { sectionIndex: { checked:bool, works:{workIndex:bool} } }
 let npGraphTypeId = null; // выбранный вид графика для нового проекта
+let npSourceKind = 'type'; // 'type' — из шаблона (graphTypes), 'project' — копия существующего графика
+let npSourceProjectMeta = null;    // {appStateId, name} выбранного для копирования графика
+let npSourceProjectPayload = null; // {tasks, links, ...} загруженные данные графика-источника
+let npSourceLoading = false;
 
 function npCurrentSections(){
   const gt = graphTypes.find(g=>g.id===npGraphTypeId);
@@ -5587,8 +5605,16 @@ function npCountCheckedWorks(sel){
 function renderNPTypeSelect(){
   const sel = document.getElementById('npTypeSelect');
   if(!sel) return;
-  const cleanOpt = `<option value="0" ${npGraphTypeId===0?'selected':''}>Чистый график (без разделов)</option>`;
-  sel.innerHTML = cleanOpt + graphTypes.map(g=>`<option value="${g.id}" ${g.id===npGraphTypeId?'selected':''}>${g.name} (${g.sections.length} ${sectionWord(g.sections.length)})</option>`).join('');
+  const cleanOpt = `<option value="clean" ${npSourceKind==='type'&&npGraphTypeId===0?'selected':''}>Чистый график (без разделов)</option>`;
+  const typeOpts = graphTypes.map(g=>`<option value="type:${g.id}" ${npSourceKind==='type'&&g.id===npGraphTypeId?'selected':''}>${g.name} (${g.sections.length} ${sectionWord(g.sections.length)})</option>`).join('');
+  const copySources = myGraphs.filter(g=>g.role==='admin'||g.role==='member');
+  let copyOpts = '';
+  if(copySources.length){
+    copyOpts = `<optgroup label="Скопировать существующий график">` + copySources.map(g=>
+      `<option value="project:${g.appStateId}" ${npSourceKind==='project'&&npSourceProjectMeta&&npSourceProjectMeta.appStateId===g.appStateId?'selected':''}>${escapeHtml(g.name)}</option>`
+    ).join('') + `</optgroup>`;
+  }
+  sel.innerHTML = `<optgroup label="Шаблоны графиков">${cleanOpt}${typeOpts}</optgroup>${copyOpts}`;
 }
 
 function sectionWord(n){
@@ -5598,8 +5624,30 @@ function sectionWord(n){
   return 'разделов';
 }
 
-function npPickGraphType(id){
-  npGraphTypeId = id;
+async function npPickGraphType(value){
+  if(value.indexOf('project:')===0){
+    const appStateId = value.slice(8);
+    npSourceKind = 'project';
+    npGraphTypeId = null;
+    npSourceProjectMeta = myGraphs.find(g=>g.appStateId===appStateId) || {appStateId, name:'график'};
+    npSourceProjectPayload = null;
+    npSourceLoading = true;
+    renderNPTree();
+    updateNPSummary();
+    const payload = await cloudLoadById(appStateId);
+    npSourceLoading = false;
+    // пользователь мог переключиться на другой источник, пока грузились данные — не затираем свежий выбор устаревшим ответом
+    if(!npSourceProjectMeta || npSourceProjectMeta.appStateId !== appStateId) return;
+    npSourceProjectPayload = (payload && Array.isArray(payload.projects) && payload.projects[0]) ? payload.projects[0] : null;
+    if(!npSourceProjectPayload) alert('Не удалось загрузить график для копирования. Попробуйте выбрать его ещё раз.');
+    renderNPTree();
+    updateNPSummary();
+    return;
+  }
+  npSourceKind = 'type';
+  npSourceProjectMeta = null;
+  npSourceProjectPayload = null;
+  npGraphTypeId = value==='clean' ? 0 : parseInt(value.indexOf('type:')===0 ? value.slice(5) : value);
   npRebuildSelectionFromType();
   npExpanded = {};
   renderNPTree();
@@ -5611,6 +5659,10 @@ function openNewProject(){
   if(currentRole==='client' || currentRole==='contractor') return;
   npRangeStart = null;
   npRangeEnd = null;
+  npSourceKind = 'type';
+  npSourceProjectMeta = null;
+  npSourceProjectPayload = null;
+  npSourceLoading = false;
   npGraphTypeId = graphTypes.length ? graphTypes[0].id : null;
   npRebuildSelectionFromType();
   document.getElementById('npName').value = '';
@@ -5699,6 +5751,26 @@ const MONTHS_FULL_NP=['Январь','Февраль','Март','Апрель',
 let npExpanded = {};
 function renderNPTree(){
   const el = document.getElementById('npTree');
+  const toggleBtn = document.getElementById('npToggleAllBtn');
+  if(npSourceKind==='project'){
+    if(toggleBtn) toggleBtn.style.display = 'none';
+    if(npSourceLoading){
+      el.innerHTML = '<div class="dir-empty" style="color:var(--text2);"><i class="ti ti-loader-2" style="margin-right:5px;"></i>Загрузка графика…</div>';
+    } else if(!npSourceProjectPayload){
+      el.innerHTML = '<div class="dir-empty">Не удалось загрузить выбранный график.</div>';
+    } else {
+      const tks = npSourceProjectPayload.tasks || [];
+      const sectionsCount = tks.filter(t=>t.cat).length;
+      const worksCount = tks.filter(t=>!t.cat && !t.group).length;
+      el.innerHTML = `<div class="dir-empty" style="color:var(--text2);text-align:left;">
+        <i class="ti ti-copy" style="margin-right:5px;"></i>
+        Будет скопирована структура графика «${escapeHtml(npSourceProjectMeta.name||'')}»: ${sectionsCount} ${sectionWord(sectionsCount)}, ${worksCount} видов работ — со всеми сроками и связями.<br><br>
+        <b>Внесённый факт скопирован не будет</b> — новый график стартует с чистым фактом.
+      </div>`;
+    }
+    return;
+  }
+  if(toggleBtn) toggleBtn.style.display = '';
   const sections = npCurrentSections();
   if(!sections.length){
     if(npGraphTypeId === 0){
@@ -5805,6 +5877,7 @@ function npToggleSubWork(i,j,k,checked){
   updateNPSummary();
 }
 function npToggleAll(){
+  if(npSourceKind==='project') return;
   const anyChecked = Object.values(npSelection).some(s=>s.checked);
   const newState = !anyChecked;
   Object.keys(npSelection).forEach(i=>{
@@ -5832,9 +5905,23 @@ function updateNPSummary(){
   } else {
     summaryEl.innerHTML = `<i class="ti ti-info-circle"></i> Выберите месяц начала и месяц окончания`;
   }
+  const summaryTextEl = document.getElementById('npSummaryText');
+  if(npSourceKind==='project'){
+    if(npSourceLoading){
+      summaryTextEl.textContent = 'Загрузка графика…';
+    } else if(npSourceProjectPayload){
+      const tks = npSourceProjectPayload.tasks || [];
+      const sectionsCount = tks.filter(t=>t.cat).length;
+      const worksCount = tks.filter(t=>!t.cat && !t.group).length;
+      summaryTextEl.textContent = `Копия «${npSourceProjectMeta.name}»: разделов ${sectionsCount} · видов работ ${worksCount} · факт будет очищен`;
+    } else {
+      summaryTextEl.textContent = 'Не удалось загрузить график';
+    }
+    return;
+  }
   const sectionsCount = Object.values(npSelection).filter(s=>s.checked).length;
   const worksCount = Object.values(npSelection).reduce((a,s)=>a+npCountCheckedWorks(s),0);
-  document.getElementById('npSummaryText').textContent = npGraphTypeId === 0
+  summaryTextEl.textContent = npGraphTypeId === 0
     ? 'Чистый график · разделы добавите вручную'
     : `Выбрано разделов: ${sectionsCount} · видов работ: ${worksCount}`;
 }
@@ -5842,52 +5929,73 @@ function updateNPSummary(){
 async function createProject(){
   const name = document.getElementById('npName').value.trim();
   if(!name){ alert('Укажите название графика'); document.getElementById('npName').focus(); return; }
-  if(npGraphTypeId === null){ alert('Выберите вид графика'); return; }
+  if(npSourceKind==='type' && npGraphTypeId === null){ alert('Выберите вид графика'); return; }
+  if(npSourceKind==='project' && !npSourceProjectPayload){ alert('График для копирования ещё не загружен. Подождите или выберите другой.'); return; }
   if(!npRangeStart){ alert('Выберите период графика (месяц начала)'); return; }
   const wdButtons = [...document.querySelectorAll('#npWorkingDays .wd-btn')];
   if(!wdButtons.some(b=>b.classList.contains('active'))){ alert('Выберите хотя бы один рабочий день недели'); return; }
-  const sectionsSelected = Object.entries(npSelection).filter(([i,s])=>s.checked);
-  if(!sectionsSelected.length && npGraphTypeId !== 0){
-    if(!confirm('Ни один раздел не выбран — будет создан пустой график без структуры. Продолжить?')) return;
-  }
 
   const months = npMonthsCount();
   const color = PROJECT_COLORS[Math.floor(Math.random()*PROJECT_COLORS.length)];
-  const sections = npCurrentSections();
 
-  // строим пустую структуру задач (категории + виды работ, без сроков/объёмов)
-  const newTasks = [];
-  let taskId = 1;
-  sectionsSelected.forEach(([secIdxStr, sel])=>{
-    const secIdx = parseInt(secIdxStr);
-    const sec = sections[secIdx];
-    if(!sec) return;
-    newTasks.push({ id:taskId++, cat:true, name:sec.name, icon:'ti-folder' });
-    sec.works.forEach((w,j)=>{
-      const wsel = sel.works[j];
-      if(w && typeof w==='object' && w.sub){
-        if(!wsel) return;
-        const checkedSubWorks = w.works.filter((sw,k)=>wsel.works[k]);
-        if(!checkedSubWorks.length) return;
-        // подраздел становится работой верхнего уровня — «контейнером» для своих подработ
-        newTasks.push({
-          id:taskId++, name:w.name, unit:'%', type:'work',
-          volume:100, start:0, dur:10, factPct:0, factVol:0
-        });
-        checkedSubWorks.forEach(sw=>{
-          newTasks.push({
-            id:taskId++, name:sw, unit:'—', type:'work',
-            volume:0, start:0, dur:10, factPct:0, factVol:0, level:1
-          });
-        });
-      } else if(wsel){
-        newTasks.push({
-          id:taskId++, name:w, unit:'%', type:'work',
-          volume:100, start:0, dur:10, factPct:0, factVol:0
-        });
-      }
+  let newTasks, newLinks;
+  if(npSourceKind==='project'){
+    // копируем структуру и план целиком из выбранного графика, но с новыми id и БЕЗ факта
+    const srcTasks = npSourceProjectPayload.tasks || [];
+    const srcLinks = npSourceProjectPayload.links || [];
+    const idMap = new Map();
+    let taskId = 1;
+    newTasks = srcTasks.map(t=>{
+      const nt = {...t};
+      idMap.set(t.id, taskId);
+      nt.id = taskId++;
+      if(!nt.cat && !nt.group){ delete nt.factOverrides; nt.factVol = 0; nt.factPct = 0; }
+      return nt;
     });
-  });
+    newLinks = srcLinks.filter(l=>idMap.has(l.from) && idMap.has(l.to))
+      .map(l=>({...l, from:idMap.get(l.from), to:idMap.get(l.to)}));
+  } else {
+    const sectionsSelected = Object.entries(npSelection).filter(([i,s])=>s.checked);
+    if(!sectionsSelected.length && npGraphTypeId !== 0){
+      if(!confirm('Ни один раздел не выбран — будет создан пустой график без структуры. Продолжить?')) return;
+    }
+    const sections = npCurrentSections();
+
+    // строим пустую структуру задач (категории + виды работ, без сроков/объёмов)
+    newTasks = [];
+    newLinks = [];
+    let taskId = 1;
+    sectionsSelected.forEach(([secIdxStr, sel])=>{
+      const secIdx = parseInt(secIdxStr);
+      const sec = sections[secIdx];
+      if(!sec) return;
+      newTasks.push({ id:taskId++, cat:true, name:sec.name, icon:'ti-folder' });
+      sec.works.forEach((w,j)=>{
+        const wsel = sel.works[j];
+        if(w && typeof w==='object' && w.sub){
+          if(!wsel) return;
+          const checkedSubWorks = w.works.filter((sw,k)=>wsel.works[k]);
+          if(!checkedSubWorks.length) return;
+          // подраздел становится работой верхнего уровня — «контейнером» для своих подработ
+          newTasks.push({
+            id:taskId++, name:w.name, unit:'%', type:'work',
+            volume:100, start:0, dur:10, factPct:0, factVol:0
+          });
+          checkedSubWorks.forEach(sw=>{
+            newTasks.push({
+              id:taskId++, name:sw, unit:'—', type:'work',
+              volume:0, start:0, dur:10, factPct:0, factVol:0, level:1
+            });
+          });
+        } else if(wsel){
+          newTasks.push({
+            id:taskId++, name:w, unit:'%', type:'work',
+            volume:100, start:0, dur:10, factPct:0, factVol:0
+          });
+        }
+      });
+    });
+  }
 
   const newProject = {
     id:1, name,
@@ -5896,7 +6004,7 @@ async function createProject(){
     current: 0, // новый проект, факт ещё не вносился — "сегодня" в начале периода
     periodStart:npRangeStart, periodEnd:npRangeEnd||npRangeStart,
     workingDays: (()=>{ const wd=Array(7).fill(false); document.querySelectorAll('#npWorkingDays .wd-btn').forEach(b=>{ wd[parseInt(b.dataset.day)]=b.classList.contains('active'); }); return wd; })(),
-    tasks:newTasks, links: []
+    tasks:newTasks, links: newLinks
   };
 
   closeNewProject();
@@ -7684,8 +7792,8 @@ window.addEventListener('resize', ()=>{
 
       <!-- Graph type dropdown -->
       <div class="np-field">
-        <div class="np-label"><i class="ti ti-sitemap"></i> Шаблон графика</div>
-        <select class="np-input" id="npTypeSelect" onchange="npPickGraphType(parseInt(this.value))"></select>
+        <div class="np-label"><i class="ti ti-sitemap"></i> Шаблон или график для копирования</div>
+        <select class="np-input" id="npTypeSelect" onchange="npPickGraphType(this.value)"></select>
       </div>
 
       <!-- Period: two-year calendar -->
