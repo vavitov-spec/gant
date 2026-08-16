@@ -4744,7 +4744,7 @@ function estimateDefaultPages(format, orientation){
   };
 }
 
-let _lastPdfBuild = null; // {doc, name, tiles} — последнее собранное превью, чтобы «Скачать PDF» не пересобирал всё заново
+let _lastPsSettings = null; // {format, orientation, pagesWide, pagesTall, rangeFrom, rangeTo} — параметры текущего превью, чтобы «Скачать PDF» пересобрал те же страницы, но уже в полном качестве
 let _previewTimer = null;
 let _previewToken = 0; // растущий счётчик — отбрасываем результат устаревшего (уже перекрытого новым) запроса на превью
 // формат листа / ориентация — переключатели-кнопки (как масштаб графика День/Неделя/Месяц),
@@ -4797,7 +4797,7 @@ function openPrintSettings(){
   }
   document.getElementById('psPreview').innerHTML = '';
   document.getElementById('psSaveBtn').disabled = true;
-  _lastPdfBuild = null;
+  _lastPsSettings = null;
   document.getElementById('printSettingsOverlay').classList.add('open');
   updatePreview();
 }
@@ -4810,6 +4810,11 @@ function schedulePreviewUpdate(){
   document.getElementById('psSaveBtn').disabled = true;
   _previewTimer = setTimeout(updatePreview, 500);
 }
+// превью в диалоге собирается в НИЗКОМ разрешении (см. buildPrintPdf, opts.preview) — при
+// каждой правке настроек (диапазон дат, число листов и т.п.) не нужно ждать полный печатный
+// снимок на 300dpi, достаточно быстрого черновика на экран. Полное качество собирается заново,
+// один раз, уже по кнопке «Скачать PDF» (см. downloadPreviewedPdf) — сама эта функция только
+// запоминает параметры (_lastPsSettings), а не готовый PDF.
 async function updatePreview(){
   const format = document.getElementById('psFormat').value;
   const orientation = document.getElementById('psOrientation').value;
@@ -4819,12 +4824,13 @@ async function updatePreview(){
   const rangeTo = document.getElementById('psRangeTo').value;
   // диапазон дат не сохраняем между открытиями (см. openPrintSettings/setPsRangeToFull)
   savePrintSettings({format, orientation, pagesWide, pagesTall});
+  const settings = {format, orientation, pagesWide, pagesTall, rangeFrom, rangeTo};
 
   const myToken = ++_previewToken;
-  const build = await buildPrintPdf({format, orientation, pagesWide, pagesTall, rangeFrom, rangeTo});
+  const build = await buildPrintPdf(settings, {preview:true});
   if(myToken !== _previewToken) return; // за время сборки настройки уже поменялись ещё раз — этот результат больше не актуален
   if(!build) return;
-  _lastPdfBuild = build;
+  _lastPsSettings = settings;
   const previewEl = document.getElementById('psPreview');
   previewEl.innerHTML = '';
   build.tiles.forEach((dataUrl, i)=>{
@@ -4836,9 +4842,21 @@ async function updatePreview(){
   });
   document.getElementById('psSaveBtn').disabled = false;
 }
-function downloadPreviewedPdf(){
-  if(!_lastPdfBuild) return;
-  _lastPdfBuild.doc.save(_lastPdfBuild.name);
+async function downloadPreviewedPdf(){
+  if(!_lastPsSettings) return;
+  const btn = document.getElementById('psSaveBtn');
+  const prevHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Готовим PDF…';
+  try{
+    // превью на экране — черновое (быстрое, низкое разрешение); для самого файла пересобираем
+    // те же страницы уже в полном печатном качестве (opts.preview не передан → 300dpi)
+    const build = await buildPrintPdf(_lastPsSettings);
+    if(build) build.doc.save(build.name);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = prevHtml;
+  }
 }
 
 // ширина всех "липких" колонок данных (всё, кроме колонки диаграммы) — не зависит от
@@ -4933,11 +4951,16 @@ function shiftPrintOverlaysBy(fromPx){
 // Возвращает {doc, name, tiles} (tiles — dataURL превью каждой страницы) или null при ошибке;
 // само сохранение файла — отдельным шагом (downloadPreviewedPdf), после того как пользователь
 // посмотрел превью и убедился, что всё влезло правильно.
-async function buildPrintPdf(settings){
+async function buildPrintPdf(settings, opts){
   if(!window.html2canvas || !window.jspdf){
     alert('Не удалось загрузить библиотеку для сборки PDF — нужен интернет хотя бы один раз (библиотека подгружается с CDN). Проверьте соединение и попробуйте ещё раз.');
     return null;
   }
+  // preview:true — черновая сборка для окошек превью в диалоге (быстро, низкое разрешение);
+  // без preview — финальная сборка для самого файла, один раз, по кнопке «Скачать PDF»
+  // (300dpi, как раньше). Геометрия (сколько листов, что на каком) одинакова в обоих случаях —
+  // отличается только разрешение снимка html2canvas и итоговых страниц.
+  const isPreview = !!(opts && opts.preview);
   const paper = PAPER_MM[settings.format] || PAPER_MM.A4;
   const landscape = settings.orientation !== 'portrait';
   const paperW = landscape ? Math.max(paper.w,paper.h) : Math.min(paper.w,paper.h);
@@ -4947,7 +4970,9 @@ async function buildPrintPdf(settings){
   const marginMm = 10;
   const pageUsableWidthMm = paperW - marginMm*2;
   const pageUsableHeightMm = paperH - marginMm*2;
-  const OUTPUT_DPI = 300; // разрешение готовых страниц PDF (стандартное печатное качество)
+  const OUTPUT_DPI = isPreview ? 96 : 300; // 300 — стандартное печатное качество; 96 хватает для экранного превью и собирается в разы быстрее
+  const SNAPSHOT_SCALE = isPreview ? 1.25 : 3; // масштаб самого html2canvas-снимка — основная часть времени сборки уходит именно сюда
+  const JPEG_QUALITY = isPreview ? 0.8 : 0.96;
   const pxPerMm = OUTPUT_DPI/25.4;
   const pageUsableWidthPx = Math.round(pageUsableWidthMm * pxPerMm);
   const pageUsableHeightPx = Math.round(pageUsableHeightMm * pxPerMm);
@@ -4959,7 +4984,10 @@ async function buildPrintPdf(settings){
   }
 
   const progressEl = document.getElementById('psProgress');
-  if(progressEl) progressEl.style.display = '';
+  if(progressEl){
+    progressEl.textContent = isPreview ? 'Готовим превью…' : 'Собираем PDF в печатном качестве…';
+    progressEl.style.display = '';
+  }
 
   const wrap = document.getElementById('ganttWrap');
   const prevScrollLeft = wrap ? wrap.scrollLeft : 0;
@@ -4991,10 +5019,11 @@ async function buildPrintPdf(settings){
     // даём браузеру дорисовать клип/сдвиги/новый размер (часть позиционирования — в requestAnimationFrame)
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 
-    // scale:3 — снимок с запасом по разрешению (примерно под 300dpi), чтобы при вставке в
-    // страницу PDF (см. OUTPUT_DPI) не было ни повторного размытия от увеличения, ни лишней
-    // потери резкости от сильного уменьшения; letterRendering — чуть чётче мелкий текст дат/%
-    const sourceCanvas = await html2canvas(wrap, { scale:3, backgroundColor:'#ffffff', useCORS:true, letterRendering:true });
+    // SNAPSHOT_SCALE=3 (финал) — снимок с запасом по разрешению (примерно под 300dpi), чтобы при
+    // вставке в страницу PDF (см. OUTPUT_DPI) не было ни повторного размытия от увеличения, ни
+    // лишней потери резкости от сильного уменьшения; для превью (1.25) резкость не критична —
+    // картинка всё равно показывается уменьшенной на экране. letterRendering — чуть чётче мелкий текст дат/%
+    const sourceCanvas = await html2canvas(wrap, { scale:SNAPSHOT_SCALE, backgroundColor:'#ffffff', useCORS:true, letterRendering:true });
     const totalWpx = sourceCanvas.width, totalHpx = sourceCanvas.height;
     // доля "липких" колонок в снимке — от их реальной CSS-ширины, не от заранее известного
     // масштаба html2canvas (он может слегка округлить итоговый canvas)
@@ -5050,7 +5079,9 @@ async function buildPrintPdf(settings){
     const stickyOutWpx = Math.min(pageUsableWidthPx - 1, Math.round(stickyWpx * stickyScaleX));
     const timelineOutWpx = Math.max(1, pageUsableWidthPx - stickyOutWpx);
 
-    const doc = new jspdf.jsPDF({ orientation: landscape?'landscape':'portrait', unit:'mm', format:[paperW,paperH] });
+    // в режиме превью сам PDF-документ никому не нужен (показываем только картинки тайлов) —
+    // не тратим время на addPage/addImage, это заметная часть работы jsPDF на больших графиках
+    const doc = isPreview ? null : new jspdf.jsPDF({ orientation: landscape?'landscape':'portrait', unit:'mm', format:[paperW,paperH] });
     const tiles = [];
     let first = true;
     for(let r=0;r<pagesTall;r++){
@@ -5073,11 +5104,13 @@ async function buildPrintPdf(settings){
 
         // JPEG вместо PNG — на градиентах/тенях/сглаженном тексте диаграммы PNG весит в разы
         // больше при почти неотличимой на глаз разнице; для печатного PDF это не критично
-        const imgData = tile.toDataURL('image/jpeg', 0.96);
+        const imgData = tile.toDataURL('image/jpeg', JPEG_QUALITY);
         tiles.push(imgData);
-        if(!first) doc.addPage([paperW,paperH], landscape?'landscape':'portrait');
+        if(doc){
+          if(!first) doc.addPage([paperW,paperH], landscape?'landscape':'portrait');
+          doc.addImage(imgData, 'JPEG', marginMm, marginMm, pageUsableWidthMm, pageUsableHeightMm);
+        }
         first = false;
-        doc.addImage(imgData, 'JPEG', marginMm, marginMm, pageUsableWidthMm, pageUsableHeightMm);
       }
     }
 
