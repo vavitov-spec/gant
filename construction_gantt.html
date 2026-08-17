@@ -7652,27 +7652,75 @@ function showAuth(){
 }
 function hideAuth(){ const o=document.getElementById('authOverlay'); if(o) o.style.display='none'; }
 
+// Запрос на вход может не только вернуть ошибку, но и зависнуть (нет сети, запрос не доходит)
+// или упасть исключением — без ограничения по времени кнопка в этом случае выглядит мёртвой:
+// нажал, и ничего не происходит, никакого объяснения.
+const AUTH_TIMEOUT_MS = 20000;
+function withAuthTimeout(promise){
+  return Promise.race([
+    promise,
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('__timeout__')), AUTH_TIMEOUT_MS))
+  ]);
+}
+
+// человеческое объяснение вместо одного на все случаи «Неверный email или пароль»: перепутанный
+// пароль, неподтверждённая почта и оборванная связь требуют совершенно разных действий
+function describeAuthError(error, fallback){
+  const msg = String((error && error.message) || '');
+  if(msg === '__timeout__') return 'База данных не отвечает (ждали 20 секунд). Проверьте интернет и попробуйте ещё раз.';
+  if(/email not confirmed/i.test(msg)) return 'Почта не подтверждена — откройте письмо от Supabase и подтвердите регистрацию.';
+  if(/invalid login credentials/i.test(msg)) return 'Неверный email или пароль';
+  if(/email address .* invalid|invalid email/i.test(msg)) return 'Неверный формат email';
+  if(/too many requests|rate limit/i.test(msg)) return 'Слишком много попыток подряд — подождите минуту.';
+  if((error && error.name === 'AuthRetryableFetchError') || /failed to fetch|networkerror|load failed|fetch/i.test(msg))
+    return 'Не удалось связаться с базой данных. Похоже, запрос не проходит из вашей сети.';
+  return msg || fallback;
+}
+
 async function doLogin(){
   const email = document.getElementById('authEmail').value.trim();
   const pass  = document.getElementById('authPass').value;
   const errEl = document.getElementById('authError');
-  errEl.textContent = '';
+  const btn   = document.getElementById('authSubmitBtn');
+  errEl.textContent = ''; errEl.style.color = '';
   if(!sb){ errEl.textContent = 'Нет связи с базой данных'; return; }
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if(error){ errEl.textContent = 'Неверный email или пароль'; return; }
+  const prevLabel = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Вход…'; }
+  let user = null;
+  try{
+    const { data, error } = await withAuthTimeout(sb.auth.signInWithPassword({ email, password: pass }));
+    if(error){ errEl.textContent = describeAuthError(error, 'Неверный email или пароль'); return; }
+    user = data.user;
+  }catch(e){
+    errEl.textContent = describeAuthError(e, 'Не удалось войти');
+    return;
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = prevLabel; }
+  }
   hideAuth();
-  await afterLogin(data.user);
+  await afterLogin(user);
 }
 
 async function doSignup(){
   const email = document.getElementById('authEmail').value.trim();
   const pass  = document.getElementById('authPass').value;
   const errEl = document.getElementById('authError');
-  errEl.textContent = '';
+  const btn   = document.getElementById('authSubmitBtn');
+  errEl.textContent = ''; errEl.style.color = '';
   if(!sb){ errEl.textContent = 'Нет связи с базой данных'; return; }
   if(pass.length < 6){ errEl.textContent = 'Пароль должен быть не короче 6 символов'; return; }
-  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { emailRedirectTo: location.origin + location.pathname } });
-  if(error){ errEl.textContent = error.message || 'Не удалось зарегистрироваться'; return; }
+  const prevLabel = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Регистрация…'; }
+  let data, error;
+  try{
+    ({ data, error } = await withAuthTimeout(sb.auth.signUp({ email, password: pass, options: { emailRedirectTo: location.origin + location.pathname } })));
+  }catch(e){
+    errEl.textContent = describeAuthError(e, 'Не удалось зарегистрироваться');
+    return;
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = prevLabel; }
+  }
+  if(error){ errEl.textContent = describeAuthError(error, 'Не удалось зарегистрироваться'); return; }
   if(!data.session){
     // сначала переключаем форму на вход (toggleAuthMode очищает поле сообщения), потом пишем подсказку
     toggleAuthMode();
