@@ -2830,18 +2830,59 @@ function periodGridLinesHtml(){
     }
   }
   const spanPx = Math.max(0, endPx - anchorPx);
-  const line = 'linear-gradient(var(--border),var(--border))';
   const grid = `repeating-linear-gradient(to right,var(--border) 0,var(--border) 1px,transparent 1px,transparent ${step}px)`;
-  // слои: сетка с шагом step | замыкающая линия в конце графика | (для недель) линия на старте
-  const images    = [grid, line];
-  const sizes     = [`${spanPx}px 100%`, '1px 100%'];
-  const positions = [`${PAD+anchorPx}px 0`, `${PAD+endPx}px 0`];
-  if(extraStartLine){ images.push(line); sizes.push('1px 100%'); positions.push(`${PAD}px 0`); }
-  // ширину задаём явно по длине графика, а не right:0 — ячейка бывает уже диаграммы, а старые
+  // Сама сетка — по-прежнему ОДИН элемент с повторяющимся градиентом (ради этого и делалась
+  // замена отдельных линий: DOM не растёт с длиной графика), а замыкающая и стартовая линии —
+  // отдельными тонкими div-ами. Раньше все слои лежали в background-image ОДНОГО элемента, но
+  // html2canvas (им собирается PDF) не поддерживает background-size для КАЖДОГО слоя: при
+  // нескольких слоях он игнорировал размеры и заливал весь элемент сплошным цветом линии —
+  // из-за этого вся область диаграммы в PDF получалась серой. Двух лишних div-ов на строку
+  // (вместо линии на каждый период) для размера DOM незаметно.
+  // Ширину задаём явно по длине графика, а не right:0 — ячейка бывает уже диаграммы, а старые
   // отдельные линии не обрезались по ней (у .bar-cell overflow:visible)
-  return `<div style="position:absolute;top:0;bottom:0;left:0;width:${PAD+endPx+1}px;pointer-events:none;z-index:0;`
-    + `background-image:${images.join(',')};background-size:${sizes.join(',')};`
-    + `background-position:${positions.join(',')};background-repeat:no-repeat;"></div>`;
+  const base = 'position:absolute;top:0;bottom:0;pointer-events:none;z-index:0;';
+  let html = `<div class="gantt-grid-lines" data-grid-step="${step}" style="${base}left:${PAD+anchorPx}px;width:${spanPx}px;background-image:${grid};"></div>`;
+  html += `<div style="${base}left:${PAD+endPx}px;width:1px;background:var(--border);"></div>`;
+  if(extraStartLine) html += `<div style="${base}left:${PAD}px;width:1px;background:var(--border);"></div>`;
+  return html;
+}
+
+// html2canvas не умеет и сам repeating-linear-gradient — вертикальных линий сетки в PDF не было
+// вовсе (оставался только серый залив, см. periodGridLinesHtml). Поэтому на время снимка
+// подменяем фон сетки равнозначной картинкой — SVG-плиткой шириной в шаг сетки, её html2canvas
+// отрисовывает корректно. Цвет берём вычисленный из var(--border), чтобы линии совпадали с
+// текущей темой (тема переключается без перерисовки графика, поэтому в разметке остаётся
+// именно переменная, а не зафиксированный цвет).
+let _gridPrintState = null;
+function applyPrintGridBackground(){
+  if(_gridPrintState) return;
+  const els = document.querySelectorAll('#panel-gantt .gantt-grid-lines');
+  if(!els.length) return;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+  const m = raw.match(/-?[\d.]+/g) || [];
+  const fill = m.length >= 3 ? `rgb(${m[0]},${m[1]},${m[2]})` : '#000';
+  const fillOpacity = m.length >= 4 ? m[3] : '1';
+  const saved = [];
+  els.forEach(el=>{
+    const step = parseFloat(el.dataset.gridStep);
+    if(!(step > 0)) return;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${step}" height="1" preserveAspectRatio="none">`
+      + `<rect width="1" height="1" fill="${fill}" fill-opacity="${fillOpacity}"/></svg>`;
+    saved.push({el, prevImage:el.style.backgroundImage, prevSize:el.style.backgroundSize, prevRepeat:el.style.backgroundRepeat});
+    el.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    el.style.backgroundSize = `${step}px 100%`;
+    el.style.backgroundRepeat = 'repeat';
+  });
+  _gridPrintState = saved;
+}
+function revertPrintGridBackground(){
+  if(!_gridPrintState) return;
+  _gridPrintState.forEach(({el, prevImage, prevSize, prevRepeat})=>{
+    el.style.backgroundImage = prevImage;
+    el.style.backgroundSize = prevSize;
+    el.style.backgroundRepeat = prevRepeat;
+  });
+  _gridPrintState = null;
 }
 
 // лёгкая красная заливка колонки "сегодня" — только в режиме "День" (в остальных масштабах
@@ -5064,6 +5105,7 @@ async function buildPrintPdf(settings, opts){
   try{
     if(wrap){ wrap.scrollLeft = 0; wrap.scrollTop = 0; }
     applyPrintRangeClip(fromPx, rangePx);
+    applyPrintGridBackground();
     renderGanttLinks();
     renderTodayLine();
     renderProjectEndOverlay();
@@ -5191,6 +5233,7 @@ async function buildPrintPdf(settings, opts){
     console.error('Не удалось собрать PDF:', err);
     alert('Не удалось собрать PDF: ' + (err && err.message ? err.message : err));
   }finally{
+    revertPrintGridBackground();
     revertPrintRangeClip();
     if(wrap && prevWrapStyle){
       wrap.style.width = prevWrapStyle.width;
