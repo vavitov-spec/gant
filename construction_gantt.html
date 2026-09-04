@@ -4793,8 +4793,12 @@ function estimateDefaultPages(format, orientation){
   if(!range) return {pagesWide:1, pagesTall:1};
   const stickyW = stickyColsWidthPx();
   const rangeW = Math.max(1, pxOf(range.endExcl) - pxOf(range.start));
+  // wrap.scrollHeight здесь не годится: #ganttWrap растянут flex:1 на всю видимую панель, и когда
+  // реального содержимого (строк) меньше, чем этой видимой области, scrollHeight равен пустой
+  // растянутой области, а не высоте графика — см. пояснение в buildPrintPdf про тот же случай.
   const wrap = document.getElementById('ganttWrap');
-  const naturalHeightPx = wrap ? wrap.scrollHeight : pageUsableHeightPx96;
+  const table = wrap ? wrap.querySelector('.gantt-table') : null;
+  const naturalHeightPx = table ? table.offsetHeight : (wrap ? wrap.scrollHeight : pageUsableHeightPx96);
 
   const perPageTimelineWidthPx96 = Math.max(50, pageUsableWidthPx96 - stickyW);
   return {
@@ -5069,8 +5073,16 @@ async function buildPrintPdf(settings, opts){
     // реально помещается в текущий (видимый) размер элемента, а не весь его scrollWidth —
     // поэтому в PDF попадал маленький кусок. Явно растягиваем wrap до реального размера его
     // содержимого (уже обрезанного applyPrintRangeClip под нужный диапазон) на время снимка.
+    // Размер берём у самой ТАБЛИЦЫ, а не у wrap.scrollWidth/scrollHeight: когда график
+    // короче/уже видимой области экрана, wrap (flex:1, растянут на весь доступный размер
+    // панели) ещё ДО этого блока имеет scrollWidth/scrollHeight, равные не содержимому, а
+    // этой пустой растянутой области — то же самое мы бы и зафиксировали явным style ниже.
+    // В снимке это пустое место (у wrap нет собственного фона) просвечивало серым фоном
+    // страницы позади графика. Табличные размеры от такого раздутия не зависят.
     if(wrap){
-      const fullW = wrap.scrollWidth, fullH = wrap.scrollHeight;
+      const table = wrap.querySelector('.gantt-table');
+      const fullW = table ? table.offsetWidth : wrap.scrollWidth;
+      const fullH = table ? table.offsetHeight : wrap.scrollHeight;
       wrap.style.flex = 'none';
       wrap.style.width = fullW + 'px';
       wrap.style.height = fullH + 'px';
