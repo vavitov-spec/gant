@@ -173,6 +173,8 @@ html[data-theme="light"] body{background:#f0f2f5;}
 }
 .bar-plan:hover{filter:brightness(1.035);box-shadow:0 2px 6px rgba(20,80,140,0.32), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(20,80,140,0.08);}
 .bar-plan-accent{position:absolute;left:0;top:0;bottom:0;width:3px;z-index:3;pointer-events:none;}
+.milestone-marker{position:absolute;top:7.5px;width:9px;height:9px;background:var(--text-danger);border-radius:1.5px;box-shadow:0 1px 2px rgba(0,0,0,0.35);transform:translate(-50%,-50%) rotate(45deg);z-index:5;cursor:pointer;}
+.milestone-marker:hover{filter:brightness(1.15);}
 .gantt-fact-bg{position:absolute;top:16px;height:10px;border-radius:4px;background:linear-gradient(180deg, rgba(140,140,140,0.06), rgba(140,140,140,0.13));border:0.5px solid rgba(140,140,140,0.22);}
 .gantt-vol-label:focus-visible,.gantt-fact-vol:focus-visible{outline:1.5px solid #185FA5;outline-offset:1px;z-index:5;}
 /* ── режим «только график» ── */
@@ -3248,7 +3250,8 @@ function buildTaskRow(t, idx, weekendHtml, numLabel){
             if(redW   > 0) inner += `<div style="position:absolute;top:0;left:${(greenW/barW*100).toFixed(2)}%;width:${(redW/barW*100).toFixed(2)}%;height:100%;background:linear-gradient(180deg,#E36A66,#C43F3F);pointer-events:none;"></div>`;
           }
           const accent = `<div class="bar-plan-accent" style="background:#185FA5;"></div>`;
-          return `<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};${isDesignType?`background:${DESIGN_BAR_BG};`:''}${typeColor?`border:1px solid ${typeColor};`:''}" onmousedown="startLinkDrag(event, ${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь">${accent}${inner}</div>`;
+          const msHtml = t.milestone ? `<div class="milestone-marker" style="left:calc(${m.left}${m.unit} - 4px);" ondblclick="event.stopPropagation();openMilestoneModal(${t.id})" title="${escapeHtml(t.milestone)}"></div>` : '';
+          return `${msHtml}<div id="bar-${t.id}" class="bar-plan" style="left:${m.left}${m.unit};width:${m.width}${m.unit};${isDesignType?`background:${DESIGN_BAR_BG};`:''}${typeColor?`border:1px solid ${typeColor};`:''}" onmousedown="startLinkDrag(event, ${t.id})" ondblclick="event.stopPropagation();openMilestoneModal(${t.id})" title="Зажмите и потяните на другую работу, чтобы создать связь${t.milestone?(' · Реперная точка: '+escapeHtml(t.milestone)):''}">${accent}${inner}</div>`;
         })()}
         ${planPeriodVolumes(t).map(({left,width,vol,key,editable})=>`<span class="gantt-vol-label" style="position:absolute;top:3px;height:9px;line-height:9px;left:${left}px;width:${width}px;overflow:hidden;font-size:9px;font-weight:600;color:#152736;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px rgba(255,255,255,.9);white-space:nowrap;padding:0 2px;box-sizing:border-box;text-align:center;z-index:4;${editable?'cursor:pointer;text-decoration:underline dotted rgba(21,39,54,0.5);':'pointer-events:none;'}"${editable?` tabindex="0" role="button" onclick="event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();editPlanPeriod(${t.id},'${key}',${vol},this)}" title="Нажмите для изменения плана"`:''}>${vol.toLocaleString('ru')}</span>`).join('')}
         <div class="gantt-fact-bg" style="left:${m.left}${m.unit};width:${m.width}${m.unit};"></div>
@@ -4405,6 +4408,46 @@ function saveLinkEdit(){
   saveState();
 }
 
+// ─── реперная точка на работе: двойной клик по полосе — окошко ввода; если задано,
+// перед полосой рисуется красный ромбик с текстом во всплывающей подсказке ──────
+let editingMilestoneTaskId = null;
+
+function openMilestoneModal(taskId){
+  if(noStructureEdit()) return;
+  const t = tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  editingMilestoneTaskId = taskId;
+  document.getElementById('milestoneModalTitle').textContent = `«${t.name}»`;
+  const input = document.getElementById('milestoneInput');
+  input.value = t.milestone || '';
+  document.getElementById('milestoneDeleteBtn').style.display = t.milestone ? '' : 'none';
+  document.getElementById('milestoneOverlay').classList.add('open');
+  setTimeout(()=>{ input.focus(); input.select(); }, 0);
+}
+
+function closeMilestoneModal(){
+  document.getElementById('milestoneOverlay').classList.remove('open');
+  editingMilestoneTaskId = null;
+}
+
+function saveMilestoneEdit(){
+  const t = tasks.find(x=>x.id===editingMilestoneTaskId);
+  if(!t) return;
+  const val = document.getElementById('milestoneInput').value.trim();
+  if(val) t.milestone = val; else delete t.milestone;
+  closeMilestoneModal();
+  renderGantt();
+  saveState();
+}
+
+function milestoneModalDelete(){
+  const t = tasks.find(x=>x.id===editingMilestoneTaskId);
+  if(t) delete t.milestone;
+  closeMilestoneModal();
+  renderGantt();
+  saveState();
+}
+
 // ─── add section ────────────────────────────────────────────────────────────
 let editingCatId = null;
 
@@ -5157,7 +5200,12 @@ async function buildPrintPdf(settings, opts){
 const STORAGE_KEY = 'constructionGanttApp_v1';
 
 // ─── Supabase: общая база, доступ с любого устройства после входа по email/паролю ───
-const SUPABASE_URL = 'https://vrgjczbtnomqwlppszpe.supabase.co';
+// на нашем домене запросы к Supabase идут через свой же /db-прокси (см. Caddyfile) —
+// некоторые провайдеры блокируют vrgjczbtnomqwlppszpe.supabase.co напрямую по SNI,
+// а собственный домен под тем же блоком уже не блокируют
+const SUPABASE_URL = location.hostname.endsWith('sslip.io')
+  ? location.origin + '/db'
+  : 'https://vrgjczbtnomqwlppszpe.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_8D59awIPBcQDvXj5-Uq-xg_kMrnVryU';
 let currentAppStateId = null; // id строки app_state текущего открытого графика (раньше была константа CLOUD_ROW_ID=1)
 const sb = (window.supabase && window.supabase.createClient)
@@ -8453,6 +8501,33 @@ window.addEventListener('resize', ()=>{
     <div class="np-actions">
       <button class="btn" onclick="closeLinkModal()">Отмена</button>
       <button class="btn btn-primary" onclick="saveLinkEdit()"><i class="ti ti-check"></i> Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="milestoneOverlay" onclick="if(event.target===this)closeMilestoneModal()">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-flag"></i> Реперная точка</div>
+      <button class="modal-close" onclick="closeMilestoneModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-content" style="padding:20px;">
+
+      <div id="milestoneModalTitle" style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:16px;"></div>
+
+      <div class="np-field">
+        <div class="np-label"><i class="ti ti-map-pin"></i> Текст реперной точки</div>
+        <input type="text" class="np-input" id="milestoneInput" placeholder="Например, согласование с заказчиком до 20.09"
+          style="width:100%;box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter')saveMilestoneEdit();if(event.key==='Escape')closeMilestoneModal();">
+      </div>
+
+      <button class="btn" id="milestoneDeleteBtn" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--text-danger);color:var(--text-danger);" onclick="milestoneModalDelete()"><i class="ti ti-trash"></i> Удалить реперную точку</button>
+
+    </div>
+    <div class="np-actions">
+      <button class="btn" onclick="closeMilestoneModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveMilestoneEdit()"><i class="ti ti-check"></i> Сохранить</button>
     </div>
   </div>
 </div>
