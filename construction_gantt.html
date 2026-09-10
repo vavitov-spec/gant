@@ -2847,7 +2847,11 @@ function periodGridLinesHtml(){
   // Ширину задаём явно по длине графика, а не right:0 — ячейка бывает уже диаграммы, а старые
   // отдельные линии не обрезались по ней (у .bar-cell overflow:visible)
   const base = 'position:absolute;top:0;bottom:0;pointer-events:none;z-index:0;';
-  let html = `<div class="gantt-grid-lines" data-grid-step="${step}" style="${base}left:${PAD+anchorPx}px;width:${spanPx}px;background-image:${grid};"></div>`;
+  // вырожденный участок (spanPx=0) — фон не вешаем вовсе: рисовать там нечего, а нулевой
+  // элемент с фоном роняет снимок html2canvas при экспорте в PDF (createPattern на canvas 0×0)
+  let html = spanPx > 0
+    ? `<div class="gantt-grid-lines" data-grid-step="${step}" style="${base}left:${PAD+anchorPx}px;width:${spanPx}px;background-image:${grid};"></div>`
+    : '';
   html += `<div style="${base}left:${PAD+endPx}px;width:1px;background:var(--border);"></div>`;
   if(extraStartLine) html += `<div style="${base}left:${PAD}px;width:1px;background:var(--border);"></div>`;
   return html;
@@ -2872,6 +2876,7 @@ function applyPrintGridBackground(){
   els.forEach(el=>{
     const step = parseFloat(el.dataset.gridStep);
     if(!(step > 0)) return;
+    if(!el.offsetWidth || !el.offsetHeight) return; // нулевой элемент html2canvas не переварит (canvas 0×0)
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${step}" height="1" preserveAspectRatio="none">`
       + `<rect width="1" height="1" fill="${fill}" fill-opacity="${fillOpacity}"/></svg>`;
     saved.push({el, prevImage:el.style.backgroundImage, prevSize:el.style.backgroundSize, prevRepeat:el.style.backgroundRepeat});
@@ -2889,6 +2894,31 @@ function revertPrintGridBackground(){
     el.style.backgroundRepeat = prevRepeat;
   });
   _gridPrintState = null;
+}
+
+// html2canvas на КАЖДЫЙ элемент с фоном-картинкой или градиентом заводит временный canvas
+// размером с этот фон и вызывает createPattern. Если элемент в момент снимка нулевой по ширине
+// или высоте (полоса работы нулевой длины, пустой фон факта, вырожденный участок сетки),
+// canvas получается 0×0 и браузер бросает InvalidStateError — вся сборка PDF падала целиком
+// из-за элемента, который всё равно ничего не рисует («Не удалось собрать PDF: Failed to
+// execute 'createPattern'...»). На время снимка подменяем createPattern: нулевой источник даёт
+// прозрачную заливку 1×1 вместо исключения, всё остальное идёт прежним путём. Возвращает
+// функцию отката — вызывать обязательно, иначе подмена останется на всей странице.
+function installZeroSizePatternGuard(){
+  const proto = window.CanvasRenderingContext2D && CanvasRenderingContext2D.prototype;
+  if(!proto || proto.__zeroSizePatternGuard) return function(){};
+  const orig = proto.createPattern;
+  const blank = document.createElement('canvas');
+  blank.width = 1; blank.height = 1; // прозрачный 1×1 — заливка им ничего не красит
+  proto.createPattern = function(image, repetition){
+    if(image && (image.width === 0 || image.height === 0)){
+      console.warn('PDF: пропущен нулевой по размеру фон при снимке html2canvas', image);
+      return orig.call(this, blank, repetition);
+    }
+    return orig.call(this, image, repetition);
+  };
+  proto.__zeroSizePatternGuard = true;
+  return function(){ proto.createPattern = orig; delete proto.__zeroSizePatternGuard; };
 }
 
 // лёгкая красная заливка колонки "сегодня" — только в режиме "День" (в остальных масштабах
@@ -5142,7 +5172,13 @@ async function buildPrintPdf(settings, opts){
     // вставке в страницу PDF (см. OUTPUT_DPI) не было ни повторного размытия от увеличения, ни
     // лишней потери резкости от сильного уменьшения; для превью (1.25) резкость не критична —
     // картинка всё равно показывается уменьшенной на экране. letterRendering — чуть чётче мелкий текст дат/%
-    const sourceCanvas = await html2canvas(wrap, { scale:SNAPSHOT_SCALE, backgroundColor:'#ffffff', useCORS:true, letterRendering:true });
+    const restorePatternGuard = installZeroSizePatternGuard();
+    let sourceCanvas;
+    try{
+      sourceCanvas = await html2canvas(wrap, { scale:SNAPSHOT_SCALE, backgroundColor:'#ffffff', useCORS:true, letterRendering:true });
+    }finally{
+      restorePatternGuard();
+    }
     const totalWpx = sourceCanvas.width, totalHpx = sourceCanvas.height;
     // доля "липких" колонок в снимке — от их реальной CSS-ширины, не от заранее известного
     // масштаба html2canvas (он может слегка округлить итоговый canvas)
