@@ -20,12 +20,13 @@
      молча уходит в локальный режим: ни окна входа, ни графиков, «пустая оболочка».
      Свой домен пользователь уже открыл, раз видит страницу, поэтому местные копии доступны
      всегда. Обновлять версии — заменой файлов в vendor/. -->
-<link rel="stylesheet" href="vendor/tabler-icons.min.css">
+<link rel="stylesheet" href="vendor/tabler-icons-subset.css">
 <script src="vendor/supabase.min.js"></script>
 <!-- печать в PDF без диалога печати браузера: html2canvas снимает диаграмму как есть
-     (без сюрпризов @media print), jsPDF собирает из этого готовые страницы PDF -->
-<script src="vendor/html2canvas.min.js"></script>
-<script src="vendor/jspdf.umd.min.js"></script>
+     (без сюрпризов @media print), jsPDF собирает из этого готовые страницы PDF.
+     Грузятся НЕ сразу, а при первом открытии окна печати (ensurePdfLibs): вдвоём они весят
+     больше полумегабайта, а нужны только тем, кто печатает — остальным это чистая задержка
+     на каждом открытии графика. -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
@@ -4920,6 +4921,28 @@ function resetPsRangeToFull(){
   schedulePreviewUpdate();
 }
 
+// html2canvas + jsPDF весят вместе больше полумегабайта, а нужны только при экспорте в PDF.
+// Поэтому из <head> они убраны и подгружаются по требованию: при открытии окна печати — в
+// фоне (пока пользователь выбирает формат), и обязательно с ожиданием — перед самой сборкой.
+// Повторные вызовы переиспользуют один и тот же промис, параллельных загрузок не будет.
+let _pdfLibsPromise = null;
+function ensurePdfLibs(){
+  if(window.html2canvas && window.jspdf) return Promise.resolve();
+  if(_pdfLibsPromise) return _pdfLibsPromise;
+  const load = src => new Promise((resolve, reject)=>{
+    const el = document.createElement('script');
+    el.src = src;
+    el.onload = resolve;
+    el.onerror = ()=>reject(new Error('не удалось загрузить ' + src));
+    document.head.appendChild(el);
+  });
+  _pdfLibsPromise = Promise.all([
+    load('vendor/html2canvas.min.js'),
+    load('vendor/jspdf.umd.min.js')
+  ]).catch(err=>{ _pdfLibsPromise = null; throw err; }); // дать следующей попытке шанс
+  return _pdfLibsPromise;
+}
+
 function openPrintSettings(){
   const s = loadPrintSettings();
   applyPsToggle('psFormatToggle', 'psFormat', s.format || 'A4');
@@ -4939,6 +4962,7 @@ function openPrintSettings(){
   document.getElementById('psSaveBtn').disabled = true;
   _lastPsSettings = null;
   document.getElementById('printSettingsOverlay').classList.add('open');
+  ensurePdfLibs().catch(()=>{}); // прогреваем в фоне, ошибку покажем уже при сборке
   updatePreview();
 }
 function closePrintSettings(){
@@ -5092,8 +5116,14 @@ function shiftPrintOverlaysBy(fromPx){
 // само сохранение файла — отдельным шагом (downloadPreviewedPdf), после того как пользователь
 // посмотрел превью и убедился, что всё влезло правильно.
 async function buildPrintPdf(settings, opts){
+  try{
+    await ensurePdfLibs();
+  }catch(e){
+    alert('Не удалось загрузить библиотеку для сборки PDF. Проверьте соединение и попробуйте ещё раз.');
+    return null;
+  }
   if(!window.html2canvas || !window.jspdf){
-    alert('Не удалось загрузить библиотеку для сборки PDF — нужен интернет хотя бы один раз (библиотека подгружается с CDN). Проверьте соединение и попробуйте ещё раз.');
+    alert('Библиотека для сборки PDF загрузилась не полностью. Обновите страницу и попробуйте ещё раз.');
     return null;
   }
   // preview:true — черновая сборка для окошек превью в диалоге (быстро, низкое разрешение);
