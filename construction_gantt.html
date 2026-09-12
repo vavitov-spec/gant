@@ -5373,6 +5373,9 @@ function saveState(){
   const payload = buildPayload();
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    // помечаем, какому графику принадлежит кэш — без этого открытие ДРУГОГО графика в том
+    // же браузере на миг показало бы чужие (пусть и свои же, но не те) данные из кэша
+    if(currentAppStateId) localStorage.setItem('gantt_cache_app_state_id', String(currentAppStateId));
   }catch(e){
     console.warn('Не удалось сохранить локально:', e);
   }
@@ -5491,11 +5494,15 @@ function scheduleCloudRetry(){
   _cloudRetryTimer = setTimeout(()=>{ if(_cloudDirty && !_cloudSaveTimer) cloudSave(buildPayload()); }, 15000);
 }
 
-async function cloudLoad(){
-  if(!sb) return null;
+// общий запрос строки app_state по id — вынесен отдельно, чтобы afterLogin() мог запустить
+// загрузку вероятного графика СРАЗУ (по appStateId, сохранённому в localStorage с прошлого
+// раза), не дожидаясь loadMyGraphs(): раньше это был лишний целиком последовательный
+// круг до сервера (список графиков -> и только потом данные графика).
+async function fetchAppState(appStateId){
+  if(!sb || !appStateId) return null;
   try{
     const { data, error } = await sb.from('app_state')
-      .select('data,updated_at').eq('id', currentAppStateId).single();
+      .select('data,updated_at').eq('id', appStateId).single();
     if(error) throw error;
     return data ? { payload: data.data, stamp: data.updated_at } : null;
   }catch(e){
@@ -5503,19 +5510,13 @@ async function cloudLoad(){
     return null;
   }
 }
+async function cloudLoad(){ return fetchAppState(currentAppStateId); }
 
 // загрузка данных ЧУЖОГО (не обязательно текущего открытого) графика по его app_state_id —
 // нужна мастеру «Новый график» для копирования структуры из уже существующего графика
 async function cloudLoadById(appStateId){
-  if(!sb || !appStateId) return null;
-  try{
-    const { data, error } = await sb.from('app_state').select('data').eq('id', appStateId).single();
-    if(error) throw error;
-    return data ? data.data : null;
-  }catch(e){
-    console.warn('Не удалось загрузить график для копирования:', e);
-    return null;
-  }
+  const res = await fetchAppState(appStateId);
+  return res ? res.payload : null;
 }
 
 // ─── история версий: автоматические снимки состояния в таблице app_state_history ───
@@ -7940,20 +7941,43 @@ function blankProjectSeed(name){
   };
 }
 
-async function openGraph(graphMeta){
+async function openGraph(graphMeta, preFetched){
   currentAppStateId = graphMeta.appStateId;
   currentRole = graphMeta.role;
   // подрядчику по умолчанию включаем фильтр «только мои работы» (остальным ролям он не нужен)
   ganttFilters.onlyMyWorks = currentRole==='contractor';
   loadTypeVisibility(); // видимость типов на диаграмме — своя для каждого графика, сохранена в localStorage
   try{ localStorage.setItem('gantt_last_project_id', String(graphMeta.projectId)); }catch(e){}
+  try{ localStorage.setItem('gantt_last_app_state_id', String(graphMeta.appStateId)); }catch(e){}
+
+  // мгновенный предпоказ: если в localStorage уже лежит кэш ИМЕННО этого графика (обычный
+  // случай — тот же браузер второй раз подряд), рисуем его немедленно, не дожидаясь сети —
+  // база во Франкфурте, круг до неё даже по постоянному соединению занимает заметное время.
+  // Свежие данные (ниже) в любом случае перерисуют экран поверх, как только придут.
+  if(String(localStorage.getItem('gantt_cache_app_state_id')) === String(graphMeta.appStateId)){
+    try{
+      const cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if(cached && applyPayload(cached)) firstRender();
+    }catch(e){ /* битый кэш — просто ждём облако, как раньше */ }
+  }
+
   setCloudStatus('sync');
   // loadWA не зависит от результата cloudLoad (использует только currentAppStateId,
-  // уже установленный выше) — грузим их параллельно вместо друг за другом
+  // уже установленный выше) — грузим их параллельно вместо друг за другом.
+  // preFetched — запрос данных графика, запущенный ЗАРАНЕЕ в afterLogin() ещё до того, как
+  // определился точный список графиков: в обычном случае (тот же график, что и в прошлый
+  // раз) он к этому моменту уже в пути или готов, и отдельный круг до сервера не нужен.
   const [res] = await Promise.all([
-    cloudLoad(),
+    preFetched || cloudLoad(),
     loadWA() // назначения подрядчиков (work_assignments) — чтобы показать компанию в столбце «Подрядчик»
   ]);
+
+  // пока ждали сеть, мог показаться предпоказ из кэша, и пользователь успел начать
+  // печатать — saveState()/cloudSave() тогда уже поставили его правку в очередь. Затирать
+  // её заведомо устаревшим (по отношению к его же вводу) снимком из ответа нельзя —
+  // оставляем как есть, уже запущенное сохранение само отправит его правку в облако.
+  if(_cloudDirty || _cloudSaveTimer) return;
+
   // версия открываемого графика — база для проверки конфликтов в cloudSave. Ставим её ДО ветвления:
   // у пустого (только что одобренного) графика строка в app_state уже есть и свой updated_at имеет,
   // а оставшийся от прежде открытого графика штамп сделал бы любое сохранение «конфликтом».
@@ -7995,6 +8019,14 @@ async function afterLogin(user){
   // токен приглашения в компанию захватываем ДО того, как acceptInviteFromURL()
   // очистит строку запроса (оба приглашения могут прийти в одном URL)
   const companyInviteToken = getCompanyInviteTokenFromURL();
+  // самый вероятный график — тот же, что был открыт в этом браузере в прошлый раз. Запускаем
+  // его загрузку СРАЗУ, не дожидаясь loadMyGraphs() (тот определяет точный список графиков и
+  // роль в каждом, но какой именно график открывать, мы обычно и так уже знаем из localStorage).
+  // Раньше это был лишний целиком последовательный круг до сервера — список графиков, и
+  // только потом, отдельным запросом, данные графика.
+  const guessedAppStateId = parseInt(localStorage.getItem('gantt_last_app_state_id')||'', 10) || null;
+  const speculativeGraphLoad = guessedAppStateId ? fetchAppState(guessedAppStateId) : null;
+
   // эти запросы ни один не зависит от результата другого — раньше шли строго по очереди
   // (5 round-trip'ов подряд), из-за чего вход ощутимо тормозил на медленной/дальней сети;
   // запускаем параллельно
@@ -8019,7 +8051,9 @@ async function afterLogin(user){
     const savedId = parseInt(localStorage.getItem('gantt_last_project_id')||'', 10);
     target = myGraphs.find(g=>g.projectId===savedId) || myGraphs[0];
   }
-  await openGraph(target);
+  // предзагрузку используем, только если угадали правильно (обычный случай); иначе openGraph
+  // сам запросит нужный график — так же, как делал это и раньше
+  await openGraph(target, target.appStateId===guessedAppStateId ? speculativeGraphLoad : null);
   startRealtimeSync();
   setInterval(cloudCheck, CLOUD_POLL_MS);
 }
